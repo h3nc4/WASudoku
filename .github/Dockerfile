@@ -19,7 +19,7 @@
 
 ########################################
 # Rust versions
-ARG RUST_VERSION="1.90.0"
+ARG RUST_VERSION="1.91.0"
 ARG RUST_DISTRO="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"
 ARG RUST_DISTRO_WASM="rust-std-${RUST_VERSION}-wasm32-unknown-unknown"
 ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
@@ -27,7 +27,7 @@ ARG CARGO_HOME="/opt/rust/.cargo"
 
 ########################################
 # Node.js versions
-ARG NODE_VERSION="22.20.0"
+ARG NODE_VERSION="24.11.0"
 ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ################################################################################
@@ -105,6 +105,9 @@ COPY --from=rust-wasm "/rootfs/" "/rootfs/"
 RUN mkdir -p "/rootfs/usr/local/bin"
 RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/rust/bin/* .
 
+# Remove unnecessary files
+RUN rm -rf /rootfs/opt/rust/share/*
+
 ################################################################################
 # stage to install cargo dependencies
 FROM debian-base AS cargo-deps-stage
@@ -146,19 +149,25 @@ RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/node/bin/* .
 # Debian main stage
 FROM debian-base AS main
 
-# Clean cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN rm -rf /var/cache/* /var/log/* /tmp/*
-
-################################################################################
-# Final squash-and-load image.
-FROM scratch AS final
-ARG CARGO_HOME
-ENV PATH="/usr/src/node_modules/.bin:${CARGO_HOME}/bin:${PATH}"
-
-COPY --from=main / /
+########################################
+# Copy features from other stages
 COPY --from=node-stage /rootfs/ /
 COPY --from=rust-stage /rootfs/ /
 COPY --from=cargo-deps-stage /rootfs/ /
 
-WORKDIR /usr/src/
+########################################
+# Upgrade npm to the latest version
+RUN npm install -g npm@latest
+
+########################################
+# Clean cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN rm -rf /root/.npm /var/cache/* /var/log/* /var/tmp/* /tmp/*
+
+################################################################################
+# Final squash image.
+FROM scratch AS final
+ARG CARGO_HOME
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+
+COPY --from=main / /
