@@ -22,7 +22,7 @@
     "TMUX": "${env:TMUX}"
   },
   "userEnvProbe": "interactiveShell",
-  "postCreateCommand": "./scripts/wasm-deps.sh -d",
+  "postCreateCommand": "./scripts/wasm-deps.sh -d && npm i && sudo mandb",
   "customizations": {
     "vscode": {
       "extensions": [
