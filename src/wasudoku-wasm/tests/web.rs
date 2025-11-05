@@ -19,7 +19,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use wasm_bindgen_test::*;
-use wasudoku_wasm::{generate_sudoku, solve_sudoku};
+use wasudoku_wasm::{generate_sudoku, solve_sudoku, validate_puzzle};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -122,5 +122,37 @@ fn test_generate_sudoku_invalid_difficulty() {
     assert_eq!(
         result.err().unwrap().as_string().unwrap(),
         "Invalid difficulty level."
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_validate_puzzle_valid() {
+    let puzzle_str =
+        "..42.6.98......73...8.34...34.6.2...9...73..26.2.49.71.7.....2.5.3.8.6.78........";
+    let result = validate_puzzle(puzzle_str).unwrap();
+    assert!(result, "Expected puzzle to be valid (unique solution)");
+}
+
+#[wasm_bindgen_test]
+fn test_validate_puzzle_multiple_solutions() {
+    // An almost empty board will have multiple solutions
+    let puzzle_str =
+        "8..............................................................................";
+    let result = validate_puzzle(puzzle_str).unwrap();
+    assert!(
+        !result,
+        "Expected puzzle to be invalid (multiple solutions)"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_validate_puzzle_no_solution() {
+    // Puzzle with an impossible configuration
+    let puzzle_str =
+        "88.........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
+    let result = validate_puzzle(puzzle_str);
+    assert!(
+        result.is_err(),
+        "Expected validation to fail due to initial conflict"
     );
 }

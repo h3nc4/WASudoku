@@ -125,3 +125,33 @@ pub fn generate_sudoku(difficulty_str: &str) -> Result<String, JsValue> {
         )),
     }
 }
+
+/// Validate a Sudoku puzzle to ensure it has exactly one unique solution.
+///
+/// ### Arguments
+///
+/// * `board_str` - An 81-character string representing the Sudoku board.
+///
+/// ### Returns
+///
+/// * A `bool` indicating if the puzzle has a unique solution.
+///
+/// ### Errors
+///
+/// * A `JsValue` error if the input string is invalid or if the
+///   validation logic panics.
+#[wasm_bindgen]
+pub fn validate_puzzle(board_str: &str) -> Result<bool, JsValue> {
+    let board: Board = board_str
+        .parse::<Board>()
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    let result = panic::catch_unwind(move || solver::count_solutions(&board));
+
+    match result {
+        Ok(count) => Ok(count == 1),
+        Err(_) => Err(JsValue::from_str(
+            "Validation crashed due to a critical error.",
+        )),
+    }
+}

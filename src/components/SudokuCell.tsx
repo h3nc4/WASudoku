@@ -28,7 +28,7 @@ interface SudokuCellProps {
   /** The index of the cell in the board array (0-80). */
   readonly index: number
   /** Whether the cell was part of the initial puzzle. */
-  readonly isInitial: boolean
+  readonly isGiven: boolean
   /** Whether the solver is currently running. */
   readonly isSolving: boolean
   /** Whether the board is in a solved state. */
@@ -81,20 +81,20 @@ const getInputTextStyles = ({
   cell,
   hasPencilMarks,
   isConflict,
-  isInitial,
+  isGiven,
   isSolved,
   isNumberHighlighted,
-}: Pick<
-  SudokuCellProps,
-  'cell' | 'isConflict' | 'isInitial' | 'isSolved' | 'isNumberHighlighted'
-> & { hasPencilMarks: boolean }) => {
-  const isSolverResult = isSolved && !isInitial
+}: Pick<SudokuCellProps, 'cell' | 'isConflict' | 'isGiven' | 'isSolved' | 'isNumberHighlighted'> & {
+  hasPencilMarks: boolean
+}) => {
+  const isSolverResult = isSolved && !isGiven
+  const isUserInput = cell.value !== null && !isGiven && !isSolved
   return cn({
     'text-transparent': hasPencilMarks && cell.value === null,
     'text-xl md:text-2xl': !(hasPencilMarks && cell.value === null),
-    'text-primary font-bold': isInitial,
-    'text-foreground': cell.value !== null && !isInitial,
-    'font-bold text-amber-600 dark:text-amber-400': isNumberHighlighted && !isInitial,
+    'text-primary font-bold': isGiven,
+    'font-bold text-amber-600 dark:text-amber-400': isNumberHighlighted && !isGiven,
+    'text-blue-600 dark:text-blue-400': isUserInput,
     'text-sky-600 dark:text-sky-400': isSolverResult,
     '!text-destructive': isConflict,
   })

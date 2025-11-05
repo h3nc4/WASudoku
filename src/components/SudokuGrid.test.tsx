@@ -52,6 +52,7 @@ vi.mock('./SudokuCell', () => ({
         ref={ref}
         aria-label={`cell-${props.index}`}
         onFocus={() => props.onFocus(props.index)}
+        tabIndex={-1}
       />
     )
   }),
@@ -72,13 +73,14 @@ describe('SudokuGrid component', () => {
   }
   const defaultState: SudokuState = {
     ...initialState,
+    solver: {
+      ...initialState.solver,
+      gameMode: 'playing', // Set to playing for interactive tests
+      visualizationBoard: initialState.board,
+    },
     ui: {
       ...initialState.ui,
       activeCellIndex: 0,
-    },
-    solver: {
-      ...initialState.solver,
-      visualizationBoard: initialState.board,
     },
   }
 
@@ -109,6 +111,21 @@ describe('SudokuGrid component', () => {
   })
 
   it('calls setActiveCell when a cell is focused in playing mode', () => {
+    render(<SudokuGrid />)
+    const cell10 = screen.getByLabelText('cell-10')
+    fireEvent.focus(cell10)
+    expect(mockActions.setActiveCell).toHaveBeenCalledWith(10)
+  })
+
+  it('allows a "given" cell to become active on focus', () => {
+    const boardWithGiven = defaultState.board.map((c, i) =>
+      i === 10 ? { ...c, isGiven: true } : c,
+    )
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      board: boardWithGiven,
+      ui: { ...defaultState.ui, activeCellIndex: null }, // Start with no cell active
+    })
     render(<SudokuGrid />)
     const cell10 = screen.getByLabelText('cell-10')
     fireEvent.focus(cell10)
@@ -190,18 +207,22 @@ describe('SudokuGrid component', () => {
     it('calls inputValue and setHighlightedValue on number key press', async () => {
       const user = userEvent.setup()
       render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      grid.focus()
       await user.keyboard('{5}')
       expect(mockActions.inputValue).toHaveBeenCalledWith(5)
       expect(mockActions.setHighlightedValue).toHaveBeenCalledWith(5)
     })
 
-    it('ignores keyboard input when in visualizing mode', async () => {
+    it('ignores keyboard input when in a read-only mode', async () => {
       mockUseSudokuState.mockReturnValue({
         ...defaultState,
         solver: { ...defaultState.solver, gameMode: 'visualizing' },
       })
       const user = userEvent.setup()
       render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      grid.focus()
       await user.keyboard('{5}')
       expect(mockActions.inputValue).not.toHaveBeenCalled()
     })
@@ -214,6 +235,8 @@ describe('SudokuGrid component', () => {
     ])('calls navigate for %s key', async (key, direction) => {
       const user = userEvent.setup()
       render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      grid.focus()
       await user.keyboard(key)
       expect(mockActions.navigate).toHaveBeenCalledWith(direction)
     })
@@ -221,6 +244,8 @@ describe('SudokuGrid component', () => {
     it('handles Backspace to call eraseActiveCell("backspace")', async () => {
       const user = userEvent.setup()
       render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      grid.focus()
       await user.keyboard('{Backspace}')
       expect(mockActions.eraseActiveCell).toHaveBeenCalledWith('backspace')
     })
@@ -228,6 +253,8 @@ describe('SudokuGrid component', () => {
     it('handles Delete to call eraseActiveCell("delete")', async () => {
       const user = userEvent.setup()
       render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      grid.focus()
       await user.keyboard('{Delete}')
       expect(mockActions.eraseActiveCell).toHaveBeenCalledWith('delete')
     })
@@ -235,6 +262,16 @@ describe('SudokuGrid component', () => {
 
   describe('Clipboard (Paste) Interactions', () => {
     const validBoardString = '.'.repeat(81)
+
+    beforeEach(() => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'customInput',
+        },
+      })
+    })
 
     it('dispatches importBoard action on valid paste', async () => {
       const readTextSpy = vi

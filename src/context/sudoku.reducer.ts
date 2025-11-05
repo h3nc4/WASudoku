@@ -27,6 +27,7 @@ import type {
   ImportBoardAction,
   GeneratePuzzleSuccessAction,
   GeneratePuzzleStartAction,
+  ValidatePuzzleFailureAction,
 } from './sudoku.actions.types'
 import type { BoardState, SudokuState, SavedGameState, HistoryState } from './sudoku.types'
 import {
@@ -34,6 +35,7 @@ import {
   validateBoard,
   calculateCandidates,
   boardStateFromString,
+  areBoardsEqual,
 } from '@/lib/utils'
 
 const BOARD_SIZE = 81
@@ -45,6 +47,7 @@ export const createEmptyBoard = (): BoardState =>
     .fill(null)
     .map(() => ({
       value: null,
+      isGiven: false,
       candidates: new Set<number>(),
       centers: new Set<number>(),
     }))
@@ -77,10 +80,11 @@ export const initialState: SudokuState = {
   solver: {
     isSolving: false,
     isGenerating: false,
+    isValidating: false,
     generationDifficulty: null,
     isSolved: false,
     solveFailed: false,
-    gameMode: 'playing',
+    gameMode: 'selecting',
     steps: [],
     currentStepIndex: null,
     visualizationBoard: null,
@@ -118,15 +122,22 @@ export function loadInitialState(): SudokuState {
         savedState.history.stack.length > 0
       ) {
         const currentBoard = savedState.history.stack[savedState.history.index]
+        const initialBoard: BoardState = currentBoard.map((cell) => ({
+          value: cell.isGiven ? cell.value : null,
+          isGiven: cell.isGiven,
+          candidates: new Set<number>(),
+          centers: new Set<number>(),
+        }))
+
         return {
           ...initialState,
           history: savedState.history,
           board: currentBoard,
-          initialBoard: currentBoard.map((cell) => ({
-            value: cell.value,
-            candidates: new Set<number>(),
-            centers: new Set<number>(),
-          })),
+          initialBoard: initialBoard,
+          solver: {
+            ...initialState.solver,
+            gameMode: 'playing', // Assume saved state is always in play
+          },
           derived: getDerivedBoardState(currentBoard),
         }
       }
@@ -152,23 +163,30 @@ function updateHistory(historyState: HistoryState, newBoard: BoardState): Histor
 }
 
 const handleSetCellValue = (state: SudokuState, action: SetCellValueAction): SudokuState => {
-  if (state.board[action.index].value === action.value) return state
+  const { index, value } = action
+  if (
+    state.board[index].value === value ||
+    (state.solver.gameMode === 'playing' && state.board[index].isGiven)
+  ) {
+    return state
+  }
 
   const newBoard = state.board.map((cell) => ({
-    value: cell.value,
+    ...cell,
     candidates: new Set(cell.candidates),
     centers: new Set(cell.centers),
   }))
 
-  newBoard[action.index] = {
-    value: action.value,
+  newBoard[index] = {
+    ...newBoard[index],
+    value: value,
     candidates: new Set<number>(),
     centers: new Set<number>(),
   }
 
-  getRelatedCellIndices(action.index).forEach((relatedIndex) => {
-    newBoard[relatedIndex].candidates.delete(action.value)
-    newBoard[relatedIndex].centers.delete(action.value)
+  getRelatedCellIndices(index).forEach((relatedIndex) => {
+    newBoard[relatedIndex].candidates.delete(value)
+    newBoard[relatedIndex].centers.delete(value)
   })
 
   return {
@@ -183,10 +201,15 @@ const handleTogglePencilMark = (
   state: SudokuState,
   action: TogglePencilMarkAction,
 ): SudokuState => {
-  if (state.board[action.index].value !== null) return state
+  if (
+    state.board[action.index].value !== null ||
+    (state.solver.gameMode === 'playing' && state.board[action.index].isGiven)
+  ) {
+    return state
+  }
 
   const newBoard = state.board.map((c) => ({
-    value: c.value,
+    ...c,
     candidates: new Set(c.candidates),
     centers: new Set(c.centers),
   }))
@@ -216,16 +239,20 @@ const handleTogglePencilMark = (
 }
 
 const handleEraseCell = (state: SudokuState, action: EraseCellAction): SudokuState => {
-  const cell = state.board[action.index]
-  if (cell.value === null && cell.candidates.size === 0 && cell.centers.size === 0) {
+  const { index } = action
+  const cell = state.board[index]
+  if (
+    (cell.value === null && cell.candidates.size === 0 && cell.centers.size === 0) ||
+    (state.solver.gameMode === 'playing' && cell.isGiven)
+  ) {
     return state
   }
 
   const newBoard = state.board.map((cell, i) =>
-    i === action.index
-      ? { value: null, candidates: new Set<number>(), centers: new Set<number>() }
+    i === index
+      ? { ...cell, value: null, candidates: new Set<number>(), centers: new Set<number>() }
       : {
-          value: cell.value,
+          ...cell,
           candidates: new Set(cell.candidates),
           centers: new Set(cell.centers),
         },
@@ -240,25 +267,61 @@ const handleEraseCell = (state: SudokuState, action: EraseCellAction): SudokuSta
 }
 
 const handleClearBoard = (state: SudokuState): SudokuState => {
-  if (state.derived.isBoardEmpty) return state
-
-  const newBoard = createEmptyBoard()
-  return {
-    ...initialState,
-    board: newBoard,
-    history: updateHistory(state.history, newBoard),
+  if (state.solver.gameMode === 'playing') {
+    // Revert to initial puzzle, clearing user progress.
+    if (areBoardsEqual(state.board, state.initialBoard)) {
+      return state
+    }
+    const newBoard = state.initialBoard
+    return {
+      ...state,
+      board: newBoard,
+      history: {
+        stack: [newBoard],
+        index: 0,
+      },
+      solver: { ...state.solver, isSolved: false, solveFailed: false },
+      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+    }
   }
+
+  if (state.solver.gameMode === 'customInput') {
+    // Reset to a completely empty board to start custom input over.
+    if (state.derived.isBoardEmpty) {
+      return state
+    }
+    const newBoard = createEmptyBoard()
+    return {
+      ...state,
+      board: newBoard,
+      history: {
+        stack: [newBoard],
+        index: 0,
+      },
+      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+    }
+  }
+
+  // The button should be disabled in other modes, but if this action is
+  // dispatched somehow, this is a safe fallback.
+  return state
 }
 
-const handleImportBoard = (_state: SudokuState, action: ImportBoardAction): SudokuState => {
+const handleImportBoard = (state: SudokuState, action: ImportBoardAction): SudokuState => {
   const newBoard = boardStateFromString(action.boardString)
+  const gameMode = state.solver.gameMode === 'customInput' ? 'customInput' : 'playing'
+
   return {
     ...initialState,
     board: newBoard,
-    initialBoard: newBoard,
+    initialBoard: gameMode === 'playing' ? newBoard : initialState.initialBoard,
     history: {
       stack: [newBoard],
       index: 0,
+    },
+    solver: {
+      ...initialState.solver,
+      gameMode,
     },
   }
 }
@@ -267,7 +330,7 @@ const handleGeneratePuzzleStart = (
   state: SudokuState,
   action: GeneratePuzzleStartAction,
 ): SudokuState => ({
-  ...state,
+  ...initialState,
   solver: {
     ...state.solver,
     isGenerating: true,
@@ -291,6 +354,7 @@ const handleGeneratePuzzleSuccess = (
     solver: {
       ...initialState.solver,
       isGenerating: false,
+      gameMode: 'playing',
     },
   }
 }
@@ -328,8 +392,9 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
       solver: { ...state.solver, isSolving: false, solveFailed: true },
     }
   }
-  const solvedBoard: BoardState = solution.split('').map((char) => ({
+  const solvedBoard: BoardState = solution.split('').map((char, index) => ({
     value: char === '.' ? null : parseInt(char, 10),
+    isGiven: state.initialBoard[index].isGiven,
     candidates: new Set<number>(),
     centers: new Set<number>(),
   }))
@@ -424,7 +489,7 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
 const handleExitVisualization = (state: SudokuState): SudokuState => ({
   ...state,
   board: state.initialBoard,
-  solver: { ...initialState.solver },
+  solver: { ...initialState.solver, gameMode: 'playing' },
 })
 
 const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): SudokuState => ({
@@ -434,6 +499,43 @@ const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): S
     activeCellIndex: action.index,
     highlightedValue: action.index !== null ? state.board[action.index].value : null,
     lastError: null,
+  },
+})
+
+const handleValidatePuzzleSuccess = (state: SudokuState): SudokuState => {
+  const newInitialBoard = state.board.map((cell) => ({
+    ...cell,
+    isGiven: cell.value !== null,
+  }))
+
+  return {
+    ...state,
+    initialBoard: newInitialBoard,
+    board: newInitialBoard,
+    history: {
+      stack: [newInitialBoard],
+      index: 0,
+    },
+    solver: {
+      ...state.solver,
+      isValidating: false,
+      gameMode: 'playing',
+    },
+  }
+}
+
+const handleValidatePuzzleFailure = (
+  state: SudokuState,
+  action: ValidatePuzzleFailureAction,
+): SudokuState => ({
+  ...state,
+  solver: {
+    ...state.solver,
+    isValidating: false,
+  },
+  ui: {
+    ...state.ui,
+    lastError: action.error,
   },
 })
 
@@ -465,7 +567,6 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
     case 'SOLVE_START':
       newState = {
         ...state,
-        initialBoard: state.board,
         solver: { ...state.solver, isSolving: true },
       }
       break
@@ -489,6 +590,21 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
         ...state,
         solver: { ...state.solver, isGenerating: false },
         ui: { ...state.ui, lastError: 'Failed to generate a new puzzle.' },
+      }
+      break
+    case 'VALIDATE_PUZZLE_START':
+      newState = { ...state, solver: { ...state.solver, isValidating: true } }
+      break
+    case 'VALIDATE_PUZZLE_SUCCESS':
+      newState = handleValidatePuzzleSuccess(state)
+      break
+    case 'VALIDATE_PUZZLE_FAILURE':
+      newState = handleValidatePuzzleFailure(state, action)
+      break
+    case 'START_CUSTOM_PUZZLE':
+      newState = {
+        ...initialState,
+        solver: { ...initialState.solver, gameMode: 'customInput' },
       }
       break
     case 'VIEW_SOLVER_STEP':

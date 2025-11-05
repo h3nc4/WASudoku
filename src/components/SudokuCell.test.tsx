@@ -24,8 +24,14 @@ import SudokuCell from './SudokuCell'
 describe('SudokuCell component', () => {
   const mockOnFocus = vi.fn()
   const defaultProps = {
-    cell: { value: null, candidates: new Set<number>(), centers: new Set<number>() },
+    cell: {
+      value: null,
+      isGiven: false,
+      candidates: new Set<number>(),
+      centers: new Set<number>(),
+    },
     index: 10,
+    isGiven: false,
     isInitial: false,
     isSolving: false,
     isSolved: false,
@@ -86,9 +92,14 @@ describe('SudokuCell component', () => {
       expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true')
     })
 
-    it('applies correct classes for initial numbers', () => {
-      render(<SudokuCell {...defaultProps} isInitial cell={{ ...defaultProps.cell, value: 7 }} />)
+    it('applies correct classes for given numbers', () => {
+      render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
       expect(screen.getByRole('textbox')).toHaveClass('text-primary font-bold')
+    })
+
+    it('applies correct classes for user-inputted numbers', () => {
+      render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
+      expect(screen.getByRole('textbox')).toHaveClass('text-blue-600 dark:text-blue-400')
     })
 
     it('applies correct classes for solver-added numbers', () => {
@@ -96,7 +107,7 @@ describe('SudokuCell component', () => {
         <SudokuCell
           {...defaultProps}
           isSolved
-          isInitial={false}
+          isGiven={false}
           cell={{ ...defaultProps.cell, value: 7 }}
         />,
       )

@@ -36,6 +36,10 @@ import type {
   GeneratePuzzleStartAction,
   GeneratePuzzleSuccessAction,
   GeneratePuzzleFailureAction,
+  ValidatePuzzleStartAction,
+  ValidatePuzzleSuccessAction,
+  ValidatePuzzleFailureAction,
+  StartCustomPuzzleAction,
 } from './sudoku.actions.types'
 import type { InputMode, SolveResult } from './sudoku.types'
 
@@ -116,6 +120,27 @@ export const generatePuzzleSuccess = (puzzleString: string): GeneratePuzzleSucce
 /** Creates an action for when the puzzle generator fails. */
 export const generatePuzzleFailure = (): GeneratePuzzleFailureAction => ({
   type: 'GENERATE_PUZZLE_FAILURE',
+})
+
+/** Creates an action to signal the start of custom puzzle validation. */
+export const validatePuzzleStart = (): ValidatePuzzleStartAction => ({
+  type: 'VALIDATE_PUZZLE_START',
+})
+
+/** Creates an action for when a custom puzzle is successfully validated. */
+export const validatePuzzleSuccess = (): ValidatePuzzleSuccessAction => ({
+  type: 'VALIDATE_PUZZLE_SUCCESS',
+})
+
+/** Creates an action for when a custom puzzle fails validation. */
+export const validatePuzzleFailure = (error: string): ValidatePuzzleFailureAction => ({
+  type: 'VALIDATE_PUZZLE_FAILURE',
+  error,
+})
+
+/** Creates an action to enter the custom puzzle creation mode. */
+export const startCustomPuzzle = (): StartCustomPuzzleAction => ({
+  type: 'START_CUSTOM_PUZZLE',
 })
 
 /** Creates an action to set the active cell. */

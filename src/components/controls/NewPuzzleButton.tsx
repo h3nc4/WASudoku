@@ -17,12 +17,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { Wand2, Loader2 } from 'lucide-react'
+import { Wand2, Loader2, Edit3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useSudokuState } from '@/context/sudoku.hooks'
@@ -36,12 +37,12 @@ const DIFFICULTY_LEVELS = ['Easy', 'Medium', 'Hard', 'Extreme']
  */
 export function NewPuzzleButton() {
   const { solver } = useSudokuState()
-  const { generatePuzzle } = useSudokuActions()
+  const { generatePuzzle, startCustomPuzzle } = useSudokuActions()
 
   const [isShowingGeneratingState, setIsShowingGeneratingState] = useState(false)
   const generationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const isButtonDisabled = solver.isGenerating || solver.isSolving
+  const isButtonDisabled = solver.isGenerating || solver.isSolving || solver.isValidating
 
   const handleSelectDifficulty = (difficulty: string) => {
     generatePuzzle(difficulty.toLowerCase())
@@ -95,6 +96,15 @@ export function NewPuzzleButton() {
             {level}
           </DropdownMenuItem>
         ))}
+        {solver.gameMode !== 'selecting' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={startCustomPuzzle}>
+              <Edit3 className="mr-2 size-4" />
+              Custom
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

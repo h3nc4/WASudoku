@@ -25,6 +25,8 @@ import {
   solveFailure,
   generatePuzzleSuccess,
   generatePuzzleFailure,
+  validatePuzzleSuccess,
+  validatePuzzleFailure,
 } from '@/context/sudoku.actions'
 import SolverWorker from '@/workers/sudoku.worker?worker'
 
@@ -40,7 +42,7 @@ const WORKER_UNAVAILABLE_ERROR = 'Solver functionality is unavailable.'
  */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
   const workerRef = useRef<Worker | null>(null)
-  const { isSolving, isGenerating, generationDifficulty } = state.solver
+  const { isSolving, isGenerating, isValidating, generationDifficulty } = state.solver
   const { board } = state
 
   // Effect for managing the worker's lifecycle.
@@ -64,15 +66,32 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
     const worker = workerRef.current
     if (!worker) return
 
+    const handleError = (error: string) => {
+      console.error('Solver worker error:', error)
+      switch (true) {
+        case isSolving:
+          dispatch(solveFailure())
+          break
+        case isGenerating:
+          dispatch(generatePuzzleFailure())
+          break
+        case isValidating:
+          dispatch(validatePuzzleFailure(error))
+          break
+      }
+      toast.error(`Operation failed: ${error}`)
+    }
+
     const handleWorkerMessage = (
       event: MessageEvent<{
-        type: 'solution' | 'puzzle_generated' | 'error'
+        type: 'solution' | 'puzzle_generated' | 'validation_result' | 'error'
         result?: SolveResult
         puzzleString?: string
+        isValid?: boolean
         error?: string
       }>,
     ) => {
-      const { type, result, puzzleString, error } = event.data
+      const { type, result, puzzleString, isValid, error } = event.data
 
       if (type === 'solution' && result) {
         dispatch(solveSuccess(result))
@@ -80,11 +99,15 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       } else if (type === 'puzzle_generated' && puzzleString) {
         dispatch(generatePuzzleSuccess(puzzleString))
         toast.success('New puzzle generated!')
+      } else if (type === 'validation_result') {
+        if (isValid) {
+          dispatch(validatePuzzleSuccess())
+          toast.success('Puzzle is valid and has a unique solution.')
+        } else {
+          dispatch(validatePuzzleFailure('Puzzle is invalid or does not have a unique solution.'))
+        }
       } else if (type === 'error' && error) {
-        console.error('Solver worker error:', error)
-        if (isSolving) dispatch(solveFailure())
-        if (isGenerating) dispatch(generatePuzzleFailure())
-        toast.error(`Operation failed: ${error}`)
+        handleError(error)
       }
     }
 
@@ -92,33 +115,34 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
     return () => {
       worker.removeEventListener('message', handleWorkerMessage)
     }
-  }, [dispatch, isSolving, isGenerating])
+  }, [dispatch, isSolving, isGenerating, isValidating])
 
-  // Effect to trigger the solver.
+  // Effect to trigger the solver, generator, or validator.
   useEffect(() => {
+    if (!isSolving && !isGenerating && !isValidating) {
+      return
+    }
+
+    if (!workerRef.current) {
+      toast.error(WORKER_UNAVAILABLE_ERROR)
+      if (isSolving) dispatch(solveFailure())
+      if (isGenerating) dispatch(generatePuzzleFailure())
+      if (isValidating)
+        dispatch(validatePuzzleFailure('Validation service is currently unavailable.'))
+      return
+    }
+
     if (isSolving) {
-      if (!workerRef.current) {
-        toast.error(WORKER_UNAVAILABLE_ERROR)
-        dispatch(solveFailure())
-        return
-      }
       const boardString = board.map((cell) => cell.value ?? '.').join('')
       workerRef.current.postMessage({ type: 'solve', boardString })
-    }
-  }, [isSolving, board, dispatch])
-
-  // Effect to trigger the puzzle generator.
-  useEffect(() => {
-    if (isGenerating && generationDifficulty) {
-      if (!workerRef.current) {
-        toast.error(WORKER_UNAVAILABLE_ERROR)
-        dispatch(generatePuzzleFailure())
-        return
-      }
+    } else if (isGenerating && generationDifficulty) {
       workerRef.current.postMessage({
         type: 'generate',
         difficulty: generationDifficulty,
       })
+    } else if (isValidating) {
+      const boardString = board.map((cell) => cell.value ?? '.').join('')
+      workerRef.current.postMessage({ type: 'validate', boardString })
     }
-  }, [isGenerating, generationDifficulty, dispatch])
+  }, [isSolving, isGenerating, isValidating, generationDifficulty, board, dispatch])
 }

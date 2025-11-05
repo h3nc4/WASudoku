@@ -17,7 +17,7 @@
  */
 
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { BrainCircuit, X } from 'lucide-react'
+import { BrainCircuit, X, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
@@ -28,13 +28,14 @@ import { useSudokuActions } from '@/hooks/useSudokuActions'
  */
 export function SolveButton() {
   const { solver, derived } = useSudokuState()
-  const { solve, exitVisualization } = useSudokuActions()
+  const { solve, exitVisualization, validatePuzzle } = useSudokuActions()
 
   const [isShowingSolvingState, setIsShowingSolvingState] = useState(false)
   const solveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isSolveDisabled =
     solver.isSolving ||
+    solver.isValidating ||
     derived.isBoardEmpty ||
     derived.isBoardFull ||
     derived.conflicts.size > 0 ||
@@ -71,6 +72,29 @@ export function SolveButton() {
       <Button onClick={exitVisualization} className="flex-1" variant="destructive">
         <X className="mr-2 size-4" />
         Exit Visualization
+      </Button>
+    )
+  }
+
+  if (solver.gameMode === 'customInput') {
+    return (
+      <Button
+        onClick={validatePuzzle}
+        className="flex-1"
+        disabled={derived.isBoardEmpty || solver.isValidating}
+        title={derived.isBoardEmpty ? 'Board is empty.' : 'Start puzzle'}
+      >
+        {solver.isValidating ? (
+          <>
+            <BrainCircuit className="mr-2 size-4 animate-pulse" />
+            Validating...
+          </>
+        ) : (
+          <>
+            <Play className="mr-2 size-4" />
+            Start Puzzle
+          </>
+        )}
       </Button>
     )
   }

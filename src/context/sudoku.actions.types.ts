@@ -93,6 +93,27 @@ export interface GeneratePuzzleFailureAction {
   type: 'GENERATE_PUZZLE_FAILURE'
 }
 
+/** Action to begin validating a custom puzzle. */
+export interface ValidatePuzzleStartAction {
+  type: 'VALIDATE_PUZZLE_START'
+}
+
+/** Action for when validation succeeds. */
+export interface ValidatePuzzleSuccessAction {
+  type: 'VALIDATE_PUZZLE_SUCCESS'
+}
+
+/** Action for when validation fails. */
+export interface ValidatePuzzleFailureAction {
+  type: 'VALIDATE_PUZZLE_FAILURE'
+  error: string
+}
+
+/** Action to switch to the custom puzzle input mode. */
+export interface StartCustomPuzzleAction {
+  type: 'START_CUSTOM_PUZZLE'
+}
+
 /** Action to set the currently focused/active cell. */
 export interface SetActiveCellAction {
   type: 'SET_ACTIVE_CELL'
@@ -142,6 +163,10 @@ export type SudokuAction =
   | GeneratePuzzleStartAction
   | GeneratePuzzleSuccessAction
   | GeneratePuzzleFailureAction
+  | ValidatePuzzleStartAction
+  | ValidatePuzzleSuccessAction
+  | ValidatePuzzleFailureAction
+  | StartCustomPuzzleAction
   | SetActiveCellAction
   | SetInputModeAction
   | ClearErrorAction

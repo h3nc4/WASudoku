@@ -65,6 +65,9 @@ vi.mock('./components/mode-toggle', () => ({
 vi.mock('./components/SolverStepsPanel', () => ({
   SolverStepsPanel: vi.fn(() => <div data-testid="solver-steps-panel" />),
 }))
+vi.mock('./components/SelectionScreen', () => ({
+  SelectionScreen: vi.fn(() => <div data-testid="selection-screen" />),
+}))
 
 const mockUseSudokuState = useSudokuState as Mock
 const mockUseSudokuActions = useSudokuActions as Mock
@@ -74,6 +77,10 @@ describe('App component', () => {
   const mockExportBoard = vi.fn()
   const defaultState: SudokuState = {
     ...initialState,
+    solver: {
+      ...initialState.solver,
+      gameMode: 'playing',
+    },
     ui: {
       ...initialState.ui,
       activeCellIndex: 5,
@@ -139,19 +146,28 @@ describe('App component', () => {
 
   it('disables erase button when no cell is active', () => {
     mockUseSudokuState.mockReturnValue({
-      ...initialState,
+      ...defaultState,
       ui: { ...initialState.ui, activeCellIndex: null },
     })
     render(<App />)
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
-  it('disables erase button when in visualizing mode', () => {
+  it('disables controls when not in an interactive mode', () => {
     mockUseSudokuState.mockReturnValue({
       ...defaultState,
       solver: { ...defaultState.solver, gameMode: 'visualizing' },
     })
     render(<App />)
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
+  })
+
+  it('renders SelectionScreen and blurs main content when in selecting mode', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...initialState, // gameMode is 'selecting' by default
+    })
+    render(<App />)
+    expect(screen.getByTestId('selection-screen')).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveClass('blur-sm pointer-events-none')
   })
 })

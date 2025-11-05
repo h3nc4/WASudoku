@@ -22,26 +22,36 @@ import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, areBoardsEqual } from '@/lib/utils'
 
 interface ClearButtonProps {
   readonly className?: string
 }
 
 /**
- * A button to clear the entire Sudoku board.
- * It derives its enabled/disabled state from the global context.
+ * A button to clear the board. In 'playing' mode, it clears user progress.
+ * In 'customInput' mode, it clears all numbers. It is disabled in other modes.
  */
 export function ClearButton({ className }: ClearButtonProps) {
-  const { solver, derived } = useSudokuState()
+  const { solver, derived, board, initialBoard } = useSudokuState()
   const { clearBoard } = useSudokuActions()
 
-  const isClearDisabled = solver.isSolving || derived.isBoardEmpty
+  const isPristineInPlay = solver.gameMode === 'playing' && areBoardsEqual(board, initialBoard)
+  const isEmptyInCustom = solver.gameMode === 'customInput' && derived.isBoardEmpty
+
+  const isClearDisabled =
+    solver.isSolving ||
+    solver.isValidating ||
+    !['playing', 'customInput'].includes(solver.gameMode) ||
+    isPristineInPlay ||
+    isEmptyInCustom
 
   const clearButtonTitle = useMemo(() => {
-    if (derived.isBoardEmpty) return 'Board is already empty.'
-    return 'Clear the board'
-  }, [derived.isBoardEmpty])
+    if (isPristineInPlay) return 'No progress to clear.'
+    if (isEmptyInCustom) return 'Board is already empty.'
+    if (solver.gameMode === 'playing') return 'Clear your progress and reset the puzzle.'
+    return 'Clear all numbers from the board.'
+  }, [isPristineInPlay, isEmptyInCustom, solver.gameMode])
 
   const handleClear = () => {
     clearBoard()

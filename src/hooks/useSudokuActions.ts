@@ -46,6 +46,11 @@ export function useSudokuActions() {
       inputValue: (value: number) => {
         if (state.ui.activeCellIndex === null) return
 
+        // Prevent modification of "given" cells in playing mode.
+        if (state.solver.gameMode === 'playing' && state.board[state.ui.activeCellIndex].isGiven) {
+          return
+        }
+
         if (state.ui.inputMode === 'normal') {
           dispatch(actions.setCellValue(state.ui.activeCellIndex, value))
           if (
@@ -78,6 +83,15 @@ export function useSudokuActions() {
       /** Erases the active cell's content. */
       eraseActiveCell: (mode: 'delete' | 'backspace') => {
         if (state.ui.activeCellIndex === null) return
+
+        // Prevent erasing "given" cells, but still allow backspace to navigate away.
+        if (state.solver.gameMode === 'playing' && state.board[state.ui.activeCellIndex].isGiven) {
+          if (mode === 'backspace' && state.ui.activeCellIndex > 0) {
+            dispatch(actions.setActiveCell(state.ui.activeCellIndex - 1))
+          }
+          return
+        }
+
         dispatch(actions.eraseCell(state.ui.activeCellIndex))
 
         if (mode === 'backspace' && state.ui.activeCellIndex > 0) {
@@ -113,6 +127,10 @@ export function useSudokuActions() {
       generatePuzzle: (difficulty: string) => {
         dispatch(actions.generatePuzzleStart(difficulty))
       },
+      /** Starts the custom puzzle validation process. */
+      validatePuzzle: () => dispatch(actions.validatePuzzleStart()),
+      /** Enters the custom puzzle creation mode. */
+      startCustomPuzzle: () => dispatch(actions.startCustomPuzzle()),
       /** Exits the solver visualization mode. */
       exitVisualization: () => dispatch(actions.exitVisualization()),
       /** Changes the input mode. */

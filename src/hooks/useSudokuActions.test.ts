@@ -49,6 +49,10 @@ describe('useSudokuActions', () => {
   const mockDispatch = vi.fn()
   const defaultState: SudokuState = {
     ...initialState,
+    solver: {
+      ...initialState.solver,
+      gameMode: 'playing',
+    },
     ui: {
       ...initialState.ui,
       activeCellIndex: 0,
@@ -127,6 +131,21 @@ describe('useSudokuActions', () => {
 
       expect(mockDispatch).not.toHaveBeenCalled()
     })
+
+    it('does not dispatch a modification if the active cell is "given"', () => {
+      const boardWithGiven = defaultState.board.map((c, i) =>
+        i === 0 ? { ...c, isGiven: true } : c,
+      )
+      mockUseSudokuState.mockReturnValue({ ...defaultState, board: boardWithGiven })
+
+      const actions = getActions()
+      act(() => actions.inputValue(9)) // Try to change value of cell 0
+
+      expect(mockDispatch).not.toHaveBeenCalledWith(actionCreators.setCellValue(0, 9))
+      expect(mockDispatch).not.toHaveBeenCalledWith(
+        actionCreators.togglePencilMark(0, 9, 'candidate'),
+      )
+    })
   })
 
   describe('navigate', () => {
@@ -202,6 +221,35 @@ describe('useSudokuActions', () => {
       const actions = getActions()
       act(() => actions.eraseActiveCell('delete'))
       expect(mockDispatch).not.toHaveBeenCalled()
+    })
+
+    it('does not dispatch eraseCell on a "given" cell', () => {
+      const boardWithGiven = defaultState.board.map((c, i) =>
+        i === 0 ? { ...c, isGiven: true } : c,
+      )
+      mockUseSudokuState.mockReturnValue({ ...defaultState, board: boardWithGiven })
+
+      const actions = getActions()
+      act(() => actions.eraseActiveCell('delete'))
+
+      expect(mockDispatch).not.toHaveBeenCalledWith(actionCreators.eraseCell(0))
+    })
+
+    it('navigates left on backspace from a "given" cell without erasing', () => {
+      const boardWithGiven = defaultState.board.map((c, i) =>
+        i === 1 ? { ...c, isGiven: true } : c,
+      )
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithGiven,
+        ui: { ...defaultState.ui, activeCellIndex: 1 },
+      })
+
+      const actions = getActions()
+      act(() => actions.eraseActiveCell('backspace'))
+
+      expect(mockDispatch).not.toHaveBeenCalledWith(actionCreators.eraseCell(1))
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.setActiveCell(0))
     })
   })
 
@@ -285,6 +333,18 @@ describe('useSudokuActions', () => {
       const actions = getActions()
       act(() => actions.generatePuzzle('easy'))
       expect(mockDispatch).toHaveBeenCalledWith(actionCreators.generatePuzzleStart('easy'))
+    })
+
+    it('validatePuzzle dispatches VALIDATE_PUZZLE_START', () => {
+      const actions = getActions()
+      act(() => actions.validatePuzzle())
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.validatePuzzleStart())
+    })
+
+    it('startCustomPuzzle dispatches START_CUSTOM_PUZZLE', () => {
+      const actions = getActions()
+      act(() => actions.startCustomPuzzle())
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.startCustomPuzzle())
     })
 
     it('exitVisualization dispatches EXIT_VISUALIZATION', () => {

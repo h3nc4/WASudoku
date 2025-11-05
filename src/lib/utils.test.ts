@@ -33,6 +33,7 @@ import {
 // Helper to create an empty board with the new structure
 const createEmptyCell = (): CellState => ({
   value: null,
+  isGiven: false,
   candidates: new Set(),
   centers: new Set(),
 })
@@ -146,6 +147,14 @@ describe('Sudoku Utilities', () => {
       expect(areBoardsEqual(board1, board2)).toBe(false)
     })
 
+    it('should return false for boards with different isGiven flags', () => {
+      const board1 = createEmptyBoard()
+      const board2 = createEmptyBoard().map((cell, i) =>
+        i === 0 ? { ...cell, isGiven: true } : cell,
+      )
+      expect(areBoardsEqual(board1, board2)).toBe(false)
+    })
+
     it('should return false for boards with different candidates', () => {
       const board1 = createEmptyBoard()
       const board2 = createEmptyBoard().map((cell, i) =>
@@ -231,8 +240,11 @@ describe('Sudoku Utilities', () => {
       const board = boardStateFromString(boardString)
       expect(board.length).toBe(81)
       expect(board[0].value).toBe(5)
+      expect(board[0].isGiven).toBe(true)
       expect(board[1].value).toBe(null)
+      expect(board[1].isGiven).toBe(false)
       expect(board[2].value).toBe(9)
+      expect(board[2].isGiven).toBe(true)
       expect(board[0].candidates.size).toBe(0)
       expect(board[0].centers.size).toBe(0)
     })

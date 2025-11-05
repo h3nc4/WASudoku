@@ -30,12 +30,16 @@ import type { CellState } from '@/context/sudoku.types'
  * It orchestrates focus management and dispatches actions for cell changes.
  */
 export function SudokuGrid() {
-  const { board, initialBoard, ui, solver, derived } = useSudokuState()
+  const { board, ui, solver, derived } = useSudokuState()
   const dispatch = useSudokuDispatch()
   const actions = useSudokuActions()
 
   const displayBoard = solver.gameMode === 'visualizing' ? solver.visualizationBoard : board
-  const isReadOnly = solver.gameMode === 'visualizing' || solver.isSolving
+  const isReadOnly =
+    solver.gameMode === 'visualizing' ||
+    solver.isSolving ||
+    solver.isValidating ||
+    solver.gameMode === 'selecting'
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -73,15 +77,15 @@ export function SudokuGrid() {
 
   const handleCellFocus = useCallback(
     (index: number) => {
-      if (!isReadOnly) {
-        actions.setActiveCell(index)
-      }
+      if (isReadOnly) return
+      actions.setActiveCell(index)
     },
     [actions, isReadOnly],
   )
 
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent) => {
+      if (solver.gameMode !== 'customInput') return
       event.preventDefault()
       try {
         const text = await navigator.clipboard.readText()
@@ -96,7 +100,7 @@ export function SudokuGrid() {
         toast.error('Could not read from clipboard.')
       }
     },
-    [dispatch],
+    [dispatch, solver.gameMode],
   )
 
   // Centralized keyboard handler for the entire grid.
@@ -152,19 +156,19 @@ export function SudokuGrid() {
   return (
     <div
       role="grid"
-      tabIndex={0}
+      tabIndex={-1}
       onKeyDown={handleKeyDown}
       onBlur={handleGridBlur}
       onPaste={handlePaste}
-      className="border-primary grid aspect-square grid-cols-9 overflow-hidden rounded-lg border-2 shadow-lg"
+      className="border-primary grid aspect-square grid-cols-9 overflow-hidden rounded-lg border-2 shadow-lg outline-none"
     >
       {displayBoard.map((currentCell, index) => {
-        const isInitial = initialBoard[index]?.value != null
         const isVisualizing = solver.gameMode === 'visualizing'
 
         const displayCell: CellState = isVisualizing
           ? {
               value: currentCell.value,
+              isGiven: currentCell.isGiven,
               candidates: solver.candidatesForViz?.[index] ?? new Set(),
               centers: new Set(),
             }
@@ -184,7 +188,7 @@ export function SudokuGrid() {
             key={`cell-r${row}-c${col}`}
             index={index}
             cell={displayCell}
-            isInitial={isInitial}
+            isGiven={displayCell.isGiven}
             isSolving={solver.isSolving}
             isSolved={solver.isSolved}
             isConflict={derived.conflicts.has(index)}

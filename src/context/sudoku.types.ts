@@ -22,13 +22,14 @@
  */
 export interface CellState {
   readonly value: number | null
+  readonly isGiven: boolean
   readonly candidates: ReadonlySet<number>
   readonly centers: ReadonlySet<number>
 }
 
 export type BoardState = readonly CellState[]
 export type InputMode = 'normal' | 'candidate' | 'center'
-export type GameMode = 'playing' | 'visualizing'
+export type GameMode = 'selecting' | 'customInput' | 'playing' | 'visualizing'
 
 export interface Placement {
   index: number
@@ -72,6 +73,7 @@ export interface UiState {
 export interface SolverState {
   readonly isSolving: boolean
   readonly isGenerating: boolean
+  readonly isValidating: boolean
   readonly generationDifficulty: string | null
   readonly isSolved: boolean
   readonly solveFailed: boolean

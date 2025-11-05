@@ -17,7 +17,7 @@
  */
 
 /* v8 ignore next */
-import init, { solve_sudoku, generate_sudoku } from 'wasudoku-wasm'
+import init, { solve_sudoku, generate_sudoku, validate_puzzle } from 'wasudoku-wasm'
 
 // Initialize the WASM module on worker startup.
 const wasmReady = init()
@@ -25,6 +25,7 @@ const wasmReady = init()
 type WorkerMessage =
   | { type: 'solve'; boardString: string }
   | { type: 'generate'; difficulty: string }
+  | { type: 'validate'; boardString: string }
 
 /**
  * Handles incoming messages, runs the solver, and posts the result back.
@@ -51,6 +52,9 @@ export async function handleMessage(event: MessageEvent<WorkerMessage>) {
     } else if (type === 'generate') {
       const puzzleString = generate_sudoku(event.data.difficulty)
       self.postMessage({ type: 'puzzle_generated', puzzleString })
+    } else if (type === 'validate') {
+      const isValid = validate_puzzle(event.data.boardString)
+      self.postMessage({ type: 'validation_result', isValid })
     }
   } catch (error) {
     // Capture any solver error and post it back for graceful handling in the UI.

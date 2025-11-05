@@ -203,6 +203,7 @@ export function areBoardsEqual(boardA: BoardState, boardB: BoardState): boolean 
 
     if (
       cellA.value !== cellB.value ||
+      cellA.isGiven !== cellB.isGiven ||
       !areSetsEqual(cellA.candidates, cellB.candidates) ||
       !areSetsEqual(cellA.centers, cellB.centers)
     ) {
@@ -257,6 +258,7 @@ export function boardStateFromString(boardString: string): BoardState {
     const value = char === '.' || char === '0' ? null : parseInt(char, 10)
     return {
       value,
+      isGiven: value !== null,
       candidates: new Set<number>(),
       centers: new Set<number>(),
     }

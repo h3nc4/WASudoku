@@ -32,6 +32,8 @@ import { SolverStepsPanel } from './components/SolverStepsPanel'
 import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { useSudokuActions } from './hooks/useSudokuActions'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
+import { SelectionScreen } from './components/SelectionScreen'
+import { cn } from './lib/utils'
 
 function App() {
   const { ui, solver } = useSudokuState()
@@ -42,6 +44,10 @@ function App() {
   const handleErase = useCallback(() => {
     eraseActiveCell('delete')
   }, [eraseActiveCell])
+
+  const isGridInteractive = solver.gameMode === 'playing' || solver.gameMode === 'customInput'
+  const isControlDisabled = !isGridInteractive
+  const showSelectionScreen = solver.gameMode === 'selecting'
 
   return (
     <div className="bg-background text-foreground flex min-h-screen flex-col">
@@ -65,7 +71,12 @@ function App() {
         </div>
       </header>
 
-      <main className="container mx-auto flex flex-1 flex-col items-center justify-center p-4">
+      <main
+        className={cn(
+          'container mx-auto flex flex-1 flex-col items-center justify-center p-4 transition-all',
+          showSelectionScreen && 'pointer-events-none blur-sm',
+        )}
+      >
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
           {/* Main content: Grid + Controls */}
           <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
@@ -77,7 +88,7 @@ function App() {
                   variant="outline"
                   size="icon"
                   onClick={handleErase}
-                  disabled={ui.activeCellIndex === null || solver.gameMode === 'visualizing'}
+                  disabled={ui.activeCellIndex === null || isControlDisabled}
                   title="Erase selected cell"
                   onMouseDown={(e) => e.preventDefault()}
                 >
@@ -104,6 +115,8 @@ function App() {
           )}
         </div>
       </main>
+
+      {showSelectionScreen && <SelectionScreen />}
 
       <footer className="text-muted-foreground container mx-auto p-4 text-center text-sm">
         <a

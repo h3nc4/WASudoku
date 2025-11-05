@@ -27,6 +27,7 @@ import { initialState } from '@/context/sudoku.reducer'
 type WorkerMessageData =
   | { type: 'solution'; result: SolveResult }
   | { type: 'puzzle_generated'; puzzleString: string }
+  | { type: 'validation_result'; isValid: boolean }
   | { type: 'error'; error: string }
 
 let messageHandler: (event: { data: WorkerMessageData }) => void
@@ -172,6 +173,34 @@ describe('useSudokuSolver', () => {
     expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
   })
 
+  it('should dispatch VALIDATE_PUZZLE_SUCCESS on receiving a valid validation_result', () => {
+    renderHook(() => useSudokuSolver(initialState, mockDispatch))
+
+    mockWorkerInstance.__simulateMessage({
+      type: 'validation_result',
+      isValid: true,
+    })
+
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'VALIDATE_PUZZLE_SUCCESS',
+    })
+    expect(toast.success).toHaveBeenCalledWith('Puzzle is valid and has a unique solution.')
+  })
+
+  it('should dispatch VALIDATE_PUZZLE_FAILURE on receiving an invalid validation_result', () => {
+    renderHook(() => useSudokuSolver(initialState, mockDispatch))
+
+    mockWorkerInstance.__simulateMessage({
+      type: 'validation_result',
+      isValid: false,
+    })
+
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'VALIDATE_PUZZLE_FAILURE',
+      error: 'Puzzle is invalid or does not have a unique solution.',
+    })
+  })
+
   it('should do nothing if solution message is missing result object', () => {
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
     mockWorkerInstance.__simulateMessage({
@@ -210,6 +239,23 @@ describe('useSudokuSolver', () => {
     mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
 
     expect(mockDispatch).toHaveBeenCalledWith({ type: 'GENERATE_PUZZLE_FAILURE' })
+    expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMessage}`)
+  })
+
+  it('should dispatch VALIDATE_PUZZLE_FAILURE on worker error during validation', () => {
+    const validatingState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, isValidating: true },
+    }
+    renderHook(() => useSudokuSolver(validatingState, mockDispatch))
+
+    const errorMessage = 'Validation crashed'
+    mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
+
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'VALIDATE_PUZZLE_FAILURE',
+      error: errorMessage,
+    })
     expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMessage}`)
   })
 

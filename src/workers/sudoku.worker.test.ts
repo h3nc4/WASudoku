@@ -26,6 +26,7 @@ vi.mock('wasudoku-wasm', async (importOriginal) => {
     default: vi.fn().mockResolvedValue({}), // Mock the init() promise
     solve_sudoku: vi.fn(),
     generate_sudoku: vi.fn(),
+    validate_puzzle: vi.fn(),
   }
 })
 
@@ -35,6 +36,7 @@ describe('Sudoku Worker Logic', () => {
   let init: Mock
   let solve_sudoku: Mock
   let generate_sudoku: Mock
+  let validate_puzzle: Mock
   let mockPostMessage: Mock
   let mockAddEventListener: Mock
   const workerOrigin = 'http://localhost:3000'
@@ -62,6 +64,7 @@ describe('Sudoku Worker Logic', () => {
     init = wasmModule.default as Mock
     solve_sudoku = wasmModule.solve_sudoku as Mock
     generate_sudoku = wasmModule.generate_sudoku as Mock
+    validate_puzzle = wasmModule.validate_puzzle as Mock
 
     const workerModule = await import('@/workers/sudoku.worker.ts')
     handleMessage = workerModule.handleMessage
@@ -69,7 +72,10 @@ describe('Sudoku Worker Logic', () => {
 
   // Helper to simulate a message event for the handler
   const simulateMessage = (
-    data: { type: 'solve'; boardString: string } | { type: 'generate'; difficulty: string },
+    data:
+      | { type: 'solve'; boardString: string }
+      | { type: 'generate'; difficulty: string }
+      | { type: 'validate'; boardString: string },
     origin = workerOrigin,
   ) => {
     const event = { data, origin } as MessageEvent
@@ -107,6 +113,19 @@ describe('Sudoku Worker Logic', () => {
     expect(mockPostMessage).toHaveBeenCalledWith({
       type: 'puzzle_generated',
       puzzleString,
+    })
+  })
+
+  it('should call validate_puzzle and post a validation result', async () => {
+    const boardString = '.'.repeat(81)
+    validate_puzzle.mockReturnValue(true)
+
+    await simulateMessage({ type: 'validate', boardString })
+
+    expect(validate_puzzle).toHaveBeenCalledWith(boardString)
+    expect(mockPostMessage).toHaveBeenCalledWith({
+      type: 'validation_result',
+      isValid: true,
     })
   })
 
