@@ -29,9 +29,7 @@ describe('sudokuReducer', () => {
         const stateWithPencilMarks: SudokuState = {
           ...initialState,
           board: initialState.board.map((cell, i) =>
-            i === 0
-              ? { ...cell, candidates: new Set([1, 2]), centers: new Set<number>() }
-              : cell,
+            i === 0 ? { ...cell, candidates: new Set([1, 2]), centers: new Set<number>() } : cell,
           ),
         }
         const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 0, value: 5 }
@@ -181,6 +179,40 @@ describe('sudokuReducer', () => {
         expect(newState).toBe(stateWithGiven)
       })
 
+      it('should not add a conflicting candidate mark', () => {
+        const stateWithPeerValue = sudokuReducer(initialState, {
+          type: 'SET_CELL_VALUE',
+          index: 1, // Peer cell
+          value: 5,
+        })
+        const action: SudokuAction = {
+          type: 'TOGGLE_PENCIL_MARK',
+          index: 0, // Target cell
+          value: 5, // Conflicting value
+          mode: 'candidate',
+        }
+        const newState = sudokuReducer(stateWithPeerValue, action)
+        expect(newState.board[0].candidates.has(5)).toBe(false)
+        expect(newState).toBe(stateWithPeerValue) // State should be unchanged
+      })
+
+      it('should not add a conflicting center mark', () => {
+        const stateWithPeerValue = sudokuReducer(initialState, {
+          type: 'SET_CELL_VALUE',
+          index: 1, // Peer cell
+          value: 5,
+        })
+        const action: SudokuAction = {
+          type: 'TOGGLE_PENCIL_MARK',
+          index: 0, // Target cell
+          value: 5, // Conflicting value
+          mode: 'center',
+        }
+        const newState = sudokuReducer(stateWithPeerValue, action)
+        expect(newState.board[0].centers.has(5)).toBe(false)
+        expect(newState).toBe(stateWithPeerValue) // State should be unchanged
+      })
+
       it('should clear candidates when adding a center mark', () => {
         const stateWithCandidates = sudokuReducer(initialState, {
           type: 'TOGGLE_PENCIL_MARK',
@@ -328,7 +360,10 @@ describe('sudokuReducer', () => {
         const boardString =
           '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79'
         const action: SudokuAction = { type: 'IMPORT_BOARD', boardString }
-        const state = { ...initialState, solver: { ...initialState.solver, gameMode: 'playing' as const } }
+        const state = {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'playing' as const },
+        }
         const newState = sudokuReducer(state, action)
 
         expect(newState.board[0].value).toBe(5)

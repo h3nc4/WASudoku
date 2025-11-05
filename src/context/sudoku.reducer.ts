@@ -36,6 +36,7 @@ import {
   calculateCandidates,
   boardStateFromString,
   areBoardsEqual,
+  isMoveValid,
 } from '@/lib/utils'
 
 const BOARD_SIZE = 81
@@ -218,15 +219,20 @@ const handleTogglePencilMark = (
   if (action.mode === 'candidate') {
     if (targetCell.candidates.has(action.value)) {
       targetCell.candidates.delete(action.value)
-    } else {
+    } else if (isMoveValid(state.board, action.index, action.value)) {
       targetCell.candidates.add(action.value)
+    } else {
+      return state // Do not add conflicting candidate
     }
   } else {
+    // Center mode
     targetCell.candidates.clear()
     if (targetCell.centers.has(action.value)) {
       targetCell.centers.delete(action.value)
-    } else {
+    } else if (isMoveValid(state.board, action.index, action.value)) {
       targetCell.centers.add(action.value)
+    } else {
+      return state // Do not add conflicting center mark
     }
   }
 
