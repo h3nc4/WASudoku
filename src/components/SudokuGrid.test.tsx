@@ -273,7 +273,7 @@ describe('SudokuGrid component', () => {
       })
     })
 
-    it('dispatches importBoard action on valid paste', async () => {
+    it('dispatches importBoard action on valid paste in customInput mode', async () => {
       const readTextSpy = vi
         .spyOn(navigator.clipboard, 'readText')
         .mockResolvedValue(validBoardString)
@@ -286,6 +286,23 @@ describe('SudokuGrid component', () => {
       expect(readTextSpy).toHaveBeenCalled()
       expect(mockDispatch).toHaveBeenCalledWith(sudokuActions.importBoard(validBoardString))
       expect(toast.success).toHaveBeenCalledWith('Board imported from clipboard.')
+      readTextSpy.mockRestore()
+    })
+
+    it('does not handle paste when not in customInput mode', async () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, gameMode: 'playing' },
+      })
+      const readTextSpy = vi.spyOn(navigator.clipboard, 'readText')
+      render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+
+      fireEvent.paste(grid)
+      await act(async () => await Promise.resolve())
+
+      expect(readTextSpy).not.toHaveBeenCalled()
+      expect(mockDispatch).not.toHaveBeenCalled()
       readTextSpy.mockRestore()
     })
 

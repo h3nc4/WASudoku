@@ -33,12 +33,14 @@ const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('NewPuzzleButton component', () => {
   const mockGeneratePuzzle = vi.fn()
+  const mockStartCustomPuzzle = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseSudokuState.mockReturnValue(initialState)
     mockUseSudokuActions.mockReturnValue({
       generatePuzzle: mockGeneratePuzzle,
+      startCustomPuzzle: mockStartCustomPuzzle,
     })
   })
 
@@ -94,5 +96,34 @@ describe('NewPuzzleButton component', () => {
     expect(screen.queryByText('Generating...')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeInTheDocument()
     vi.useRealTimers()
+  })
+
+  it('shows the "Custom" option when not in selecting mode', async () => {
+    mockUseSudokuState.mockReturnValue({
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+    })
+    const user = userEvent.setup()
+    render(<NewPuzzleButton />)
+    await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+
+    const customButton = await screen.findByRole('menuitem', { name: 'Custom' })
+    expect(customButton).toBeVisible()
+
+    await user.click(customButton)
+    expect(mockStartCustomPuzzle).toHaveBeenCalledOnce()
+  })
+
+  it('hides the "Custom" option when in selecting mode', async () => {
+    mockUseSudokuState.mockReturnValue({
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'selecting' },
+    })
+    const user = userEvent.setup()
+    render(<NewPuzzleButton />)
+    await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+
+    expect(await screen.findByRole('menuitem', { name: 'Easy' })).toBeVisible()
+    expect(screen.queryByRole('menuitem', { name: 'Custom' })).not.toBeInTheDocument()
   })
 })

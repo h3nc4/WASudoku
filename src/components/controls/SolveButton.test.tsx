@@ -35,6 +35,7 @@ const mockUseSudokuActions = useSudokuActions as Mock
 describe('SolveButton component', () => {
   const mockSolve = vi.fn()
   const mockExitVisualization = vi.fn()
+  const mockValidatePuzzle = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -42,6 +43,7 @@ describe('SolveButton component', () => {
     mockUseSudokuActions.mockReturnValue({
       solve: mockSolve,
       exitVisualization: mockExitVisualization,
+      validatePuzzle: mockValidatePuzzle,
     })
   })
 
@@ -180,6 +182,50 @@ describe('SolveButton component', () => {
       render(<SolveButton />)
       await user.click(screen.getByRole('button', { name: /exit visualization/i }))
       expect(mockExitVisualization).toHaveBeenCalled()
+    })
+  })
+
+  describe('in "customInput" mode', () => {
+    const customInputState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'customInput' },
+      derived: { ...initialState.derived, isBoardEmpty: false },
+    }
+
+    it('renders a "Start Puzzle" button', () => {
+      mockUseSudokuState.mockReturnValue(customInputState)
+      render(<SolveButton />)
+      expect(screen.getByRole('button', { name: /start puzzle/i })).toBeInTheDocument()
+    })
+
+    it('is disabled if the board is empty', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...customInputState,
+        derived: { ...initialState.derived, isBoardEmpty: true },
+      })
+      render(<SolveButton />)
+      const button = screen.getByRole('button', { name: /start puzzle/i })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('title', 'Board is empty.')
+    })
+
+    it('calls validatePuzzle on click', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue(customInputState)
+      render(<SolveButton />)
+      await user.click(screen.getByRole('button', { name: /start puzzle/i }))
+      expect(mockValidatePuzzle).toHaveBeenCalled()
+    })
+
+    it('renders "Validating..." when isValidating is true', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...customInputState,
+        solver: { ...customInputState.solver, isValidating: true },
+      })
+      render(<SolveButton />)
+      const button = screen.getByRole('button', { name: /validating/i })
+      expect(button).toBeInTheDocument()
+      expect(button).toBeDisabled()
     })
   })
 })

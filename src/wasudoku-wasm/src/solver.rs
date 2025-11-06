@@ -120,7 +120,6 @@ fn count_solutions_recursive(board: &mut Board, counter: &mut u8) {
     }
 }
 
-
 /// Count the number of valid moves (1-9) for a given cell.
 fn count_possibilities(board: &Board, row: usize, col: usize) -> u8 {
     let mut possibilities = 0;

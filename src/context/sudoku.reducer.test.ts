@@ -310,6 +310,20 @@ describe('sudokuReducer', () => {
         expect(areBoardsEqual(newState.history.stack[0], initialBoard)).toBe(true)
       })
 
+      it('should return the same state instance if there is no progress to clear', () => {
+        const initialBoard = createEmptyBoard().map((c, i) =>
+          i === 0 ? { ...c, value: 5, isGiven: true } : c,
+        )
+        const state: SudokuState = {
+          ...initialState,
+          board: initialBoard,
+          initialBoard,
+          solver: { ...initialState.solver, gameMode: 'playing' },
+        }
+        const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
+        expect(newState).toBe(state)
+      })
+
       it('should clear the board in customInput mode', () => {
         const boardWithInput = createEmptyBoard().map((c, i) => (i === 0 ? { ...c, value: 5 } : c))
         const state: SudokuState = {
@@ -379,6 +393,23 @@ describe('sudokuReducer', () => {
         expect(newState.initialBoard[0].value).toBe(5)
         expect(newState.solver.isSolved).toBe(false)
         expect(newState.solver.gameMode).toBe('playing')
+      })
+
+      it('should parse the board but not set initialBoard in customInput mode', () => {
+        const boardString = '1' + '.'.repeat(80)
+        const action: SudokuAction = { type: 'IMPORT_BOARD', boardString }
+        const state = {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'customInput' as const },
+        }
+        const newState = sudokuReducer(state, action)
+
+        expect(newState.board[0].value).toBe(1)
+        expect(newState.board[0].isGiven).toBe(true)
+        expect(newState.solver.gameMode).toBe('customInput')
+
+        // initialBoard should remain empty, not the imported board
+        expect(newState.initialBoard).toEqual(initialState.initialBoard)
       })
     })
 

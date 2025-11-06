@@ -329,4 +329,27 @@ describe('useSudokuSolver', () => {
     expect(toast.error).toHaveBeenLastCalledWith('Solver functionality is unavailable.')
     expect(mockDispatch).toHaveBeenCalledWith({ type: 'GENERATE_PUZZLE_FAILURE' })
   })
+
+  it('should handle case where worker is not available when validating starts', () => {
+    vi.mocked(SolverWorker).mockImplementation(() => {
+      throw new Error('Worker instantiation failed')
+    })
+
+    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
+      initialProps: { state: initialState, dispatch: mockDispatch },
+    })
+
+    expect(toast.error).toHaveBeenCalledWith('Solver functionality is unavailable.')
+
+    const validatingState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, isValidating: true },
+    }
+    rerender({ state: validatingState, dispatch: mockDispatch })
+
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'VALIDATE_PUZZLE_FAILURE',
+      error: 'Validation service is currently unavailable.',
+    })
+  })
 })
