@@ -3,17 +3,19 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
+      interval: 'daily'
     assignees:
       - 'h3nc4'
     reviewers:
       - 'h3nc4'
+    open-pull-requests-limit: 50
 
   - package-ecosystem: 'cargo'
     directory: '/src/wasudoku-wasm'
     schedule:
-      interval: 'weekly'
+      interval: 'daily'
     assignees:
       - 'h3nc4'
     reviewers:
       - 'h3nc4'
+    open-pull-requests-limit: 50
