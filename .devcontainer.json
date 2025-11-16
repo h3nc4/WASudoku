@@ -35,7 +35,8 @@
         "foxundermoon.shell-format",
         "rust-lang.rust-analyzer",
         "vadimcn.vscode-lldb",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions"
       ],
       "settings": {
         "editor.tabSize": 2,
