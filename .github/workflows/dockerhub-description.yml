@@ -1,0 +1,23 @@
+name: Update Docker Hub Description
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - .github/workflows/dockerhub-description.yml
+
+jobs:
+  update-desc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Update Docker Hub description
+      uses: peter-evans/dockerhub-description@v5
+      with:
+        username: ${{ vars.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: h3nc4/wasudoku
+        short-description: ${{ github.event.repository.description }}
+        enable-url-completion: true

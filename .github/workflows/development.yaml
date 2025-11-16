@@ -166,6 +166,9 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Get build date
+        id: build_date
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >>"${GITHUB_OUTPUT}"
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -174,6 +177,8 @@ jobs:
           tags: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest
           build-args: |
             CI_IMAGE_TAG=${{ needs.prepare.outputs.tag }}
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.build_date.outputs.date }}
 
   test-container:
     name: Test Runtime Container

@@ -50,3 +50,11 @@ This is implemented using React's built-in [useReducer](https://react.dev/refere
   - [Rust](https://www.rust-lang.org/)
   - [wasm-pack](https://drager.github.io/wasm-pack/)
   - [wasm-bindgen](https://wasm-bindgen.github.io/wasm-bindgen/)
+
+## License
+
+WASudoku is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+WASudoku is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with WASudoku. If not, see <https://www.gnu.org/licenses/>.
