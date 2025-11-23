@@ -108,6 +108,73 @@ jobs:
           path: coverage-ui.lcov
           retention-days: 1
 
+  browser-tests:
+    name: Browser Test (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    container:
+      image: h3nc4/wasudoku-ci:${{ needs.prepare.outputs.tag }}
+      options: --shm-size=1gb # Increase shared memory for browser tests
+    env:
+      HOME: /root
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Desktop Browsers
+          - project: chromium
+            install: chromium
+          - project: firefox
+            install: firefox
+          - project: webkit
+            install: webkit
+          # Mobile Viewports
+          - project: mobile-chrome
+            install: chromium
+          - project: mobile-safari
+            install: webkit
+          - project: pixel-7
+            install: chromium
+          - project: iphone-15
+            install: webkit
+          - project: ipad-pro
+            install: webkit
+          # Branded Desktop
+          - project: google-chrome
+            install: chrome
+          - project: msedge
+            install: msedge
+    steps:
+      - uses: actions/checkout@v5
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >>${GITHUB_OUTPUT}
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /opt/rust/.cargo/bin/
+            /opt/rust/.cargo/registry/index/
+            /opt/rust/.cargo/registry/cache/
+            /opt/rust/.cargo/git/db/
+            src/wasudoku-wasm/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src/wasudoku-wasm/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps ${{ matrix.install }}
+      - name: Build WASM
+        run: npm run wasm:build:dev
+      - name: Run Browser Tests
+        run: npm run test:browser -- --project ${{ matrix.project }}
+
   sonarqube:
     name: SonarQube Scan
     needs: [wasm, ui]
