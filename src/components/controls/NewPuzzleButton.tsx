@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2025  Henrique Almeida
  * This file is part of WASudoku.
-
+ *
  * WASudoku is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * WASudoku is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
-
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Wand2, Loader2, Edit3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,7 +40,6 @@ export function NewPuzzleButton() {
   const { generatePuzzle, startCustomPuzzle } = useSudokuActions()
 
   const [isShowingGeneratingState, setIsShowingGeneratingState] = useState(false)
-  const generationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isButtonDisabled = solver.isGenerating || solver.isSolving || solver.isValidating
 
@@ -51,20 +50,19 @@ export function NewPuzzleButton() {
   // Effect to manage the "Generating..." label with a delay,
   // preventing a jarring flash of text for very fast generations.
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     if (solver.isGenerating) {
-      generationTimerRef.current = setTimeout(() => {
+      timer = setTimeout(() => {
         setIsShowingGeneratingState(true)
       }, 300)
-    } else {
-      if (generationTimerRef.current) {
-        clearTimeout(generationTimerRef.current)
+    }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer)
       }
       setIsShowingGeneratingState(false)
-    }
-    return () => {
-      if (generationTimerRef.current) {
-        clearTimeout(generationTimerRef.current)
-      }
     }
   }, [solver.isGenerating])
 

@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2025  Henrique Almeida
  * This file is part of WASudoku.
-
+ *
  * WASudoku is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * WASudoku is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
-
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { BrainCircuit, X, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
@@ -31,7 +31,6 @@ export function SolveButton() {
   const { solve, exitVisualization, validatePuzzle } = useSudokuActions()
 
   const [isShowingSolvingState, setIsShowingSolvingState] = useState(false)
-  const solveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isSolveDisabled =
     solver.isSolving ||
@@ -50,20 +49,19 @@ export function SolveButton() {
   }, [derived.isBoardEmpty, derived.isBoardFull, derived.conflicts.size, solver.solveFailed])
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     if (solver.isSolving) {
-      solveTimerRef.current = setTimeout(() => {
+      timer = setTimeout(() => {
         setIsShowingSolvingState(true)
       }, 500)
-    } else {
-      if (solveTimerRef.current) {
-        clearTimeout(solveTimerRef.current)
+    }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer)
       }
       setIsShowingSolvingState(false)
-    }
-    return () => {
-      if (solveTimerRef.current) {
-        clearTimeout(solveTimerRef.current)
-      }
     }
   }, [solver.isSolving])
 
