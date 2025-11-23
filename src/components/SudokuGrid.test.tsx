@@ -17,7 +17,7 @@
  */
 
 import React from 'react'
-import { render, fireEvent, act, screen } from '@testing-library/react'
+import { render, fireEvent, act, screen, createEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { SudokuGrid } from './SudokuGrid'
@@ -257,6 +257,28 @@ describe('SudokuGrid component', () => {
       grid.focus()
       await user.keyboard('{Delete}')
       expect(mockActions.eraseActiveCell).toHaveBeenCalledWith('delete')
+    })
+
+    it('calls preventDefault for handled keys', () => {
+      render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+
+      const event = createEvent.keyDown(grid, { key: 'ArrowRight' })
+      event.preventDefault = vi.fn()
+
+      fireEvent(grid, event)
+      expect(event.preventDefault).toHaveBeenCalled()
+    })
+
+    it('does not call preventDefault for unhandled keys', () => {
+      render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+
+      const event = createEvent.keyDown(grid, { key: 'a' })
+      event.preventDefault = vi.fn()
+
+      fireEvent(grid, event)
+      expect(event.preventDefault).not.toHaveBeenCalled()
     })
   })
 

@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent, createEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { NewPuzzleButton } from './NewPuzzleButton'
@@ -125,5 +125,17 @@ describe('NewPuzzleButton component', () => {
 
     expect(await screen.findByRole('menuitem', { name: 'Easy' })).toBeVisible()
     expect(screen.queryByRole('menuitem', { name: 'Custom' })).not.toBeInTheDocument()
+  })
+
+  it('prevents default on mouse down for the trigger button', () => {
+    render(<NewPuzzleButton />)
+    const triggerButton = screen.getByRole('button', { name: 'New Puzzle' })
+
+    const event = createEvent.mouseDown(triggerButton)
+    event.preventDefault = vi.fn()
+
+    fireEvent(triggerButton, event)
+
+    expect(event.preventDefault).toHaveBeenCalled()
   })
 })

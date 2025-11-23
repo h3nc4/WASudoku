@@ -50,7 +50,9 @@ const mockWorkerInstance = {
 }
 
 vi.mock('@/workers/sudoku.worker?worker', () => ({
-  default: vi.fn(() => mockWorkerInstance),
+  default: vi.fn(function () {
+    return mockWorkerInstance
+  }),
 }))
 
 vi.mock('sonner', () => ({
@@ -67,7 +69,9 @@ describe('useSudokuSolver', () => {
     vi.clearAllMocks()
     vi.mocked(SolverWorker)
       .mockClear()
-      .mockImplementation(() => mockWorkerInstance as unknown as Worker)
+      .mockImplementation(function () {
+        return mockWorkerInstance as unknown as Worker
+      })
   })
 
   afterEach(() => {
@@ -131,8 +135,54 @@ describe('useSudokuSolver', () => {
     })
   })
 
+  it('should post a message to the worker when isValidating becomes true', () => {
+    const validatingState: SudokuState = {
+      ...initialState,
+      solver: {
+        ...initialState.solver,
+        isValidating: true,
+      },
+    }
+    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
+      initialProps: { state: initialState, dispatch: mockDispatch },
+    })
+
+    expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
+
+    rerender({ state: validatingState, dispatch: mockDispatch })
+
+    expect(mockWorkerInstance.postMessage).toHaveBeenCalledOnce()
+    const expectedBoardString = '.'.repeat(81)
+    expect(mockWorkerInstance.postMessage).toHaveBeenCalledWith({
+      type: 'validate',
+      boardString: expectedBoardString,
+    })
+  })
+
   it('should not post a message if not solving or generating', () => {
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
+    expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
+  })
+
+  it('should not post a message if isGenerating is true but difficulty is missing', () => {
+    const invalidGenState: SudokuState = {
+      ...initialState,
+      solver: {
+        ...initialState.solver,
+        isGenerating: true,
+        generationDifficulty: null,
+      },
+    }
+    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
+      initialProps: { state: initialState, dispatch: mockDispatch },
+    })
+
+    expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
+
+    // This triggers the effect where isGenerating is true but difficulty is null.
+    // It falls through to `else if (isValidating)`, which is false, completing branch coverage.
+    rerender({ state: invalidGenState, dispatch: mockDispatch })
+
     expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
   })
 
@@ -267,7 +317,9 @@ describe('useSudokuSolver', () => {
   })
 
   it('should handle worker initialization failure', () => {
-    vi.mocked(SolverWorker).mockImplementation(() => {
+    // We need to mock the implementation for this specific test to throw
+    // Using a function expression so it can be called as a constructor
+    vi.mocked(SolverWorker).mockImplementation(function () {
       throw new Error('Worker failed')
     })
 
@@ -277,7 +329,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('should handle case where worker is not available when solving starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(() => {
+    vi.mocked(SolverWorker).mockImplementation(function () {
       throw new Error('Worker instantiation failed')
     })
 
@@ -302,7 +354,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('should handle case where worker is not available when generating starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(() => {
+    vi.mocked(SolverWorker).mockImplementation(function () {
       throw new Error('Worker instantiation failed')
     })
 
@@ -331,7 +383,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('should handle case where worker is not available when validating starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(() => {
+    vi.mocked(SolverWorker).mockImplementation(function () {
       throw new Error('Worker instantiation failed')
     })
 

@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, createEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { InputModeToggle } from './InputModeToggle'
@@ -80,6 +80,20 @@ describe('InputModeToggle component', () => {
     // Check that the individual buttons inside the group are disabled.
     screen.getAllByRole('radio').forEach((button) => {
       expect(button).toBeDisabled()
+    })
+  })
+
+  it('prevents default on mouse down for all toggle items', () => {
+    render(<InputModeToggle />)
+    const buttons = screen.getAllByRole('radio')
+
+    expect(buttons).toHaveLength(3)
+
+    buttons.forEach((button) => {
+      const event = createEvent.mouseDown(button)
+      event.preventDefault = vi.fn()
+      fireEvent(button, event)
+      expect(event.preventDefault).toHaveBeenCalled()
     })
   })
 })

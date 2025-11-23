@@ -75,7 +75,8 @@ describe('Sudoku Worker Logic', () => {
     data:
       | { type: 'solve'; boardString: string }
       | { type: 'generate'; difficulty: string }
-      | { type: 'validate'; boardString: string },
+      | { type: 'validate'; boardString: string }
+      | { type: string },
     origin = workerOrigin,
   ) => {
     const event = { data, origin } as MessageEvent
@@ -214,5 +215,10 @@ describe('Sudoku Worker Logic', () => {
       result,
     })
     consoleErrorSpy.mockRestore()
+  })
+
+  it('should ignore unknown message types', async () => {
+    await simulateMessage({ type: 'unknown' })
+    expect(mockPostMessage).not.toHaveBeenCalled()
   })
 })

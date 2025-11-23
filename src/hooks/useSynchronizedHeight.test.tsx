@@ -24,7 +24,7 @@ let mockResizeObserverCallback: ResizeObserverCallback | null = null
 const mockDisconnect = vi.fn()
 const mockObserve = vi.fn()
 
-const ResizeObserverMock = vi.fn((callback) => {
+const ResizeObserverMock = vi.fn(function (callback: ResizeObserverCallback) {
   mockResizeObserverCallback = callback
   return {
     observe: mockObserve,

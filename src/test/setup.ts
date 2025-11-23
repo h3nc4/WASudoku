@@ -23,10 +23,10 @@ import { vi } from 'vitest'
 
 // JSDOM does not implement ResizeObserver. Mock it for tests of components
 // that rely on it such as UI libraries.
-const ResizeObserverMock = vi.fn(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+class ResizeObserverMock {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+}
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock)

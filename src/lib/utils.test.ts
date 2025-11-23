@@ -190,6 +190,26 @@ describe('Sudoku Utilities', () => {
       )
       expect(areBoardsEqual(board1, board2)).toBe(false)
     })
+
+    it('should return false for overlapping sets with distinct elements (coverage for set iteration loop)', () => {
+      const board1 = createEmptyBoard().map((cell, i) =>
+        i === 0 ? { ...cell, candidates: new Set([1, 2]) } : cell,
+      )
+      const board2 = createEmptyBoard().map((cell, i) =>
+        i === 0 ? { ...cell, candidates: new Set([1, 3]) } : cell,
+      )
+      expect(areBoardsEqual(board1, board2)).toBe(false)
+    })
+
+    it('should return false for disjoint sets of same size', () => {
+      const board1 = createEmptyBoard().map((cell, i) =>
+        i === 0 ? { ...cell, candidates: new Set([1]) } : cell,
+      )
+      const board2 = createEmptyBoard().map((cell, i) =>
+        i === 0 ? { ...cell, candidates: new Set([2]) } : cell,
+      )
+      expect(areBoardsEqual(board1, board2)).toBe(false)
+    })
   })
 
   describe('calculateCandidates', () => {
