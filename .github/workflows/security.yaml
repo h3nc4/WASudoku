@@ -3,7 +3,12 @@ name: Security Analysis
 on:
   push:
     branches:
-      - '**'
+      - 'main'
+      - 'release/*'
+  pull_request:
+    branches:
+      - 'main'
+      - 'release/*'
   schedule:
     - cron: '23 3 * * *' # Daily at 03:23 UTC
 
