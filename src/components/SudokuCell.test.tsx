@@ -116,12 +116,12 @@ describe('SudokuCell component', () => {
 
     it('applies correct background for an active cell', () => {
       render(<SudokuCell {...defaultProps} isActive />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-sky-200 dark:bg-sky-800/80')
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-100 dark:bg-sky-800/80')
     })
 
     it('applies correct background for a highlighted (but not active) cell', () => {
       render(<SudokuCell {...defaultProps} isHighlighted isActive={false} />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-sky-100 dark:bg-sky-900/60')
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-50 dark:bg-sky-900/60')
     })
 
     it('applies correct background for a number-highlighted cell', () => {
@@ -132,9 +132,7 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 5 }}
         />,
       )
-      expect(screen.getByTestId('cell-background')).toHaveClass(
-        'bg-amber-100/70 dark:bg-amber-900/40',
-      )
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-100 dark:bg-sky-900/80')
     })
 
     it('applies correct background when solving', () => {
@@ -145,7 +143,7 @@ describe('SudokuCell component', () => {
     it('applies correct background for a cause cell in visualization', () => {
       render(<SudokuCell {...defaultProps} isCause />)
       expect(screen.getByTestId('cell-background')).toHaveClass(
-        'bg-purple-200 dark:bg-purple-800/80',
+        'bg-purple-100 dark:bg-purple-800/80',
       )
     })
 

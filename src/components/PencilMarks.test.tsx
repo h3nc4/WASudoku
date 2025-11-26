@@ -49,7 +49,7 @@ describe('PencilMarks component', () => {
       <PencilMarks candidates={new Set()} centers={new Set([1, 2, 3, 4, 5])} />,
     )
     const span = container.querySelector('span')
-    expect(span).toHaveClass('text-[0.6rem]')
+    expect(span).toHaveClass('text-xs')
   })
 
   it('renders normal font for few center marks', () => {
@@ -57,7 +57,7 @@ describe('PencilMarks component', () => {
       <PencilMarks candidates={new Set()} centers={new Set([1, 2, 3])} />,
     )
     const span = container.querySelector('span')
-    expect(span).toHaveClass('text-xs')
+    expect(span).toHaveClass('text-sm')
   })
 
   it('renders eliminated candidates with a line-through style', () => {
@@ -72,5 +72,10 @@ describe('PencilMarks component', () => {
     expect(eliminatedMark).toHaveClass('line-through')
     expect(screen.getByText('1')).not.toHaveClass('line-through')
     expect(screen.getByText('3')).not.toHaveClass('line-through')
+  })
+
+  it('renders with correct base color classes', () => {
+    render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
+    expect(screen.getByText('1')).toHaveClass('text-zinc-800 dark:text-zinc-200')
   })
 })

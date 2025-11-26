@@ -65,11 +65,11 @@ const getBackgroundStyles = ({
   'isConflict' | 'isActive' | 'isSolving' | 'isCause' | 'isNumberHighlighted' | 'isHighlighted'
 >) => {
   if (isConflict) return '!bg-destructive/20'
-  if (isActive) return 'bg-sky-200 dark:bg-sky-800/80'
+  if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
   if (isSolving) return 'cursor-not-allowed bg-muted/50'
-  if (isCause) return 'bg-purple-200 dark:bg-purple-800/80'
-  if (isNumberHighlighted) return 'bg-amber-100/70 dark:bg-amber-900/40'
-  if (isHighlighted) return 'bg-sky-100 dark:bg-sky-900/60'
+  if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
+  if (isNumberHighlighted) return 'bg-blue-100 dark:bg-sky-900/80'
+  if (isHighlighted) return 'bg-blue-50 dark:bg-sky-900/60'
   return ''
 }
 
@@ -93,7 +93,7 @@ const getInputTextStyles = ({
     'text-transparent': hasPencilMarks && cell.value === null,
     'text-xl md:text-2xl': !(hasPencilMarks && cell.value === null),
     'text-primary font-bold': isGiven,
-    'font-bold text-amber-600 dark:text-amber-400': isNumberHighlighted && !isGiven,
+    'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven,
     'text-blue-600 dark:text-blue-400': isUserInput,
     'text-sky-600 dark:text-sky-400': isSolverResult,
     '!text-destructive': isConflict,
