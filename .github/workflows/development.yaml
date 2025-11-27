@@ -69,11 +69,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Lint with Clippy
-        run: npm run lintwasm
+        run: npm run lint:wasm
       - name: Check security advisories
-        run: npm run auditwasm
+        run: npm run audit:wasm
       - name: Run tests
-        run: npm run testwasm
+        run: npm run test:wasm
       - uses: actions/upload-artifact@v5
         with:
           name: wasm-coverage
