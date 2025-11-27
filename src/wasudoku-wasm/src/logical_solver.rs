@@ -96,6 +96,7 @@ pub enum TechniqueLevel {
     None,         // No logical moves found
     Basic,        // Naked/Hidden Singles
     Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
+    Advanced,     // X-Wing, Swordfish, Jellyfish
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
@@ -703,6 +704,141 @@ impl LogicalBoard {
         }
         None
     }
+
+    /// Generic "Fish" finder (X-Wing, Swordfish, Jellyfish).
+    ///
+    /// # Arguments
+    /// * `size` - The size of the fish (2 for X-Wing, 3 for Swordfish, 4 for Jellyfish).
+    fn find_fish(&self, size: usize) -> Option<SolvingStep> {
+        let tech_name = match size {
+            2 => "X-Wing",
+            3 => "Swordfish",
+            4 => "Jellyfish",
+            _ => return None,
+        };
+
+        // Check for fish in Rows (Base) -> Columns (Cover)
+        if let Some(step) = self.find_fish_in_orientation(size, true, tech_name) {
+            return Some(step);
+        }
+
+        // Check for fish in Columns (Base) -> Rows (Cover)
+        if let Some(step) = self.find_fish_in_orientation(size, false, tech_name) {
+            return Some(step);
+        }
+
+        None
+    }
+
+    /// Find fish pattern for a specific orientation (rows or columns as base sets).
+    fn find_fish_in_orientation(
+        &self,
+        size: usize,
+        rows_are_base: bool,
+        tech_name: &str,
+    ) -> Option<SolvingStep> {
+        let row_units: &[[usize; 9]; 9] = &ROW_UNITS;
+        let col_units: &[[usize; 9]; 9] = &COL_UNITS;
+        let base_sets = if rows_are_base { row_units } else { col_units };
+        let cover_sets = if rows_are_base { col_units } else { row_units };
+
+        for num in 1..=9 {
+            let mask = 1 << (num - 1);
+            let mut potential_bases = Vec::new();
+
+            // 1. Identify valid base sets (rows/cols) where the candidate appears <= size times.
+            for (i, set) in base_sets.iter().enumerate() {
+                let positions: Vec<usize> = set
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, &cell_idx)| {
+                        self.cells[cell_idx] == 0 && (self.candidates[cell_idx] & mask) != 0
+                    })
+                    .map(|(pos, _)| pos) // Store the orthogonal index (0-8)
+                    .collect();
+
+                if !positions.is_empty() && positions.len() <= size {
+                    potential_bases.push((i, positions));
+                }
+            }
+
+            if potential_bases.len() < size {
+                continue;
+            }
+
+            // 2. Check combinations of 'size' base sets.
+            let base_indices: Vec<usize> = (0..potential_bases.len()).collect();
+            let combinations = Self::get_combinations(&base_indices, size);
+
+            for combo_indices in combinations {
+                let mut cover_indices = HashSet::new();
+                let mut cause_cells = Vec::new();
+
+                for &base_idx in &combo_indices {
+                    let (real_base_idx, ref positions) = potential_bases[base_idx];
+                    for &pos in positions {
+                        cover_indices.insert(pos);
+                        // Reconstruct absolute cell index for cause highlighting
+                        let cell_idx = if rows_are_base {
+                            real_base_idx * 9 + pos
+                        } else {
+                            pos * 9 + real_base_idx
+                        };
+                        cause_cells.push(CauseCell {
+                            index: cell_idx,
+                            candidates: vec![num],
+                        });
+                    }
+                }
+
+                // If the union of positions (cover sets) has size <= 'size', we found a Fish!
+                // (e.g., X-Wing: 2 rows have candidate in same 2 columns).
+                if cover_indices.len() == size {
+                    let mut eliminations = Vec::new();
+
+                    for &cover_idx in &cover_indices {
+                        // Eliminate from this cover set (col/row), excluding the base set cells.
+                        let cover_unit = &cover_sets[cover_idx];
+                        for &cell_idx in cover_unit.iter() {
+                            // Check if this cell is part of our base sets
+                            let is_in_base = if rows_are_base {
+                                let row_idx = cell_idx / 9;
+                                combo_indices
+                                    .iter()
+                                    .any(|&bi| potential_bases[bi].0 == row_idx)
+                            } else {
+                                let col_idx = cell_idx % 9;
+                                combo_indices
+                                    .iter()
+                                    .any(|&bi| potential_bases[bi].0 == col_idx)
+                            };
+
+                            if !is_in_base
+                                && self.cells[cell_idx] == 0
+                                && (self.candidates[cell_idx] & mask) != 0
+                            {
+                                eliminations.push(Elimination {
+                                    index: cell_idx,
+                                    value: num,
+                                });
+                            }
+                        }
+                    }
+
+                    if !eliminations.is_empty() {
+                        return Some(SolvingStep {
+                            technique: tech_name.to_string(),
+                            placements: vec![],
+                            eliminations,
+                            cause: cause_cells,
+                        });
+                    }
+                }
+            }
+        }
+
+        None
+    }
 }
 
 /// Solve the board by repeatedly applying logical techniques and return the steps.
@@ -718,7 +854,10 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
             || try_pointing_subset(&mut board, &mut steps)
             || try_hidden_subset(&mut board, &mut steps, 2) // Hidden Pair
             || try_hidden_subset(&mut board, &mut steps, 3) // Hidden Triple
-            || try_claiming_candidate(&mut board, &mut steps);
+            || try_claiming_candidate(&mut board, &mut steps)
+            || try_fish(&mut board, &mut steps, 2) // X-Wing
+            || try_fish(&mut board, &mut steps, 3) // Swordfish
+            || try_fish(&mut board, &mut steps, 4); // Jellyfish
 
         if !progress {
             break;
@@ -798,6 +937,18 @@ fn try_claiming_candidate(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>
     false
 }
 
+/// Try to apply a Fish technique (X-Wing, Swordfish, Jellyfish).
+fn try_fish(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
+    if let Some(step) = board.find_fish(size) {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
 /// Determines the logical difficulty of solving a board by finding the hardest
 /// technique required to make any progress.
 pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
@@ -809,6 +960,7 @@ pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
             "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
             "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
             | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
+            "X-Wing" | "Swordfish" | "Jellyfish" => TechniqueLevel::Advanced,
             _ => TechniqueLevel::None,
         })
         .max()

@@ -81,6 +81,18 @@ const getStepExplanation = (step: SolvingStep): string => {
       const candidates = formatNums(cause[0].candidates)
       return `Box-Line Reduction (Claiming): The candidates ${candidates} in a row or column are confined to a single box. They were eliminated from the rest of that box.`
     }
+    case 'X-Wing': {
+      const candidate = cause[0].candidates[0]
+      return `X-Wing: The candidate ${candidate} appears in only two positions in two rows (or columns), and these positions share the same columns (or rows). This forms a rectangle, eliminating ${candidate} from the rest of the covering columns (or rows).`
+    }
+    case 'Swordfish': {
+      const candidate = cause[0].candidates[0]
+      return `Swordfish: The candidate ${candidate} appears in only two or three positions in three rows (or columns), and these positions align perfectly within three columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
+    }
+    case 'Jellyfish': {
+      const candidate = cause[0].candidates[0]
+      return `Jellyfish: The candidate ${candidate} appears in restricted positions across four rows (or columns) that align with four columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
+    }
     case 'Backtracking':
       return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
     default:

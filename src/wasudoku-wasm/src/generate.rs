@@ -40,41 +40,10 @@ fn generate_full_solution() -> Board {
     board
 }
 
-/// Attempts to generate an Easy or Medium puzzle from a given solution.
-fn generate_easy_medium(solution: &Board, min_clues: usize) -> Board {
-    let mut puzzle = *solution;
-    let mut indices: Vec<usize> = (0..81).collect();
-    indices.shuffle(&mut rng());
-
-    let mut current_clues = 81;
-
-    for index in indices {
-        if current_clues <= min_clues {
-            break;
-        }
-
-        let original_value = puzzle.cells[index];
-        puzzle.cells[index] = 0;
-
-        // Ensure the puzzle still has a unique solution.
-        if solver::count_solutions(&puzzle) != 1 {
-            puzzle.cells[index] = original_value;
-            continue;
-        }
-
-        // Ensure the puzzle remains solvable with only basic techniques.
-        let (level, _) = logical_solver::get_difficulty(&puzzle);
-        if level <= TechniqueLevel::Basic {
-            current_clues -= 1;
-        } else {
-            // This removal made the puzzle too hard, revert it.
-            puzzle.cells[index] = original_value;
-        }
-    }
-    puzzle
-}
-
 /// Creates a "minimal" puzzle from a solution by removing as many clues as possible while maintaining a unique solution.
+///
+/// This iterates through the board in a random order and attempts to remove each number.
+/// If removing a number creates multiple solutions, it puts it back.
 fn create_minimal_puzzle(solution: &Board) -> Board {
     let mut puzzle = *solution;
     let mut indices: Vec<usize> = (0..81).collect();
@@ -90,68 +59,28 @@ fn create_minimal_puzzle(solution: &Board) -> Board {
     puzzle
 }
 
-/// Creates a minimal puzzle optimized for hard/extreme generation.
-fn create_minimal_puzzle_with_limit(solution: &Board, min_clues: usize) -> Board {
-    let mut puzzle = *solution;
-    let mut indices: Vec<usize> = (0..81).collect();
-    indices.shuffle(&mut rng());
-    let mut clues_remaining = 81;
+/// Check if a puzzle matches the criteria for a specific difficulty.
+fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
+    let (level, solved_board) = logical_solver::get_difficulty(puzzle);
+    let is_logically_solvable = solved_board.cells.iter().all(|&c| c != 0);
 
-    for index in indices {
-        // Early exit when reaching the minimum clue threshold.
-        if clues_remaining <= min_clues {
-            break;
-        }
-
-        let original_value = puzzle.cells[index];
-        puzzle.cells[index] = 0;
-        if solver::count_solutions(&puzzle) != 1 {
-            puzzle.cells[index] = original_value;
-        } else {
-            clues_remaining -= 1;
-        }
-    }
-    puzzle
-}
-
-/// Attempts to generate a Hard puzzle from a given solution.
-fn try_generate_hard(solution: &Board) -> Option<Board> {
-    let minimal_puzzle = create_minimal_puzzle_with_limit(solution, 22);
-    let (level, solved_board) = logical_solver::get_difficulty(&minimal_puzzle);
-
-    // Hard puzzles should use intermediate techniques.
-    if level == TechniqueLevel::Intermediate && is_solved(&solved_board) {
-        Some(minimal_puzzle)
-    } else {
-        None
-    }
-}
-
-/// Attempts to generate an Extreme puzzle from a given solution.
-fn try_generate_extreme(solution: &Board) -> Option<Board> {
-    let minimal_puzzle = create_minimal_puzzle(solution);
-    let clues_count = minimal_puzzle.cells.iter().filter(|&&c| c != 0).count();
-
-    if !(17..=35).contains(&clues_count) {
-        return None;
-    }
-
-    let (_level, solved_board) = logical_solver::get_difficulty(&minimal_puzzle);
-    // Extreme puzzles should not be completely solvable by basic/intermediate techniques.
-    let is_completely_solved = solved_board.cells.iter().all(|&c| c != 0);
-
-    if is_completely_solved {
-        None
-    } else {
-        Some(minimal_puzzle)
-    }
-}
-
-/// Validates that a puzzle has a unique solution (for Easy/Medium difficulties).
-fn validate_puzzle_uniqueness(puzzle: &Board, difficulty: Difficulty) -> bool {
     match difficulty {
-        Difficulty::Easy | Difficulty::Medium => solver::count_solutions(puzzle) == 1,
-        Difficulty::Hard | Difficulty::Extreme => true,
+        Difficulty::Easy => {
+            // Must be solvable with Basic techniques only.
+            is_logically_solvable && level == TechniqueLevel::Basic
+        }
+        Difficulty::Medium => {
+            // Must be solvable with Intermediate techniques, but requires more than Basic.
+            is_logically_solvable && level == TechniqueLevel::Intermediate
+        }
+        Difficulty::Hard => {
+            // Must be solvable with Advanced techniques, and MUST require at least one Advanced step.
+            is_logically_solvable && level == TechniqueLevel::Advanced
+        }
+        Difficulty::Extreme => {
+            // Must NOT be solvable by pure logic (requires backtracking / guessing).
+            !is_logically_solvable
+        }
     }
 }
 
@@ -159,22 +88,10 @@ fn validate_puzzle_uniqueness(puzzle: &Board, difficulty: Difficulty) -> bool {
 pub fn generate(difficulty: Difficulty) -> Board {
     loop {
         let solution = generate_full_solution();
+        let puzzle = create_minimal_puzzle(&solution);
 
-        let puzzle_candidate = match difficulty {
-            Difficulty::Easy => Some(generate_easy_medium(&solution, 40)),
-            Difficulty::Medium => Some(generate_easy_medium(&solution, 32)),
-            Difficulty::Hard => try_generate_hard(&solution),
-            Difficulty::Extreme => try_generate_extreme(&solution),
-        };
-
-        if let Some(puzzle) = puzzle_candidate
-            && validate_puzzle_uniqueness(&puzzle, difficulty)
-        {
+        if matches_difficulty(&puzzle, difficulty) {
             return puzzle;
         }
     }
-}
-
-fn is_solved(board: &Board) -> bool {
-    board.cells.iter().all(|&cell| cell != 0)
 }

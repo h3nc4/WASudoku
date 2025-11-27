@@ -49,13 +49,6 @@ fn test_generate_easy_puzzle_difficulty() {
         "Easy puzzle must be solvable with Basic techniques only, but was {:?}.",
         level
     );
-
-    let clue_count = puzzle.cells.iter().filter(|&&c| c != 0).count();
-    assert!(
-        clue_count >= 40,
-        "Easy puzzles should have at least 40 clues (got {})",
-        clue_count
-    );
 }
 
 #[test]
@@ -65,16 +58,9 @@ fn test_generate_medium_puzzle_difficulty() {
 
     assert_eq!(
         level,
-        TechniqueLevel::Basic,
-        "Medium puzzle must be solvable with Basic techniques only, but was {:?}.",
+        TechniqueLevel::Intermediate,
+        "Medium puzzle must be solvable with Intermediate techniques (and not just Basic), but was {:?}.",
         level
-    );
-
-    let clue_count = puzzle.cells.iter().filter(|&&c| c != 0).count();
-    assert!(
-        clue_count >= 32,
-        "Medium puzzles should have at least 32 clues (got {})",
-        clue_count
     );
 }
 
@@ -85,14 +71,14 @@ fn test_generate_hard_puzzle_difficulty() {
 
     assert_eq!(
         level,
-        TechniqueLevel::Intermediate,
-        "Hard puzzle must require Intermediate techniques, but was {:?}.",
+        TechniqueLevel::Advanced,
+        "Hard puzzle must require Advanced techniques (X-Wing/Swordfish), but was {:?}.",
         level
     );
 
     assert!(
         solved_board.cells.iter().all(|&c| c != 0),
-        "Hard puzzle must be solvable without backtracking."
+        "Hard puzzle must be fully solvable without backtracking."
     );
 }
 
@@ -110,13 +96,6 @@ fn test_generate_extreme_puzzle_difficulty() {
     let is_completely_solved = solved_board.cells.iter().all(|&c| c != 0);
     assert!(
         !is_completely_solved,
-        "Extreme puzzle must NOT be completely solvable with only basic/intermediate techniques."
-    );
-
-    let clue_count = puzzle.cells.iter().filter(|&&c| c != 0).count();
-    assert!(
-        clue_count >= 17 && clue_count <= 35,
-        "Extreme puzzle should have between 17-35 clues (got {}).",
-        clue_count
+        "Extreme puzzle must NOT be completely solvable with only logic techniques (requires backtracking)."
     );
 }

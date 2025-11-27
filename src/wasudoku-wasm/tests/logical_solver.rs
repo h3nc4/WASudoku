@@ -201,7 +201,7 @@ fn test_naked_triple_detection() {
 }
 
 #[test]
-fn test_poiting_triple_detection() {
+fn test_pointing_triple_detection() {
     // A puzzle known to require Pointing Triple
     let puzzle_str =
         "6...5481.9.48136..81.62...42.648....18.36274.4..5.1268.68..5...5.2.38..6..1..658.";
@@ -213,6 +213,52 @@ fn test_poiting_triple_detection() {
         has_pointing_triple,
         "Expected PointingTriple technique usage"
     );
+}
+
+#[test]
+fn test_x_wing_detection() {
+    // A classic X-Wing example for candidate 7 in rows 1 and 4 (indices 0-based: 1 and 4).
+    let puzzle_str =
+        "1.....5.9.4...5...8.5.1.8...8.6...9.7.......1.9...2.8...9.2.1.8...7...4.2.7.....5";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let step = steps
+        .iter()
+        .find(|s| s.technique == "X-Wing")
+        .expect("Expected an X-Wing step");
+
+    let x_wing_val = step.cause[0].candidates[0];
+    assert_eq!(x_wing_val, 7, "X-Wing should be for candidate 7");
+    assert!(
+        !step.eliminations.is_empty(),
+        "X-Wing should yield eliminations"
+    );
+}
+
+#[test]
+fn test_swordfish_detection() {
+    // This puzzle is known to contain a Swordfish pattern.
+    let puzzle_str =
+        ".9..4..6.4.1...38.68...94.2..9..4.2...4..2...2.8..69..1.69...45.42...6.8.5..6..3.";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_swordfish = steps.iter().any(|s| s.technique == "Swordfish");
+    assert!(has_swordfish, "Expected Swordfish technique usage");
+}
+
+#[test]
+fn test_jellyfish_detection() {
+    // This puzzle is known to contain a Jellyfish pattern.
+    // It's a complex pattern, so finding a short string example is rare, but this one is standard.
+    let puzzle_str =
+        "..6..53..3.......4.9..6...5.........2.3...6.9.........6...3..5.8.......1..19..7..";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_jellyfish = steps.iter().any(|s| s.technique == "Jellyfish");
+    assert!(has_jellyfish, "Expected Jellyfish technique usage");
 }
 
 /// Replicates the hybrid solving logic from `lib.rs` for native testing.
@@ -246,7 +292,8 @@ fn test_hybrid_solver_logic_solves_puzzle() {
 
 #[test]
 fn test_hybrid_solver_falls_back_to_backtracking() {
-    // A hard puzzle that the current logical solver might not finish fully without advanced techniques like X-Wing
+    // A hard puzzle that might require techniques beyond our current logical set (or is just very hard).
+    // Even with X-Wing/Swordfish, some puzzles need XY-Wing or Chains.
     let puzzle_str =
         "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
     let solution_str =
