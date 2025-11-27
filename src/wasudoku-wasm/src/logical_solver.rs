@@ -290,7 +290,7 @@ impl LogicalBoard {
 
         // Brute-force combinations of cells to find a naked subset.
         // For 9x9 sudoku, unit length is 9, so combinations are small.
-        let combinations = self.get_combinations(&empty_cells, size);
+        let combinations = Self::get_combinations(&empty_cells, size);
 
         for combo in combinations {
             let mut combined_mask = 0;
@@ -323,7 +323,7 @@ impl LogicalBoard {
     }
 
     /// Simple recursive combination generator.
-    fn get_combinations(&self, pool: &[usize], k: usize) -> Vec<Vec<usize>> {
+    fn get_combinations<T: Copy>(pool: &[T], k: usize) -> Vec<Vec<T>> {
         if k == 0 {
             return vec![vec![]];
         }
@@ -332,11 +332,11 @@ impl LogicalBoard {
         }
 
         let head = pool[0];
-        let mut res = self.get_combinations(&pool[1..], k - 1);
+        let mut res = Self::get_combinations(&pool[1..], k - 1);
         for v in &mut res {
             v.push(head);
         }
-        res.extend(self.get_combinations(&pool[1..], k));
+        res.extend(Self::get_combinations(&pool[1..], k));
         res
     }
 
@@ -410,7 +410,7 @@ impl LogicalBoard {
         }
 
         // 3. Try all combinations of 'size' candidates.
-        let candidate_combos = self.get_candidate_combinations(&all_candidates, size);
+        let candidate_combos = Self::get_combinations(&all_candidates, size);
 
         for combo in candidate_combos {
             // Collect all unique cell indices where these candidates appear.
@@ -482,22 +482,6 @@ impl LogicalBoard {
         }
 
         None
-    }
-
-    fn get_candidate_combinations(&self, pool: &[u8], k: usize) -> Vec<Vec<u8>> {
-        if k == 0 {
-            return vec![vec![]];
-        }
-        if pool.is_empty() {
-            return vec![];
-        }
-        let head = pool[0];
-        let mut res = self.get_candidate_combinations(&pool[1..], k - 1);
-        for v in &mut res {
-            v.push(head);
-        }
-        res.extend(self.get_candidate_combinations(&pool[1..], k));
-        res
     }
 
     /// Find Pointing Pairs/Triples.
