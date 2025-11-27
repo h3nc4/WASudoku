@@ -96,6 +96,12 @@ const mockSteps: SolvingStep[] = [
     cause: [{ index: 50, candidates: [1] }],
   },
   {
+    technique: 'ClaimingCandidate',
+    placements: [],
+    eliminations: [],
+    cause: [{ index: 70, candidates: [2] }],
+  },
+  {
     technique: 'Backtracking',
     placements: [],
     eliminations: [],
@@ -138,7 +144,7 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Step 1: NakedSingle/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 9: Backtracking/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Step 10: Backtracking/ })).toBeInTheDocument()
   })
 
   it('calls viewSolverStep(0) when "Initial Board State" is clicked', async () => {
@@ -238,6 +244,11 @@ describe('SolverStepsPanel component', () => {
       {
         stepIndex: 8,
         expectedText: /Pointing Subgroup: The candidates \{1\} in one box are confined/,
+      },
+      {
+        stepIndex: 9,
+        expectedText:
+          /Box-Line Reduction \(Claiming\): The candidates \{2\} in a row or column are confined to a single box/,
       },
     ]
 

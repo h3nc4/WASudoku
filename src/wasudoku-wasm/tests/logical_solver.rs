@@ -151,6 +151,70 @@ fn test_pointing_pair_detection() {
     );
 }
 
+#[test]
+fn test_claiming_candidate_detection() {
+    // A constructed board where a Claiming Candidate is the first necessary step
+    // Box-Line reduction: In Row 5, candidate 5 is restricted to Box 6.
+    // Thus 5 can be eliminated from other cells in Box 6.
+    let puzzle_str =
+        "7356814..681492.3.4..7356813.71..9.894..73.1.1....937.5.4318...8.392.15.21.5.78.3";
+    // This specific board might solve earlier steps first, so we need to find
+    // *where* the ClaimingCandidate occurs.
+    // Actually, let's use a puzzle specifically known for this or check existence in list.
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    // Find any ClaimingCandidate step
+    let step = steps
+        .iter()
+        .find(|s| s.technique == "ClaimingCandidate")
+        .expect("Expected a ClaimingCandidate step");
+
+    assert!(!step.eliminations.is_empty());
+    assert!(step.cause.len() >= 2);
+}
+
+#[test]
+fn test_hidden_pair_detection() {
+    // A board that requires Hidden Pair
+    let puzzle_str =
+        "538421769421769...769538....8.17.6.2..29........28.3..857312946...6.71...1.8...7.";
+    // Indices 6 and 8 in Row 0 form a Hidden Pair for {2, 3} (example scenario)
+    // Or search specifically for the technique in steps
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_hidden_pair = steps.iter().any(|s| s.technique == "HiddenPair");
+    assert!(has_hidden_pair, "Expected HiddenPair technique usage");
+}
+
+#[test]
+fn test_naked_triple_detection() {
+    // A puzzle known to require Naked Triple
+    let puzzle_str =
+        ".613.5.8.3.5.8.26..8..6.3.561254....8....615.5..9.....12..5...893....5..75...2.4.";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_naked_triple = steps.iter().any(|s| s.technique == "NakedTriple");
+    assert!(has_naked_triple, "Expected NakedTriple technique usage");
+}
+
+#[test]
+fn test_poiting_triple_detection() {
+    // A puzzle known to require Pointing Triple
+    let puzzle_str =
+        "6...5481.9.48136..81.62...42.648....18.36274.4..5.1268.68..5...5.2.38..6..1..658.";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_pointing_triple = steps.iter().any(|s| s.technique == "PointingTriple");
+    assert!(
+        has_pointing_triple,
+        "Expected PointingTriple technique usage"
+    );
+}
+
 /// Replicates the hybrid solving logic from `lib.rs` for native testing.
 fn solve_natively(puzzle_str: &str) -> Option<Board> {
     let initial_board: Board = puzzle_str.parse().ok()?;
@@ -182,7 +246,7 @@ fn test_hybrid_solver_logic_solves_puzzle() {
 
 #[test]
 fn test_hybrid_solver_falls_back_to_backtracking() {
-    // A hard puzzle that the current logical solver cannot finish.
+    // A hard puzzle that the current logical solver might not finish fully without advanced techniques like X-Wing
     let puzzle_str =
         "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
     let solution_str =

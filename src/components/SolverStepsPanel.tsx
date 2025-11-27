@@ -77,6 +77,10 @@ const getStepExplanation = (step: SolvingStep): string => {
       const candidates = formatNums(cause[0].candidates)
       return `Pointing Subgroup: The candidates ${candidates} in one box are confined to a single row or column. They were eliminated from the rest of that line.`
     }
+    case 'ClaimingCandidate': {
+      const candidates = formatNums(cause[0].candidates)
+      return `Box-Line Reduction (Claiming): The candidates ${candidates} in a row or column are confined to a single box. They were eliminated from the rest of that box.`
+    }
     case 'Backtracking':
       return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
     default:

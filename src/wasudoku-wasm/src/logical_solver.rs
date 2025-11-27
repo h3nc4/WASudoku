@@ -20,6 +20,7 @@
 
 use crate::board::Board;
 use crate::types::{CauseCell, Elimination, Placement, SolvingStep};
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 /// Bitmask representing all candidates (1-9) for a cell.
@@ -94,7 +95,7 @@ lazy_static::lazy_static! {
 pub enum TechniqueLevel {
     None,         // No logical moves found
     Basic,        // Naked/Hidden Singles
-    Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples
+    Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
@@ -249,7 +250,7 @@ impl LogicalBoard {
     /// Find Naked Subsets (Pairs, Triples) in any unit.
     /// A Naked Pair is two cells in the same unit that have the exact same two candidates.
     fn find_naked_subset(&self, size: usize) -> Option<SolvingStep> {
-        let tech_name = self.get_technique_name(size);
+        let tech_name = self.get_technique_name(size, false);
 
         for unit in ALL_UNITS.iter() {
             if let Some(step) = self.find_naked_subset_in_unit(unit, size, &tech_name) {
@@ -260,15 +261,14 @@ impl LogicalBoard {
     }
 
     /// Get the technique name based on subset size.
-    fn get_technique_name(&self, size: usize) -> String {
-        format!(
-            "Naked{}",
-            match size {
-                2 => "Pair",
-                3 => "Triple",
-                _ => "Subset",
-            }
-        )
+    fn get_technique_name(&self, size: usize, is_hidden: bool) -> String {
+        let prefix = if is_hidden { "Hidden" } else { "Naked" };
+        let suffix = match size {
+            2 => "Pair",
+            3 => "Triple",
+            _ => "Subset",
+        };
+        format!("{}{}", prefix, suffix)
     }
 
     /// Find a naked subset within a specific unit.
@@ -284,38 +284,23 @@ impl LogicalBoard {
             .cloned()
             .collect();
 
-        if empty_cells.len() <= size {
+        if empty_cells.len() < size {
             return None;
         }
 
-        // A simplified combination generator for pairs.
-        if size == 2 {
-            return self.find_naked_pair_in_cells(&empty_cells, unit, tech_name);
-        }
+        // Brute-force combinations of cells to find a naked subset.
+        // For 9x9 sudoku, unit length is 9, so combinations are small.
+        let combinations = self.get_combinations(&empty_cells, size);
 
-        None
-    }
+        for combo in combinations {
+            let mut combined_mask = 0;
+            for &idx in &combo {
+                combined_mask |= self.candidates[idx];
+            }
 
-    /// Find a naked pair within the given empty cells of a unit.
-    fn find_naked_pair_in_cells(
-        &self,
-        empty_cells: &[usize],
-        unit: &[usize],
-        tech_name: &str,
-    ) -> Option<SolvingStep> {
-        for i in 0..empty_cells.len() {
-            for j in (i + 1)..empty_cells.len() {
-                let c1_idx = empty_cells[i];
-                let c2_idx = empty_cells[j];
-
-                if !self.is_valid_naked_pair(c1_idx, c2_idx) {
-                    continue;
-                }
-
-                let combined_mask = self.candidates[c1_idx];
-                let cause_cells = vec![c1_idx, c2_idx];
+            if combined_mask.count_ones() as usize == size {
                 let eliminations =
-                    self.collect_naked_subset_eliminations(unit, &cause_cells, combined_mask);
+                    self.collect_naked_subset_eliminations(unit, &combo, combined_mask);
 
                 if !eliminations.is_empty() {
                     let cause_cands = mask_to_vec(combined_mask);
@@ -323,7 +308,7 @@ impl LogicalBoard {
                         technique: tech_name.to_string(),
                         placements: vec![],
                         eliminations,
-                        cause: cause_cells
+                        cause: combo
                             .iter()
                             .map(|&idx| CauseCell {
                                 index: idx,
@@ -337,10 +322,22 @@ impl LogicalBoard {
         None
     }
 
-    /// Check if two cells form a valid naked pair.
-    fn is_valid_naked_pair(&self, c1_idx: usize, c2_idx: usize) -> bool {
-        self.candidates[c1_idx] == self.candidates[c2_idx]
-            && self.candidates[c1_idx].count_ones() == 2
+    /// Simple recursive combination generator.
+    fn get_combinations(&self, pool: &[usize], k: usize) -> Vec<Vec<usize>> {
+        if k == 0 {
+            return vec![vec![]];
+        }
+        if pool.is_empty() {
+            return vec![];
+        }
+
+        let head = pool[0];
+        let mut res = self.get_combinations(&pool[1..], k - 1);
+        for v in &mut res {
+            v.push(head);
+        }
+        res.extend(self.get_combinations(&pool[1..], k));
+        res
     }
 
     /// Collect eliminations for a naked subset.
@@ -370,6 +367,137 @@ impl LogicalBoard {
         }
 
         eliminations
+    }
+
+    /// Find Hidden Subsets (Pairs, Triples) in any unit.
+    fn find_hidden_subset(&self, size: usize) -> Option<SolvingStep> {
+        let tech_name = self.get_technique_name(size, true);
+
+        for unit in ALL_UNITS.iter() {
+            if let Some(step) = self.find_hidden_subset_in_unit(unit, size, &tech_name) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn find_hidden_subset_in_unit(
+        &self,
+        unit: &[usize],
+        size: usize,
+        tech_name: &str,
+    ) -> Option<SolvingStep> {
+        // 1. Map each candidate (1-9) to the list of cell indices in this unit where it appears.
+        let mut candidate_locations: HashMap<u8, Vec<usize>> = HashMap::new();
+        for num in 1..=9 {
+            let mask = 1 << (num - 1);
+            for &idx in unit {
+                if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
+                    candidate_locations.entry(num).or_default().push(idx);
+                }
+            }
+        }
+
+        // 2. Get all candidates that appear at least once in the unit.
+        let all_candidates: Vec<u8> = candidate_locations
+            .keys()
+            .filter(|&k| !candidate_locations[k].is_empty())
+            .cloned()
+            .collect();
+
+        if all_candidates.len() < size {
+            return None;
+        }
+
+        // 3. Try all combinations of 'size' candidates.
+        let candidate_combos = self.get_candidate_combinations(&all_candidates, size);
+
+        for combo in candidate_combos {
+            // Collect all unique cell indices where these candidates appear.
+            let mut cells: HashSet<usize> = HashSet::new();
+            for &cand in &combo {
+                if let Some(locs) = candidate_locations.get(&cand) {
+                    for &loc in locs {
+                        cells.insert(loc);
+                    }
+                }
+            }
+
+            // For a hidden subset: 'size' candidates must appear in exactly 'size' cells
+            // and be confined to those cells only.
+            if cells.len() != size {
+                continue;
+            }
+
+            // Verify that each candidate in the combo appears at least once in the subset cells.
+            // This ensures all candidates are actually present.
+            let mut all_present = true;
+            for &cand in &combo {
+                if let Some(locs) = candidate_locations.get(&cand) {
+                    if locs.is_empty() {
+                        all_present = false;
+                        break;
+                    }
+                } else {
+                    all_present = false;
+                    break;
+                }
+            }
+
+            if !all_present {
+                continue;
+            }
+
+            let cell_vec: Vec<usize> = cells.into_iter().collect();
+            let combo_mask = combo.iter().fold(0, |acc, &val| acc | (1 << (val - 1)));
+
+            // 4. Collect eliminations: remove *other* candidates from these cells.
+            let mut eliminations = Vec::new();
+            for &idx in &cell_vec {
+                let other_candidates = self.candidates[idx] & !combo_mask;
+                if other_candidates != 0 {
+                    for cand in mask_to_vec(other_candidates) {
+                        eliminations.push(Elimination {
+                            index: idx,
+                            value: cand,
+                        });
+                    }
+                }
+            }
+
+            if !eliminations.is_empty() {
+                return Some(SolvingStep {
+                    technique: tech_name.to_string(),
+                    placements: vec![],
+                    eliminations,
+                    cause: cell_vec
+                        .iter()
+                        .map(|&idx| CauseCell {
+                            index: idx,
+                            candidates: combo.clone(),
+                        })
+                        .collect(),
+                });
+            }
+        }
+
+        None
+    }
+
+    fn get_candidate_combinations(&self, pool: &[u8], k: usize) -> Vec<Vec<u8>> {
+        if k == 0 {
+            return vec![vec![]];
+        }
+        if pool.is_empty() {
+            return vec![];
+        }
+        let head = pool[0];
+        let mut res = self.get_candidate_combinations(&pool[1..], k - 1);
+        for v in &mut res {
+            v.push(head);
+        }
+        res.extend(self.get_candidate_combinations(&pool[1..], k));
+        res
     }
 
     /// Find Pointing Pairs/Triples.
@@ -515,6 +643,82 @@ impl LogicalBoard {
                 .collect(),
         }
     }
+
+    /// Find Claiming Candidates (Box-Line Reduction).
+    /// If a candidate in a row (or col) is confined to one box, it can be removed from the rest of that box.
+    fn find_claiming_candidates(&self) -> Option<SolvingStep> {
+        // Check Rows
+        for row in 0..9 {
+            if let Some(step) = self.find_claiming_in_linear_unit(row, true) {
+                return Some(step);
+            }
+        }
+        // Check Columns
+        for col in 0..9 {
+            if let Some(step) = self.find_claiming_in_linear_unit(col, false) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn find_claiming_in_linear_unit(&self, unit_idx: usize, is_row: bool) -> Option<SolvingStep> {
+        let unit = if is_row {
+            &ROW_UNITS[unit_idx]
+        } else {
+            &COL_UNITS[unit_idx]
+        };
+
+        for num in 1..=9 {
+            let mask = 1 << (num - 1);
+            let mut cells_with_cand = Vec::new();
+            let mut box_indices = HashSet::new();
+
+            for &idx in unit.iter() {
+                if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
+                    cells_with_cand.push(idx);
+                    box_indices.insert((idx / 9 / 3) * 3 + (idx % 9 / 3));
+                }
+            }
+
+            if cells_with_cand.is_empty() || box_indices.len() != 1 {
+                continue;
+            }
+
+            let box_idx = *box_indices.iter().next().unwrap();
+            let box_cells = &BOX_UNITS[box_idx];
+            let mut elims = Vec::new();
+
+            for &idx in box_cells.iter() {
+                // If cell is in the box but NOT in the current row/col unit
+                if !unit.contains(&idx)
+                    && self.cells[idx] == 0
+                    && (self.candidates[idx] & mask) != 0
+                {
+                    elims.push(Elimination {
+                        index: idx,
+                        value: num,
+                    });
+                }
+            }
+
+            if !elims.is_empty() {
+                return Some(SolvingStep {
+                    technique: "ClaimingCandidate".to_string(),
+                    placements: vec![],
+                    eliminations: elims,
+                    cause: cells_with_cand
+                        .iter()
+                        .map(|&idx| CauseCell {
+                            index: idx,
+                            candidates: vec![num],
+                        })
+                        .collect(),
+                });
+            }
+        }
+        None
+    }
 }
 
 /// Solve the board by repeatedly applying logical techniques and return the steps.
@@ -525,8 +729,12 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
     loop {
         let progress = try_naked_single(&mut board, &mut steps)
             || try_hidden_single(&mut board, &mut steps)
-            || try_naked_pair(&mut board, &mut steps)
-            || try_pointing_subset(&mut board, &mut steps);
+            || try_naked_subset(&mut board, &mut steps, 2) // Naked Pair
+            || try_naked_subset(&mut board, &mut steps, 3) // Naked Triple
+            || try_pointing_subset(&mut board, &mut steps)
+            || try_hidden_subset(&mut board, &mut steps, 2) // Hidden Pair
+            || try_hidden_subset(&mut board, &mut steps, 3) // Hidden Triple
+            || try_claiming_candidate(&mut board, &mut steps);
 
         if !progress {
             break;
@@ -558,9 +766,9 @@ fn try_hidden_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> 
     false
 }
 
-/// Try to apply a naked pair technique.
-fn try_naked_pair(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
-    if let Some(step) = board.find_naked_subset(2) {
+/// Try to apply a naked subset technique of given size.
+fn try_naked_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
+    if let Some(step) = board.find_naked_subset(size) {
         for elim in &step.eliminations {
             board.candidates[elim.index] &= !(1 << (elim.value - 1));
         }
@@ -582,6 +790,30 @@ fn try_pointing_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -
     false
 }
 
+/// Try to apply a hidden subset technique of given size.
+fn try_hidden_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
+    if let Some(step) = board.find_hidden_subset(size) {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
+/// Try to apply a claiming candidate technique.
+fn try_claiming_candidate(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_claiming_candidates() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
 /// Determines the logical difficulty of solving a board by finding the hardest
 /// technique required to make any progress.
 pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
@@ -591,7 +823,8 @@ pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
         .iter()
         .map(|step| match step.technique.as_str() {
             "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
-            "PointingPair" | "PointingTriple" | "NakedPair" => TechniqueLevel::Intermediate,
+            "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
+            | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
             _ => TechniqueLevel::None,
         })
         .max()
