@@ -67,7 +67,8 @@ export const PencilMarks = memo(function PencilMarks({
               <span
                 className={cn(
                   baseClasses,
-                  eliminations?.has(num) && 'text-destructive/80 line-through',
+                  eliminations?.has(num) &&
+                    'text-destructive/80 dark:text-destructive/80 line-through',
                 )}
               >
                 {num}

@@ -60,7 +60,7 @@ describe('PencilMarks component', () => {
     expect(span).toHaveClass('text-sm')
   })
 
-  it('renders eliminated candidates with a line-through style', () => {
+  it('renders eliminated candidates with a line-through style and destructive color', () => {
     render(
       <PencilMarks
         candidates={new Set([1, 2, 3])}
@@ -70,8 +70,13 @@ describe('PencilMarks component', () => {
     )
     const eliminatedMark = screen.getByText('2')
     expect(eliminatedMark).toHaveClass('line-through')
-    expect(screen.getByText('1')).not.toHaveClass('line-through')
-    expect(screen.getByText('3')).not.toHaveClass('line-through')
+    expect(eliminatedMark).toHaveClass('text-destructive/80')
+    expect(eliminatedMark).toHaveClass('dark:text-destructive/80')
+
+    const normalMark = screen.getByText('1')
+    expect(normalMark).not.toHaveClass('line-through')
+    expect(normalMark).toHaveClass('text-zinc-800')
+    expect(normalMark).not.toHaveClass('text-destructive/80')
   })
 
   it('renders with correct base color classes', () => {
