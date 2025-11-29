@@ -37,6 +37,7 @@ interface MockSudokuCellProps {
   onFocus: (index: number) => void
   isHighlighted: boolean
   isNumberHighlighted: boolean
+  isActive: boolean
   isCause: boolean
   isPlaced: boolean
   isError?: boolean
@@ -204,6 +205,26 @@ describe('SudokuGrid component', () => {
 
     const cell5Props = mockSudokuCellRender.mock.calls[5][0]
     expect(cell5Props.isNumberHighlighted).toBe(false)
+  })
+
+  it('removes all visual highlights (active, peers, number) when puzzle is solved', () => {
+    const boardWithValues = initialState.board.map((cell, index) => ({
+      ...cell,
+      value: (index % 9) + 1,
+    }))
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      board: boardWithValues,
+      ui: { ...defaultState.ui, activeCellIndex: 4, highlightedValue: 5 },
+      solver: { ...defaultState.solver, isSolved: true },
+    })
+    render(<SudokuGrid />)
+
+    const cell4Props = mockSudokuCellRender.mock.calls[4][0]
+    // Normally would be active/highlighted, but isSolved prevents it
+    expect(cell4Props.isActive).toBe(false)
+    expect(cell4Props.isHighlighted).toBe(false)
+    expect(cell4Props.isNumberHighlighted).toBe(false)
   })
 
   describe('Keyboard Interactions', () => {

@@ -155,6 +155,11 @@ export interface ExitVisualizationAction {
   type: 'EXIT_VISUALIZATION'
 }
 
+/** Action to increment the game timer. */
+export interface TickTimerAction {
+  type: 'TICK_TIMER'
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -181,3 +186,4 @@ export type SudokuAction =
   | SetHighlightedValueAction
   | ViewSolverStepAction
   | ExitVisualizationAction
+  | TickTimerAction

@@ -41,6 +41,7 @@ import type {
   ValidatePuzzleFailureAction,
   StartCustomPuzzleAction,
   AutoFillCandidatesAction,
+  TickTimerAction,
 } from './sudoku.actions.types'
 import type { InputMode, SolveResult } from './sudoku.types'
 
@@ -80,7 +81,7 @@ export const importBoard = (boardString: string): ImportBoardAction => ({
   boardString,
 })
 
-/** Creates an action to automatically fill candidates for empty cells. */
+/** Creates an action to automatically fill candidates for all empty cells. */
 export const autoFillCandidates = (): AutoFillCandidatesAction => ({
   type: 'AUTO_FILL_CANDIDATES',
 })
@@ -186,4 +187,9 @@ export const viewSolverStep = (index: number): ViewSolverStepAction => ({
 /** Creates an action to exit visualization mode and return to playing. */
 export const exitVisualization = (): ExitVisualizationAction => ({
   type: 'EXIT_VISUALIZATION',
+})
+
+/** Creates an action to advance the game timer by one second. */
+export const tickTimer = (): TickTimerAction => ({
+  type: 'TICK_TIMER',
 })

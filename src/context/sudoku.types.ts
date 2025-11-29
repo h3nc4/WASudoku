@@ -92,6 +92,11 @@ export interface DerivedState {
   readonly isBoardFull: boolean
 }
 
+export interface GameMetrics {
+  readonly timer: number
+  readonly mistakes: number
+}
+
 /** The complete state of the Sudoku game. */
 export interface SudokuState {
   /** The current state of the 81 Sudoku cells. */
@@ -106,6 +111,8 @@ export interface SudokuState {
   readonly solver: SolverState
   /** State that is calculated based on the current board. */
   readonly derived: DerivedState
+  /** Metrics for the current game session (time, mistakes). */
+  readonly game: GameMetrics
 }
 
 /** The shape of the game state object saved to local storage. */
@@ -115,4 +122,5 @@ export interface SavedGameState {
     index: number
   }
   solution: number[] | null
+  game: GameMetrics
 }

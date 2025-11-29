@@ -17,7 +17,7 @@
  */
 
 import { renderHook } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
 import { useSudokuPersistence } from './useSudokuPersistence'
 import type { SudokuState } from '@/context/sudoku.types'
 import { initialState } from '@/context/sudoku.reducer'
@@ -32,16 +32,38 @@ const localStorageMock = (() => {
     clear: () => {
       store = {}
     },
+    removeItem: (key: string) => {
+      delete store[key]
+    },
+    length: 0,
+    key: () => null,
   }
 })()
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-})
 
 describe('useSudokuPersistence', () => {
   let setItemSpy: ReturnType<typeof vi.spyOn>
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let originalLocalStorage: any
+
+  beforeAll(() => {
+    // Overwrite localStorage to avoid polluting the global scope
+    originalLocalStorage = window.localStorage
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      configurable: true,
+      writable: true,
+    })
+  })
+
+  afterAll(() => {
+    // Restore original localStorage
+    Object.defineProperty(window, 'localStorage', {
+      value: originalLocalStorage,
+      configurable: true,
+      writable: true,
+    })
+  })
 
   beforeEach(() => {
     localStorageMock.clear()
@@ -61,6 +83,7 @@ describe('useSudokuPersistence', () => {
     const savedData = JSON.parse(setItemSpy.mock.calls[0][1] as string)
     expect(savedData.history.index).toBe(0)
     expect(savedData.history.stack).toHaveLength(1)
+    expect(savedData.game.timer).toBe(0)
   })
 
   it('should save state to local storage when history changes', () => {
@@ -84,6 +107,26 @@ describe('useSudokuPersistence', () => {
     const savedData = JSON.parse(setItemSpy.mock.calls[1][1] as string)
     expect(savedData.history.index).toBe(1)
     expect(savedData.history.stack).toHaveLength(2)
+  })
+
+  it('should save state to local storage when game metrics change', () => {
+    const updatedState: SudokuState = {
+      ...initialState,
+      game: { timer: 5, mistakes: 1 },
+    }
+
+    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
+      initialProps: initialState,
+    })
+
+    expect(setItemSpy).toHaveBeenCalledTimes(1)
+
+    rerender(updatedState)
+
+    expect(setItemSpy).toHaveBeenCalledTimes(2)
+    const savedData = JSON.parse(setItemSpy.mock.calls[1][1] as string)
+    expect(savedData.game.timer).toBe(5)
+    expect(savedData.game.mistakes).toBe(1)
   })
 
   it('should not save state if only irrelevant props change', () => {

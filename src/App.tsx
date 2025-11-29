@@ -34,6 +34,7 @@ import { useSudokuActions } from './hooks/useSudokuActions'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
 import { SelectionScreen } from './components/SelectionScreen'
 import { AutoFillButton } from './components/controls/AutoFillButton'
+import { GameStatus } from './components/GameStatus'
 import { cn } from './lib/utils'
 
 function App() {
@@ -81,6 +82,7 @@ function App() {
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
           {/* Main content: Grid + Controls */}
           <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
+            <GameStatus />
             <SudokuGrid />
             <div className="flex flex-col gap-4">
               <div className="grid w-full grid-cols-4 place-items-center gap-2">

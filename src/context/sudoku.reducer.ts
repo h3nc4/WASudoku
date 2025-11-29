@@ -101,6 +101,10 @@ export const initialState: SudokuState = {
     solution: null,
   },
   derived: getDerivedBoardState(createEmptyBoard()),
+  game: {
+    timer: 0,
+    mistakes: 0,
+  },
 }
 
 /**
@@ -149,6 +153,7 @@ export function loadInitialState(): SudokuState {
             solution: savedState.solution ?? null,
           },
           derived: getDerivedBoardState(currentBoard),
+          game: savedState.game ?? { timer: 0, mistakes: 0 },
         }
       }
     }
@@ -199,11 +204,24 @@ const handleSetCellValue = (state: SudokuState, action: SetCellValueAction): Sud
     newBoard[relatedIndex].centers.delete(value)
   })
 
+  // Track mistakes if solution is known
+  let mistakes = state.game.mistakes
+  let isSolved = false
+
+  if (state.solver.gameMode === 'playing' && state.solver.solution) {
+    if (state.solver.solution[index] !== value) {
+      mistakes += 1
+    } else if (newBoard.every((cell, i) => cell.value === state.solver.solution![i])) {
+      isSolved = true
+    }
+  }
+
   return {
     ...state,
     board: newBoard,
     history: updateHistory(state.history, newBoard),
-    solver: { ...state.solver, isSolved: false, solveFailed: false },
+    solver: { ...state.solver, isSolved, solveFailed: false },
+    game: { ...state.game, mistakes },
   }
 }
 
@@ -297,6 +315,7 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
       },
       solver: { ...state.solver, isSolved: false, solveFailed: false },
       ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+      game: { timer: 0, mistakes: 0 },
     }
   }
 
@@ -316,6 +335,7 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
       // Clear solution as well since we are resetting
       solver: { ...state.solver, solution: null },
       ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+      game: { timer: 0, mistakes: 0 },
     }
   }
 
@@ -344,6 +364,7 @@ const handleImportBoard = (state: SudokuState, action: ImportBoardAction): Sudok
       // Ideally, importing while playing should probably trigger a solve/validate flow, but currently it's just setting the board.
       solution: null,
     },
+    game: { timer: 0, mistakes: 0 },
   }
 }
 
@@ -413,6 +434,7 @@ const handleGeneratePuzzleSuccess = (
       gameMode: 'playing',
       solution: solutionNumbers,
     },
+    game: { timer: 0, mistakes: 0 },
   }
 }
 
@@ -608,6 +630,7 @@ const handleExitVisualization = (state: SudokuState): SudokuState => ({
     candidatesForViz: null,
     eliminationsForViz: null,
     solution: state.solver.solution,
+    isSolved: false,
   },
   ui: {
     ...state.ui,
@@ -651,6 +674,7 @@ const handleValidatePuzzleSuccess = (
       gameMode: 'playing',
       solution: solutionNumbers,
     },
+    game: { timer: 0, mistakes: 0 },
   }
 }
 
@@ -757,6 +781,9 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       break
     case 'SET_HIGHLIGHTED_VALUE':
       newState = { ...state, ui: { ...state.ui, highlightedValue: action.value } }
+      break
+    case 'TICK_TIMER':
+      newState = { ...state, game: { ...state.game, timer: state.game.timer + 1 } }
       break
     default:
       newState = state

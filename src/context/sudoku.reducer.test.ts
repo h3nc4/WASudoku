@@ -52,6 +52,62 @@ describe('sudokuReducer', () => {
         expect(newState.solver.solveFailed).toBe(false)
       })
 
+      it('should increment mistakes if value does not match solution', () => {
+        const state: SudokuState = {
+          ...initialState,
+          solver: {
+            ...initialState.solver,
+            gameMode: 'playing',
+            solution: [1, ...Array(80).fill(0)], // Solution expects 1 at index 0
+          },
+        }
+        const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 0, value: 5 } // Entering 5 is wrong
+        const newState = sudokuReducer(state, action)
+
+        expect(newState.game.mistakes).toBe(1)
+      })
+
+      it('should not increment mistakes if value matches solution', () => {
+        const state: SudokuState = {
+          ...initialState,
+          solver: {
+            ...initialState.solver,
+            gameMode: 'playing',
+            solution: [1, ...Array(80).fill(0)],
+          },
+        }
+        const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 0, value: 1 } // Correct
+        const newState = sudokuReducer(state, action)
+
+        expect(newState.game.mistakes).toBe(0)
+      })
+
+      it('should detect when puzzle is completely solved by user', () => {
+        const solution = Array(81)
+          .fill(0)
+          .map((_, i) => (i % 9) + 1)
+        // Setup board with all but last cell filled correctly
+        const nearlySolvedBoard = createEmptyBoard().map((cell, i) =>
+          i < 80 ? { ...cell, value: solution[i] } : cell,
+        )
+
+        const state: SudokuState = {
+          ...initialState,
+          board: nearlySolvedBoard,
+          solver: {
+            ...initialState.solver,
+            gameMode: 'playing',
+            solution,
+            isSolved: false,
+          },
+        }
+
+        const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 80, value: solution[80] }
+        const newState = sudokuReducer(state, action)
+
+        expect(newState.solver.isSolved).toBe(true)
+      })
+
       it('should return original state if value is already set', () => {
         const stateWithValue = sudokuReducer(initialState, {
           type: 'SET_CELL_VALUE',
@@ -389,7 +445,7 @@ describe('sudokuReducer', () => {
     })
 
     describe('CLEAR_BOARD', () => {
-      it('should clear user progress in playing mode', () => {
+      it('should clear user progress in playing mode and reset game metrics', () => {
         const initialBoard = createEmptyBoard().map((c, i) =>
           i === 0 ? { ...c, value: 5, isGiven: true } : c,
         )
@@ -401,11 +457,14 @@ describe('sudokuReducer', () => {
           board: boardWithProgress,
           initialBoard,
           solver: { ...initialState.solver, gameMode: 'playing' },
+          game: { timer: 100, mistakes: 2 },
         }
         const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
         expect(newState.board).toEqual(initialBoard)
         expect(newState.history.stack).toHaveLength(1)
         expect(areBoardsEqual(newState.history.stack[0], initialBoard)).toBe(true)
+        expect(newState.game.timer).toBe(0)
+        expect(newState.game.mistakes).toBe(0)
       })
 
       it('should return the same state instance if there is no progress to clear', () => {
@@ -434,6 +493,7 @@ describe('sudokuReducer', () => {
         expect(newState.board).toEqual(createEmptyBoard())
         expect(newState.history.stack).toHaveLength(1)
         expect(newState.solver.solution).toBeNull()
+        expect(newState.game.timer).toBe(0)
       })
 
       it('should do nothing if board is empty in customInput mode', () => {
@@ -495,6 +555,7 @@ describe('sudokuReducer', () => {
         expect(newState.solver.isSolved).toBe(false)
         expect(newState.solver.gameMode).toBe('playing')
         expect(newState.solver.solution).toBeNull()
+        expect(newState.game.timer).toBe(0)
       })
 
       it('should parse the board but not set initialBoard in customInput mode', () => {
@@ -679,7 +740,7 @@ describe('sudokuReducer', () => {
         expect(state.solver.generationDifficulty).toBe('hard')
       })
 
-      it('should handle GENERATE_PUZZLE_SUCCESS', () => {
+      it('should handle GENERATE_PUZZLE_SUCCESS and reset timer/mistakes', () => {
         const generatingState: SudokuState = {
           ...initialState,
           solver: {
@@ -687,6 +748,7 @@ describe('sudokuReducer', () => {
             isGenerating: true,
             generationDifficulty: 'easy',
           },
+          game: { timer: 500, mistakes: 5 },
         }
         const puzzleString = '1'.repeat(81)
         const solutionString = '2'.repeat(81)
@@ -705,6 +767,8 @@ describe('sudokuReducer', () => {
         expect(state.history.index).toBe(0)
         expect(state.solver.solution).toBeInstanceOf(Array)
         expect(state.solver.solution?.[0]).toBe(2)
+        expect(state.game.timer).toBe(0)
+        expect(state.game.mistakes).toBe(0)
       })
 
       it('should handle GENERATE_PUZZLE_SUCCESS with dots in solution string (coverage)', () => {
@@ -752,13 +816,14 @@ describe('sudokuReducer', () => {
         expect(state.solver.isValidating).toBe(true)
       })
 
-      it('should handle VALIDATE_PUZZLE_SUCCESS', () => {
+      it('should handle VALIDATE_PUZZLE_SUCCESS and reset timer/mistakes', () => {
         const board = initialState.board.map((c, i) => (i === 0 ? { ...c, value: 5 } : c))
         const solutionString = '5'.repeat(81)
         const state: SudokuState = {
           ...initialState,
           board,
           solver: { ...initialState.solver, isValidating: true },
+          game: { timer: 500, mistakes: 2 },
         }
         const newState = sudokuReducer(state, {
           type: 'VALIDATE_PUZZLE_SUCCESS',
@@ -770,6 +835,8 @@ describe('sudokuReducer', () => {
         expect(newState.board[1].isGiven).toBe(false)
         expect(newState.initialBoard).toEqual(newState.board)
         expect(newState.solver.solution?.[0]).toBe(5)
+        expect(newState.game.timer).toBe(0)
+        expect(newState.game.mistakes).toBe(0)
       })
 
       it('should handle VALIDATE_PUZZLE_SUCCESS with dots in solution string (coverage)', () => {
@@ -999,8 +1066,12 @@ describe('sudokuReducer', () => {
         expect(newState).toBe(state)
       })
 
-      it('should handle EXIT_VISUALIZATION', () => {
-        const state = sudokuReducer(visualizingState, { type: 'EXIT_VISUALIZATION' })
+      it('should handle EXIT_VISUALIZATION and reset isSolved to false', () => {
+        const solvedState: SudokuState = {
+          ...visualizingState,
+          solver: { ...visualizingState.solver, isSolved: true },
+        }
+        const state = sudokuReducer(solvedState, { type: 'EXIT_VISUALIZATION' })
         expect(state.solver.gameMode).toBe('playing')
         expect(state.board).toEqual(initialBoard)
         expect(state.solver.isSolved).toBe(false)
@@ -1068,6 +1139,13 @@ describe('sudokuReducer', () => {
           value: 5,
         })
         expect(newState.ui.highlightedValue).toBe(5)
+      })
+
+      it('should increment timer on TICK_TIMER', () => {
+        const newState = sudokuReducer(initialState, { type: 'TICK_TIMER' })
+        expect(newState.game.timer).toBe(1)
+        const newerState = sudokuReducer(newState, { type: 'TICK_TIMER' })
+        expect(newerState.game.timer).toBe(2)
       })
     })
 
@@ -1151,6 +1229,7 @@ describe('loadInitialState', () => {
         index: 0,
       },
       solution: [5, ...Array(80).fill(null)],
+      game: { timer: 10, mistakes: 1 },
     }
 
     function replacer(_key: string, value: unknown) {
@@ -1171,6 +1250,31 @@ describe('loadInitialState', () => {
     expect(state.initialBoard[0].value).toBe(5)
     expect(state.initialBoard[1].value).toBe(null)
     expect(state.solver.solution).toEqual([5, ...Array(80).fill(null)])
+    expect(state.game.timer).toBe(10)
+    expect(state.game.mistakes).toBe(1)
+  })
+
+  it('should provide default game state if missing in localStorage (legacy support)', () => {
+    // Create a legacy state structure without the 'game' property
+    const legacyState = {
+      history: {
+        stack: [createEmptyBoard()],
+        index: 0,
+      },
+      solution: null,
+    }
+    // We intentionally omit 'game' here to test the nullish coalescing logic
+    function replacer(_key: string, value: unknown) {
+      if (value instanceof Set) {
+        return { __dataType: 'Set', value: [...value] }
+      }
+      return value
+    }
+
+    localStorageMock.getItem.mockReturnValue(JSON.stringify(legacyState, replacer))
+    const state = loadInitialState()
+
+    expect(state.game).toEqual({ timer: 0, mistakes: 0 })
   })
 
   it('should handle JSON parsing errors gracefully', () => {
@@ -1193,9 +1297,10 @@ describe('loadInitialState', () => {
   })
 
   it('should return initial state if saved history stack is empty', () => {
-    const malformedData: SavedGameState = {
+    const malformedData = {
       history: { stack: [], index: 0 },
       solution: null,
+      game: { timer: 0, mistakes: 0 },
     }
     localStorageMock.getItem.mockReturnValue(JSON.stringify(malformedData))
     const state = loadInitialState()

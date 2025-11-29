@@ -17,7 +17,7 @@
  */
 
 import { render, renderHook } from '@testing-library/react'
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import { SudokuProvider } from './SudokuProvider'
 import { useSudokuState, useSudokuDispatch } from './sudoku.hooks'
 import { initialState } from './sudoku.reducer'
@@ -41,6 +41,12 @@ const DispatchHookFailComponent = () => {
 }
 
 describe('Sudoku Context Hooks', () => {
+  beforeEach(() => {
+    // Ensure local storage is empty so SudokuProvider loads the default initial state
+    // instead of a "playing" state from a previous test.
+    window.localStorage.clear()
+  })
+
   it('useSudokuState should throw an error when used outside of SudokuProvider', () => {
     expect(() => render(<StateHookFailComponent />)).toThrow(
       'useSudokuState must be used within a SudokuProvider',

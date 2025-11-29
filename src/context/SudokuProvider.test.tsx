@@ -24,11 +24,13 @@ import { useSudokuState, useSudokuDispatch } from './sudoku.hooks'
 import { useSudokuPersistence } from '@/hooks/useSudokuPersistence'
 import { useSudokuSolver } from '@/hooks/useSudokuSolver'
 import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
+import { useGameTimer } from '@/hooks/useGameTimer'
 import { initialState } from './sudoku.reducer'
 
 vi.mock('@/hooks/useSudokuPersistence')
 vi.mock('@/hooks/useSudokuSolver')
 vi.mock('@/hooks/useSudokuFeedback')
+vi.mock('@/hooks/useGameTimer')
 
 const TestConsumer = () => {
   const state = useSudokuState()
@@ -77,5 +79,6 @@ describe('SudokuProvider', () => {
     expect(useSudokuPersistence).toHaveBeenCalled()
     expect(useSudokuSolver).toHaveBeenCalled()
     expect(useSudokuFeedback).toHaveBeenCalled()
+    expect(useGameTimer).toHaveBeenCalled()
   })
 })

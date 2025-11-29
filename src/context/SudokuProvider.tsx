@@ -21,6 +21,7 @@ import { sudokuReducer, loadInitialState } from './sudoku.reducer'
 import { useSudokuPersistence } from '@/hooks/useSudokuPersistence'
 import { useSudokuSolver } from '@/hooks/useSudokuSolver'
 import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
+import { useGameTimer } from '@/hooks/useGameTimer'
 import { SudokuDispatchContext, SudokuStateContext } from './sudoku.context'
 
 type SudokuProviderProps = {
@@ -39,6 +40,7 @@ export function SudokuProvider({ children }: SudokuProviderProps) {
   useSudokuPersistence(state)
   useSudokuSolver(state, dispatch)
   useSudokuFeedback(state, dispatch)
+  useGameTimer(state, dispatch)
 
   return (
     <SudokuStateContext.Provider value={state}>

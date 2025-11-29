@@ -39,7 +39,8 @@ export function SudokuGrid() {
     solver.gameMode === 'visualizing' ||
     solver.isSolving ||
     solver.isValidating ||
-    solver.gameMode === 'selecting'
+    solver.gameMode === 'selecting' ||
+    solver.isSolved
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -213,10 +214,12 @@ export function SudokuGrid() {
             isSolved={solver.isSolved}
             isConflict={derived.conflicts.has(index)}
             isError={isError}
-            isActive={ui.activeCellIndex === index}
-            isHighlighted={highlightedIndices.has(index)}
+            isActive={!solver.isSolved && ui.activeCellIndex === index}
+            isHighlighted={!solver.isSolved && highlightedIndices.has(index)}
             isNumberHighlighted={
-              displayCell.value !== null && displayCell.value === ui.highlightedValue
+              !solver.isSolved &&
+              displayCell.value !== null &&
+              displayCell.value === ui.highlightedValue
             }
             isCause={causeIndices.has(index)}
             isPlaced={placedIndices.has(index)}
