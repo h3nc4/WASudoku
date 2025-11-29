@@ -29,7 +29,13 @@ import type {
   GeneratePuzzleStartAction,
   ValidatePuzzleFailureAction,
 } from './sudoku.actions.types'
-import type { BoardState, SudokuState, SavedGameState, HistoryState } from './sudoku.types'
+import type {
+  BoardState,
+  SudokuState,
+  SavedGameState,
+  HistoryState,
+  SolvingStep,
+} from './sudoku.types'
 import {
   getRelatedCellIndices,
   validateBoard,
@@ -437,57 +443,94 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
   }
 }
 
-const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction): SudokuState => {
-  if (state.solver.gameMode !== 'visualizing') return state
-
-  let boardForStep = state.initialBoard.map((c) => ({
+/**
+ * Reconstructs the board state by applying solver steps up to a given index.
+ */
+const reconstructBoard = (
+  initialBoard: BoardState,
+  steps: readonly SolvingStep[],
+  upTo: number,
+): BoardState => {
+  const board = initialBoard.map((c) => ({
     ...c,
     candidates: new Set<number>(),
     centers: new Set<number>(),
   }))
+
+  for (let i = 0; i < upTo; i++) {
+    for (const p of steps[i].placements) {
+      board[p.index].value = p.value
+    }
+  }
+  return board
+}
+
+/**
+ * Reconstructs the candidate sets by re-calculating them for the board state
+ * prior to the current step, and then applying historical eliminations.
+ */
+const reconstructCandidates = (
+  initialBoard: BoardState,
+  steps: readonly SolvingStep[],
+  upTo: number,
+) => {
+  // Reconstruct board state *before* the specific step to calculate raw candidates
+  const board = reconstructBoard(initialBoard, steps, upTo)
+  const candidates = calculateCandidates(board)
+
+  // Re-apply specific eliminations from history up to this point
+  for (let i = 0; i < upTo; i++) {
+    for (const elim of steps[i].eliminations) {
+      candidates[elim.index]?.delete(elim.value)
+    }
+  }
+  return candidates
+}
+
+/**
+ * Determines which value should be highlighted based on the current step's placements.
+ */
+const getHighlightedValueForStep = (
+  steps: readonly SolvingStep[],
+  stepIndex: number,
+): number | null => {
+  if (stepIndex > 0 && stepIndex <= steps.length) {
+    const currentStep = steps[stepIndex - 1]
+    if (currentStep.placements.length > 0) {
+      return currentStep.placements[0].value
+    }
+  }
+  return null
+}
+
+const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction): SudokuState => {
+  if (state.solver.gameMode !== 'visualizing') return state
+
+  let visualizationBoard: BoardState
+
   if (action.index === state.solver.steps.length) {
-    boardForStep = state.board.map((c) => ({
+    // Show the fully solved board (which is stored in state.board during visualization)
+    // but sanitized of pencil marks for display consistency
+    visualizationBoard = state.board.map((c) => ({
       ...c,
       candidates: new Set<number>(),
       centers: new Set<number>(),
     }))
   } else {
-    for (let i = 0; i < action.index; i++) {
-      for (const p of state.solver.steps[i].placements) {
-        boardForStep[p.index].value = p.value
-      }
-    }
+    visualizationBoard = reconstructBoard(state.initialBoard, state.solver.steps, action.index)
   }
 
-  const boardBeforeCurrentStep = state.initialBoard.map((c) => ({
-    ...c,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }))
-  for (let i = 0; i < action.index - 1; i++) {
-    for (const p of state.solver.steps[i].placements) {
-      boardBeforeCurrentStep[p.index].value = p.value
-    }
-  }
+  // Calculate candidates and eliminations based on the state *before* the current step is applied
+  const previousStepIndex = Math.max(0, action.index - 1)
+  const candidates = reconstructCandidates(
+    state.initialBoard,
+    state.solver.steps,
+    previousStepIndex,
+  )
 
-  const candidates = calculateCandidates(boardBeforeCurrentStep)
+  const eliminations = action.index > 0 ? state.solver.steps[action.index - 1].eliminations : []
 
-  for (let i = 0; i < action.index - 1; i++) {
-    for (const elim of state.solver.steps[i].eliminations) {
-      candidates[elim.index]?.delete(elim.value)
-    }
-  }
-
-  const elims = action.index > 0 ? state.solver.steps[action.index - 1].eliminations : []
-
-  // Determine which number should be highlighted based on the step being viewed.
-  let newHighlightedValue: number | null = null
-  if (action.index > 0 && action.index <= state.solver.steps.length) {
-    const currentStep = state.solver.steps[action.index - 1]
-    if (currentStep.placements.length > 0) {
-      newHighlightedValue = currentStep.placements[0].value
-    }
-  }
+  const newHighlightedValue = getHighlightedValueForStep(state.solver.steps, action.index)
 
   return {
     ...state,
@@ -498,9 +541,9 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
     solver: {
       ...state.solver,
       currentStepIndex: action.index,
-      visualizationBoard: boardForStep,
+      visualizationBoard,
       candidatesForViz: candidates,
-      eliminationsForViz: elims,
+      eliminationsForViz: eliminations,
     },
   }
 }
