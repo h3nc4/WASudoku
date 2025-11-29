@@ -110,9 +110,6 @@ fn count_solutions_recursive(board: &mut Board, counter: &mut u8) {
                 if board.is_valid_move(row, col, num) {
                     board.cells[row * 9 + col] = num;
                     count_solutions_recursive(board, counter);
-                    if *counter > 1 {
-                        return;
-                    }
                 }
             }
             board.cells[row * 9 + col] = 0; // Backtrack

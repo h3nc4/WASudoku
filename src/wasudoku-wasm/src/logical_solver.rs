@@ -20,7 +20,6 @@
 
 use crate::board::Board;
 use crate::types::{CauseCell, Elimination, Placement, SolvingStep};
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 /// Bitmask representing all candidates (1-9) for a cell.
@@ -96,10 +95,11 @@ pub enum TechniqueLevel {
     None,         // No logical moves found
     Basic,        // Naked/Hidden Singles
     Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
-    Advanced,     // X-Wing, Swordfish, Jellyfish
+    Advanced,     // X-Wing, Swordfish
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
+#[inline]
 fn mask_to_vec(mask: u16) -> Vec<u8> {
     (1..=9)
         .filter(|&num| (mask >> (num - 1)) & 1 == 1)
@@ -117,7 +117,7 @@ pub struct LogicalBoard {
 }
 
 impl LogicalBoard {
-    /// Create a `LogicalBoard` from a simple `Board` by calculating initial candidates.
+    /// Initializes a LogicalBoard calculating candidates based on existing values.
     pub fn from_board(board: &Board) -> Self {
         let mut logical_board = LogicalBoard {
             cells: board.cells,
@@ -140,7 +140,7 @@ impl LogicalBoard {
         logical_board
     }
 
-    /// Place a number on the board and update the candidates of its peers.
+    /// Sets a cell value and eliminates that value from peers. Returns true if successful.
     fn set_cell(&mut self, index: usize, value: u8) -> bool {
         if self.cells[index] != 0 {
             return false;
@@ -151,7 +151,7 @@ impl LogicalBoard {
         true
     }
 
-    /// Eliminate a candidate from all peer cells of a given index.
+    /// Removes a value from the candidate masks of all peers of the given index.
     fn eliminate_from_peers(&mut self, index: usize, value: u8) {
         let elimination_mask = !(1 << (value - 1));
         for &peer_index in &PEER_MAP[index] {
@@ -159,23 +159,14 @@ impl LogicalBoard {
         }
     }
 
-    /// Find the first available "Naked Single" on the board.
-    /// A Naked Single is a cell that has only one possible candidate.
+    // --- Basic Techniques ---
+
+    /// Searches for a cell with exactly one candidate.
     fn find_naked_single(&self) -> Option<SolvingStep> {
         for i in 0..81 {
             if self.cells[i] == 0 && self.candidates[i].count_ones() == 1 {
                 let value = (self.candidates[i].trailing_zeros() + 1) as u8;
-                let eliminations = PEER_MAP[i]
-                    .iter()
-                    .filter(|&&peer_idx| {
-                        self.cells[peer_idx] == 0
-                            && (self.candidates[peer_idx] & (1 << (value - 1))) != 0
-                    })
-                    .map(|&peer_idx| Elimination {
-                        index: peer_idx,
-                        value,
-                    })
-                    .collect();
+                let eliminations = self.collect_peer_eliminations(i, value);
 
                 return Some(SolvingStep {
                     technique: "NakedSingle".to_string(),
@@ -188,132 +179,597 @@ impl LogicalBoard {
         None
     }
 
-    /// Find a "Hidden Single" in a given group of cells (row, column, or box).
-    /// A Hidden Single is a candidate that appears only once within a unit.
-    fn find_hidden_single_in_group(&self, group: &[usize]) -> Option<SolvingStep> {
-        for num in 1..=9 {
-            if let Some(step) = self.try_find_hidden_single_for_number(group, num) {
-                return Some(step);
-            }
-        }
-        None
-    }
-
-    /// Try to find a hidden single for a specific number in a group.
-    fn try_find_hidden_single_for_number(&self, group: &[usize], num: u8) -> Option<SolvingStep> {
-        let mask = 1 << (num - 1);
-        let potential_indices: Vec<usize> = group
-            .iter()
-            .filter(|&&index| self.cells[index] == 0 && (self.candidates[index] & mask) != 0)
-            .cloned()
-            .collect();
-
-        if potential_indices.len() != 1 {
-            return None;
-        }
-
-        let index = potential_indices[0];
-        let value = num;
-        let mut eliminations = self.collect_peer_eliminations(index, value);
-
-        // Also eliminate other candidates from the cell itself.
-        eliminations.extend(self.collect_cell_eliminations(index, value));
-
-        Some(SolvingStep {
-            technique: "HiddenSingle".to_string(),
-            placements: vec![Placement { index, value }],
-            eliminations,
-            cause: vec![],
-        })
-    }
-
-    /// Collect eliminations from peer cells for a given index and value.
+    /// Helper to collect eliminations for Naked/Hidden Singles from peers.
+    #[inline]
     fn collect_peer_eliminations(&self, index: usize, value: u8) -> Vec<Elimination> {
-        let mask = 1 << (value - 1);
         PEER_MAP[index]
             .iter()
-            .filter(|&&p_idx| self.cells[p_idx] == 0 && (self.candidates[p_idx] & mask) != 0)
-            .map(|&p_idx| Elimination {
-                index: p_idx,
+            .filter(|&&peer_idx| {
+                self.cells[peer_idx] == 0 && (self.candidates[peer_idx] & (1 << (value - 1))) != 0
+            })
+            .map(|&peer_idx| Elimination {
+                index: peer_idx,
                 value,
             })
             .collect()
     }
 
-    /// Collect eliminations for other candidates in the same cell.
-    fn collect_cell_eliminations(&self, index: usize, value: u8) -> Vec<Elimination> {
-        (1..=9)
-            .filter(|&cand| cand != value && (self.candidates[index] & (1 << (cand - 1))) != 0)
-            .map(|cand| Elimination { index, value: cand })
+    /// Searches for a candidate that appears only once in a specific group (row/col/box).
+    fn find_hidden_single_in_group(&self, group: &[usize]) -> Option<SolvingStep> {
+        for num in 1..=9 {
+            // Check if 'num' appears exactly once in this group
+            if let Some(target_idx) = self.find_unique_position_in_group(group, num) {
+                let mask = 1 << (num - 1);
+                let mut eliminations = self.collect_peer_eliminations(target_idx, num);
+
+                // Internal eliminations: remove other candidates from the target cell
+                let other_cands = self.candidates[target_idx] & !mask;
+                if other_cands != 0 {
+                    for cand in mask_to_vec(other_cands) {
+                        eliminations.push(Elimination {
+                            index: target_idx,
+                            value: cand,
+                        });
+                    }
+                }
+
+                return Some(SolvingStep {
+                    technique: "HiddenSingle".to_string(),
+                    placements: vec![Placement {
+                        index: target_idx,
+                        value: num,
+                    }],
+                    eliminations,
+                    cause: vec![],
+                });
+            }
+        }
+        None
+    }
+
+    /// Helper to find the single index in a group where 'num' is a candidate.
+    #[inline]
+    fn find_unique_position_in_group(&self, group: &[usize], num: u8) -> Option<usize> {
+        let mask = 1 << (num - 1);
+        let mut count = 0;
+        let mut target_idx = 0;
+
+        for &idx in group {
+            if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
+                count += 1;
+                target_idx = idx;
+                if count > 1 {
+                    return None; // Optimization: exit early if not unique
+                }
+            }
+        }
+
+        if count == 1 { Some(target_idx) } else { None }
+    }
+
+    // --- Intermediate Techniques (Naked Subsets) ---
+
+    fn find_naked_pair(&self) -> Option<SolvingStep> {
+        for unit in ALL_UNITS.iter() {
+            // Filter to cells with exactly 2 candidates
+            let unit_slice = *unit;
+            let potential_indices = self.filter_naked_subset_candidates(unit_slice, 2);
+
+            if potential_indices.len() < 2 {
+                continue;
+            }
+
+            // Check all pairs
+            for i in 0..potential_indices.len() {
+                for j in (i + 1)..potential_indices.len() {
+                    if let Some(step) = self.check_naked_pair(
+                        potential_indices[i],
+                        potential_indices[j],
+                        unit_slice,
+                    ) {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn filter_naked_subset_candidates(&self, unit: &[usize], size: usize) -> Vec<usize> {
+        unit.iter()
+            .filter(|&&i| {
+                let c = self.candidates[i].count_ones() as usize;
+                self.cells[i] == 0 && c >= 2 && c <= size
+            })
+            .cloned()
             .collect()
     }
 
-    /// Find Naked Subsets (Pairs, Triples) in any unit.
-    /// A Naked Pair is two cells in the same unit that have the exact same two candidates.
-    fn find_naked_subset(&self, size: usize) -> Option<SolvingStep> {
-        let tech_name = self.get_technique_name(size, false);
+    #[inline]
+    fn check_naked_pair(&self, idx1: usize, idx2: usize, unit: &[usize]) -> Option<SolvingStep> {
+        if self.candidates[idx1] == self.candidates[idx2] {
+            let mask = self.candidates[idx1];
+            if mask.count_ones() == 2 {
+                return self.construct_naked_subset_step(&[idx1, idx2], mask, unit, "NakedPair");
+            }
+        }
+        None
+    }
 
+    fn find_naked_triple(&self) -> Option<SolvingStep> {
         for unit in ALL_UNITS.iter() {
-            if let Some(step) = self.find_naked_subset_in_unit(unit, size, &tech_name) {
+            let unit_slice = *unit;
+            // Filter cells with 2 or 3 candidates
+            let potential_indices = self.filter_naked_subset_candidates(unit_slice, 3);
+
+            if potential_indices.len() < 3 {
+                continue;
+            }
+
+            if let Some(step) = self.check_naked_triple_combinations(&potential_indices, unit_slice)
+            {
                 return Some(step);
             }
         }
         None
     }
 
-    /// Get the technique name based on subset size.
-    fn get_technique_name(&self, size: usize, is_hidden: bool) -> String {
-        let prefix = if is_hidden { "Hidden" } else { "Naked" };
-        let suffix = match size {
-            2 => "Pair",
-            3 => "Triple",
-            _ => "Subset",
-        };
-        format!("{}{}", prefix, suffix)
+    #[inline]
+    fn check_naked_triple_combinations(
+        &self,
+        indices: &[usize],
+        unit: &[usize],
+    ) -> Option<SolvingStep> {
+        let len = indices.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                for k in (j + 1)..len {
+                    if let Some(step) =
+                        self.check_naked_triple(indices[i], indices[j], indices[k], unit)
+                    {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
     }
 
-    /// Find a naked subset within a specific unit.
-    fn find_naked_subset_in_unit(
+    #[inline]
+    fn check_naked_triple(
         &self,
+        idx1: usize,
+        idx2: usize,
+        idx3: usize,
         unit: &[usize],
-        size: usize,
-        tech_name: &str,
     ) -> Option<SolvingStep> {
-        let empty_cells: Vec<usize> = unit
-            .iter()
-            .filter(|&&i| self.cells[i] == 0 && self.candidates[i].count_ones() as usize <= size)
-            .cloned()
-            .collect();
+        let union_mask = self.candidates[idx1] | self.candidates[idx2] | self.candidates[idx3];
 
-        if empty_cells.len() < size {
+        if union_mask.count_ones() == 3 {
+            return self.construct_naked_subset_step(
+                &[idx1, idx2, idx3],
+                union_mask,
+                unit,
+                "NakedTriple",
+            );
+        }
+        None
+    }
+
+    fn construct_naked_subset_step(
+        &self,
+        indices: &[usize],
+        mask: u16,
+        unit: &[usize],
+        technique: &str,
+    ) -> Option<SolvingStep> {
+        let mut eliminations = Vec::new();
+        let cands = mask_to_vec(mask);
+
+        for &idx in unit {
+            if !indices.contains(&idx) && self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0
+            {
+                for &val in &cands {
+                    if (self.candidates[idx] & (1 << (val - 1))) != 0 {
+                        eliminations.push(Elimination {
+                            index: idx,
+                            value: val,
+                        });
+                    }
+                }
+            }
+        }
+
+        if eliminations.is_empty() {
             return None;
         }
 
-        // Brute-force combinations of cells to find a naked subset.
-        // For 9x9 sudoku, unit length is 9, so combinations are small.
-        let combinations = Self::get_combinations(&empty_cells, size);
+        Some(SolvingStep {
+            technique: technique.to_string(),
+            placements: vec![],
+            eliminations,
+            cause: indices
+                .iter()
+                .map(|&i| CauseCell {
+                    index: i,
+                    candidates: cands.clone(),
+                })
+                .collect(),
+        })
+    }
 
-        for combo in combinations {
-            let mut combined_mask = 0;
-            for &idx in &combo {
-                combined_mask |= self.candidates[idx];
+    // --- Intermediate Techniques (Hidden Subsets) ---
+
+    /// Creates a map of where each candidate appears in a unit.
+    /// Returns `[u16; 10]` where index `n` (1-9) is a bitmask of positions (0-8) in the unit.
+    #[inline]
+    fn get_candidate_positions_in_unit(&self, unit: &[usize]) -> [u16; 10] {
+        let mut positions = [0u16; 10];
+        for (pos, &idx) in unit.iter().enumerate() {
+            if self.cells[idx] == 0 {
+                let mut c = self.candidates[idx];
+                while c > 0 {
+                    let trailing = c.trailing_zeros(); // 0-8
+                    let num = trailing + 1; // 1-9
+                    positions[num as usize] |= 1 << pos;
+                    c &= !(1 << trailing);
+                }
+            }
+        }
+        positions
+    }
+
+    #[inline]
+    fn filter_hidden_subset_candidates(&self, pos_masks: &[u16; 10], size: usize) -> Vec<usize> {
+        (1..=9)
+            .filter(|&n| {
+                let c = pos_masks[n].count_ones() as usize;
+                c >= 2 && c <= size
+            })
+            .collect()
+    }
+
+    fn find_hidden_pair(&self) -> Option<SolvingStep> {
+        for unit in ALL_UNITS.iter() {
+            let unit_slice = *unit;
+            let pos_masks = self.get_candidate_positions_in_unit(unit_slice);
+            let candidates = self.filter_hidden_subset_candidates(&pos_masks, 2);
+
+            if candidates.len() < 2 {
+                continue;
             }
 
-            if combined_mask.count_ones() as usize == size {
-                let eliminations =
-                    self.collect_naked_subset_eliminations(unit, &combo, combined_mask);
+            for i in 0..candidates.len() {
+                for j in (i + 1)..candidates.len() {
+                    if let Some(step) =
+                        self.check_hidden_pair(candidates[i], candidates[j], &pos_masks, unit_slice)
+                    {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
+    }
 
-                if !eliminations.is_empty() {
-                    let cause_cands = mask_to_vec(combined_mask);
+    #[inline]
+    fn check_hidden_pair(
+        &self,
+        n1: usize,
+        n2: usize,
+        pos_masks: &[u16; 10],
+        unit: &[usize],
+    ) -> Option<SolvingStep> {
+        if pos_masks[n1] == pos_masks[n2] && pos_masks[n1].count_ones() == 2 {
+            let mask_in_unit = pos_masks[n1];
+            let cell_indices = self.indices_from_unit_mask(unit, mask_in_unit);
+
+            let keep_mask = (1 << (n1 - 1)) | (1 << (n2 - 1));
+            return self.construct_hidden_subset_step(
+                &cell_indices,
+                keep_mask,
+                &[n1 as u8, n2 as u8],
+                "HiddenPair",
+            );
+        }
+        None
+    }
+
+    fn find_hidden_triple(&self) -> Option<SolvingStep> {
+        for unit in ALL_UNITS.iter() {
+            let unit_slice = *unit;
+            let pos_masks = self.get_candidate_positions_in_unit(unit_slice);
+            let candidates = self.filter_hidden_subset_candidates(&pos_masks, 3);
+
+            if candidates.len() < 3 {
+                continue;
+            }
+
+            if let Some(step) =
+                self.check_hidden_triple_combinations(&candidates, &pos_masks, unit_slice)
+            {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn check_hidden_triple_combinations(
+        &self,
+        candidates: &[usize],
+        pos_masks: &[u16; 10],
+        unit: &[usize],
+    ) -> Option<SolvingStep> {
+        let len = candidates.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                for k in (j + 1)..len {
+                    if let Some(step) = self.check_hidden_triple(
+                        candidates[i],
+                        candidates[j],
+                        candidates[k],
+                        pos_masks,
+                        unit,
+                    ) {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn check_hidden_triple(
+        &self,
+        n1: usize,
+        n2: usize,
+        n3: usize,
+        pos_masks: &[u16; 10],
+        unit: &[usize],
+    ) -> Option<SolvingStep> {
+        let combined_pos = pos_masks[n1] | pos_masks[n2] | pos_masks[n3];
+        if combined_pos.count_ones() == 3 {
+            let cell_indices = self.indices_from_unit_mask(unit, combined_pos);
+            let keep_mask = (1 << (n1 - 1)) | (1 << (n2 - 1)) | (1 << (n3 - 1));
+
+            return self.construct_hidden_subset_step(
+                &cell_indices,
+                keep_mask,
+                &[n1 as u8, n2 as u8, n3 as u8],
+                "HiddenTriple",
+            );
+        }
+        None
+    }
+
+    #[inline]
+    fn indices_from_unit_mask(&self, unit: &[usize], mask: u16) -> Vec<usize> {
+        let mut indices = Vec::with_capacity(mask.count_ones() as usize);
+        for (i, &cell_idx) in unit.iter().enumerate() {
+            if (mask & (1 << i)) != 0 {
+                indices.push(cell_idx);
+            }
+        }
+        indices
+    }
+
+    fn construct_hidden_subset_step(
+        &self,
+        indices: &[usize],
+        keep_mask: u16,
+        subset_nums: &[u8],
+        technique: &str,
+    ) -> Option<SolvingStep> {
+        let mut eliminations = Vec::new();
+        for &idx in indices {
+            let other = self.candidates[idx] & !keep_mask;
+            if other != 0 {
+                for cand in mask_to_vec(other) {
+                    eliminations.push(Elimination {
+                        index: idx,
+                        value: cand,
+                    });
+                }
+            }
+        }
+
+        if eliminations.is_empty() {
+            return None;
+        }
+
+        Some(SolvingStep {
+            technique: technique.to_string(),
+            placements: vec![],
+            eliminations,
+            cause: indices
+                .iter()
+                .map(|&idx| CauseCell {
+                    index: idx,
+                    candidates: subset_nums.to_vec(),
+                })
+                .collect(),
+        })
+    }
+
+    /// Searches for Pointing Pairs/Triples.
+    /// A candidate in a box is confined to a single row or column -> eliminates from rest of row/col.
+    fn find_pointing_subset(&self) -> Option<SolvingStep> {
+        for (box_idx, box_unit) in BOX_UNITS.iter().enumerate() {
+            for num in 1..=9 {
+                // Gather all cells in this box that have candidate 'num'
+                let mask = 1 << (num - 1);
+                let cells: Vec<usize> = box_unit
+                    .iter()
+                    .filter(|&&i| self.cells[i] == 0 && (self.candidates[i] & mask) != 0)
+                    .cloned()
+                    .collect();
+
+                if cells.len() < 2 || cells.len() > 3 {
+                    continue;
+                }
+
+                // Check alignment
+                if let Some(step) = self.check_pointing_alignment(&cells, box_idx, num) {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    /// Checks if cells align in Row or Column and generates Pointing step.
+    #[inline]
+    fn check_pointing_alignment(
+        &self,
+        cells: &[usize],
+        box_idx: usize,
+        num: u8,
+    ) -> Option<SolvingStep> {
+        let row0 = cells[0] / 9;
+        let col0 = cells[0] % 9;
+        let same_row = cells.iter().all(|&c| c / 9 == row0);
+        let same_col = cells.iter().all(|&c| c % 9 == col0);
+        let mask = 1 << (num - 1);
+
+        if same_row {
+            let elims = self.collect_pointing_elims(
+                num,
+                mask,
+                |col| row0 * 9 + col, // Coordinate mapper for Row
+                box_idx,
+            );
+            if !elims.is_empty() {
+                return Some(self.build_pointing_step(cells, elims, num));
+            }
+        }
+
+        if same_col {
+            let elims = self.collect_pointing_elims(
+                num,
+                mask,
+                |row| row * 9 + col0, // Coordinate mapper for Col
+                box_idx,
+            );
+            if !elims.is_empty() {
+                return Some(self.build_pointing_step(cells, elims, num));
+            }
+        }
+        None
+    }
+
+    /// Generic helper to collect eliminations for Pointing pairs.
+    /// Iterates 0..9 using a coordinate mapper (to traverse row or col).
+    #[inline]
+    fn collect_pointing_elims<F>(
+        &self,
+        num: u8,
+        mask: u16,
+        mapper: F,
+        box_idx: usize,
+    ) -> Vec<Elimination>
+    where
+        F: Fn(usize) -> usize,
+    {
+        let mut elims = Vec::new();
+        for k in 0..9 {
+            let idx = mapper(k);
+            // Eliminate if cell is NOT in the source box
+            if (idx / 27 != box_idx / 3 || (idx % 9) / 3 != box_idx % 3)
+                && self.cells[idx] == 0
+                && (self.candidates[idx] & mask) != 0
+            {
+                elims.push(Elimination {
+                    index: idx,
+                    value: num,
+                });
+            }
+        }
+        elims
+    }
+
+    #[inline]
+    fn build_pointing_step(
+        &self,
+        cells: &[usize],
+        elims: Vec<Elimination>,
+        num: u8,
+    ) -> SolvingStep {
+        SolvingStep {
+            technique: if cells.len() == 2 {
+                "PointingPair".into()
+            } else {
+                "PointingTriple".into()
+            },
+            placements: vec![],
+            eliminations: elims,
+            cause: cells
+                .iter()
+                .map(|&i| CauseCell {
+                    index: i,
+                    candidates: vec![num],
+                })
+                .collect(),
+        }
+    }
+
+    /// Searches for Claiming Candidates (Box-Line Reduction).
+    /// A candidate in a row/col is confined to a single box -> eliminates from rest of box.
+    fn find_claiming_candidates(&self) -> Option<SolvingStep> {
+        // Check Rows
+        for row in 0..9 {
+            if let Some(step) = self.find_claiming_in_unit(row, true) {
+                return Some(step);
+            }
+        }
+        // Check Columns
+        for col in 0..9 {
+            if let Some(step) = self.find_claiming_in_unit(col, false) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    /// Generic check for Claiming Candidates in a linear unit (row or col).
+    #[inline]
+    fn find_claiming_in_unit(&self, unit_idx: usize, is_row: bool) -> Option<SolvingStep> {
+        let unit = if is_row {
+            &ROW_UNITS[unit_idx]
+        } else {
+            &COL_UNITS[unit_idx]
+        };
+
+        for num in 1..=9 {
+            let mask = 1 << (num - 1);
+            let mut cells = Vec::new();
+            let mut box_indices = HashSet::new();
+
+            // Find all cells in this line with the candidate
+            for &idx in unit.iter() {
+                if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
+                    cells.push(idx);
+                    box_indices.insert((idx / 9 / 3) * 3 + (idx % 9 / 3));
+                }
+            }
+
+            // If all candidates are in exactly one box, we can eliminate
+            if !cells.is_empty() && box_indices.len() == 1 {
+                let box_idx = *box_indices.iter().next().unwrap();
+                let elims = self.collect_claiming_elims(box_idx, unit_idx, is_row, num, mask);
+
+                if !elims.is_empty() {
                     return Some(SolvingStep {
-                        technique: tech_name.to_string(),
+                        technique: "ClaimingCandidate".into(),
                         placements: vec![],
-                        eliminations,
-                        cause: combo
+                        eliminations: elims,
+                        cause: cells
                             .iter()
-                            .map(|&idx| CauseCell {
-                                index: idx,
-                                candidates: cause_cands.clone(),
+                            .map(|&i| CauseCell {
+                                index: i,
+                                candidates: vec![num],
                             })
                             .collect(),
                     });
@@ -323,521 +779,285 @@ impl LogicalBoard {
         None
     }
 
-    /// Simple recursive combination generator.
-    fn get_combinations<T: Copy>(pool: &[T], k: usize) -> Vec<Vec<T>> {
-        if k == 0 {
-            return vec![vec![]];
-        }
-        if pool.is_empty() {
-            return vec![];
-        }
-
-        let head = pool[0];
-        let mut res = Self::get_combinations(&pool[1..], k - 1);
-        for v in &mut res {
-            v.push(head);
-        }
-        res.extend(Self::get_combinations(&pool[1..], k));
-        res
-    }
-
-    /// Collect eliminations for a naked subset.
-    fn collect_naked_subset_eliminations(
+    /// Helper to collect eliminations for Claiming Candidates.
+    #[inline]
+    fn collect_claiming_elims(
         &self,
-        unit: &[usize],
-        cause_cells: &[usize],
-        combined_mask: u16,
+        box_idx: usize,
+        source_line_idx: usize,
+        is_row: bool,
+        num: u8,
+        mask: u16,
     ) -> Vec<Elimination> {
-        let mut eliminations = Vec::new();
+        let mut elims = Vec::new();
+        for &idx in &BOX_UNITS[box_idx] {
+            let line_match = if is_row {
+                idx / 9 == source_line_idx
+            } else {
+                idx % 9 == source_line_idx
+            };
 
-        for &cell_idx in unit.iter() {
-            if cause_cells.contains(&cell_idx) || self.cells[cell_idx] != 0 {
-                continue;
-            }
-
-            if (self.candidates[cell_idx] & combined_mask) != 0 {
-                for cand in mask_to_vec(combined_mask) {
-                    if (self.candidates[cell_idx] & (1 << (cand - 1))) != 0 {
-                        eliminations.push(Elimination {
-                            index: cell_idx,
-                            value: cand,
-                        });
-                    }
-                }
+            // Eliminate if cell is in the box but NOT in the source line
+            if !line_match && self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
+                elims.push(Elimination {
+                    index: idx,
+                    value: num,
+                });
             }
         }
-
-        eliminations
+        elims
     }
 
-    /// Find Hidden Subsets (Pairs, Triples) in any unit.
-    fn find_hidden_subset(&self, size: usize) -> Option<SolvingStep> {
-        let tech_name = self.get_technique_name(size, true);
+    // --- Advanced Techniques (Optimized Bitwise Fish) ---
 
-        for unit in ALL_UNITS.iter() {
-            if let Some(step) = self.find_hidden_subset_in_unit(unit, size, &tech_name) {
+    fn find_fish_techniques(&self) -> Option<SolvingStep> {
+        // Calculate masks once for all Fish.
+        // Returns row_masks[num][row] and col_masks[num][col]
+        let (row_masks, col_masks) = self.get_all_fish_masks();
+
+        for num in 1..=9 {
+            // X-Wing (Size 2)
+            if let Some(step) = self.check_x_wing(num, &row_masks[num], true) {
+                return Some(step);
+            }
+            if let Some(step) = self.check_x_wing(num, &col_masks[num], false) {
+                return Some(step);
+            }
+
+            // Swordfish (Size 3)
+            if let Some(step) = self.check_swordfish(num, &row_masks[num], true) {
+                return Some(step);
+            }
+            if let Some(step) = self.check_swordfish(num, &col_masks[num], false) {
                 return Some(step);
             }
         }
         None
     }
 
-    fn find_hidden_subset_in_unit(
+    /// Pre-calculates fish masks for all numbers at once in a single board pass.
+    /// Returns ([num][row_idx] -> mask, [num][col_idx] -> mask)
+    fn get_all_fish_masks(&self) -> ([[u16; 9]; 10], [[u16; 9]; 10]) {
+        let mut row_masks = [[0u16; 9]; 10];
+        let mut col_masks = [[0u16; 9]; 10];
+
+        for i in 0..81 {
+            if self.cells[i] == 0 {
+                let r = i / 9;
+                let c = i % 9;
+                let mut val = self.candidates[i];
+                while val > 0 {
+                    let trailing = val.trailing_zeros();
+                    let num = (trailing + 1) as usize;
+                    // Add to row mask 'r' for number 'num'
+                    row_masks[num][r] |= 1 << c;
+                    // Add to col mask 'c' for number 'num'
+                    col_masks[num][c] |= 1 << r;
+
+                    val &= !(1 << trailing);
+                }
+            }
+        }
+        (row_masks, col_masks)
+    }
+
+    #[inline]
+    fn check_x_wing(&self, num: usize, masks: &[u16; 9], is_row_base: bool) -> Option<SolvingStep> {
+        let mut valid_indices: Vec<usize> = Vec::with_capacity(9);
+        for (i, &m) in masks.iter().enumerate() {
+            if m.count_ones() == 2 {
+                valid_indices.push(i);
+            }
+        }
+
+        if valid_indices.len() < 2 {
+            return None;
+        }
+
+        for i in 0..valid_indices.len() {
+            for j in (i + 1)..valid_indices.len() {
+                let r1 = valid_indices[i];
+                let r2 = valid_indices[j];
+
+                // Strict X-Wing: masks must be identical
+                if masks[r1] == masks[r2] {
+                    let union_mask = masks[r1];
+                    if let Some(step) = self.construct_fish_step(
+                        num as u8,
+                        &[r1, r2],
+                        union_mask,
+                        is_row_base,
+                        "X-Wing",
+                    ) {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Iterates triples of valid indices to find a Swordfish match.
+    #[inline]
+    fn check_swordfish(
         &self,
-        unit: &[usize],
-        size: usize,
+        num: usize,
+        masks: &[u16; 9],
+        is_row_base: bool,
+    ) -> Option<SolvingStep> {
+        let mut valid_indices: Vec<usize> = Vec::with_capacity(9);
+        for (i, &m) in masks.iter().enumerate() {
+            let c = m.count_ones();
+            if (2..=3).contains(&c) {
+                valid_indices.push(i);
+            }
+        }
+
+        if valid_indices.len() < 3 {
+            return None;
+        }
+
+        if let Some(step) =
+            self.check_swordfish_combinations(num as u8, &valid_indices, masks, is_row_base)
+        {
+            return Some(step);
+        }
+        None
+    }
+
+    #[inline]
+    fn check_swordfish_combinations(
+        &self,
+        num: u8,
+        indices: &[usize],
+        masks: &[u16; 9],
+        is_row_base: bool,
+    ) -> Option<SolvingStep> {
+        let len = indices.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                for k in (j + 1)..len {
+                    let r1 = indices[i];
+                    let r2 = indices[j];
+                    let r3 = indices[k];
+                    let union_mask = masks[r1] | masks[r2] | masks[r3];
+
+                    if union_mask.count_ones() != 3 {
+                        continue;
+                    }
+
+                    if let Some(step) = self.construct_fish_step(
+                        num,
+                        &[r1, r2, r3],
+                        union_mask,
+                        is_row_base,
+                        "Swordfish",
+                    ) {
+                        return Some(step);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Constructs the step if eliminations are found.
+    fn construct_fish_step(
+        &self,
+        num: u8,
+        base_indices: &[usize],
+        union_mask: u16,
+        is_row_base: bool,
         tech_name: &str,
     ) -> Option<SolvingStep> {
-        // 1. Map each candidate (1-9) to the list of cell indices in this unit where it appears.
-        let mut candidate_locations: HashMap<u8, Vec<usize>> = HashMap::new();
-        for num in 1..=9 {
-            let mask = 1 << (num - 1);
-            for &idx in unit {
-                if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
-                    candidate_locations.entry(num).or_default().push(idx);
-                }
-            }
+        let cand_bit = 1 << (num - 1);
+        let cover_indices: Vec<usize> = (0..9).filter(|&x| (union_mask & (1 << x)) != 0).collect();
+
+        let cause_cells =
+            self.collect_fish_causes(cand_bit, num, base_indices, &cover_indices, is_row_base);
+        let eliminations = self.collect_fish_eliminations(
+            cand_bit,
+            num,
+            base_indices,
+            &cover_indices,
+            is_row_base,
+        );
+
+        if eliminations.is_empty() {
+            None
+        } else {
+            Some(SolvingStep {
+                technique: tech_name.to_string(),
+                placements: vec![],
+                eliminations,
+                cause: cause_cells,
+            })
         }
+    }
 
-        // 2. Get all candidates that appear at least once in the unit.
-        let all_candidates: Vec<u8> = candidate_locations
-            .keys()
-            .filter(|&k| !candidate_locations[k].is_empty())
-            .cloned()
-            .collect();
-
-        if all_candidates.len() < size {
-            return None;
-        }
-
-        // 3. Try all combinations of 'size' candidates.
-        let candidate_combos = Self::get_combinations(&all_candidates, size);
-
-        for combo in candidate_combos {
-            // Collect all unique cell indices where these candidates appear.
-            let mut cells: HashSet<usize> = HashSet::new();
-            for &cand in &combo {
-                if let Some(locs) = candidate_locations.get(&cand) {
-                    for &loc in locs {
-                        cells.insert(loc);
-                    }
-                }
-            }
-
-            // For a hidden subset: 'size' candidates must appear in exactly 'size' cells
-            // and be confined to those cells only.
-            if cells.len() != size {
-                continue;
-            }
-
-            // Verify that each candidate in the combo appears at least once in the subset cells.
-            // This ensures all candidates are actually present.
-            let mut all_present = true;
-            for &cand in &combo {
-                if let Some(locs) = candidate_locations.get(&cand) {
-                    if locs.is_empty() {
-                        all_present = false;
-                        break;
-                    }
+    /// Collects the cause cells for a Fish pattern.
+    #[inline]
+    fn collect_fish_causes(
+        &self,
+        cand_bit: u16,
+        num: u8,
+        base_indices: &[usize],
+        cover_indices: &[usize],
+        is_row_base: bool,
+    ) -> Vec<CauseCell> {
+        let mut cause_cells = Vec::new();
+        for &base_idx in base_indices {
+            for &cover_idx in cover_indices {
+                let cell_idx = if is_row_base {
+                    base_idx * 9 + cover_idx
                 } else {
-                    all_present = false;
-                    break;
-                }
-            }
+                    cover_idx * 9 + base_idx
+                };
 
-            if !all_present {
-                continue;
-            }
-
-            let cell_vec: Vec<usize> = cells.into_iter().collect();
-            let combo_mask = combo.iter().fold(0, |acc, &val| acc | (1 << (val - 1)));
-
-            // 4. Collect eliminations: remove *other* candidates from these cells.
-            let mut eliminations = Vec::new();
-            for &idx in &cell_vec {
-                let other_candidates = self.candidates[idx] & !combo_mask;
-                if other_candidates != 0 {
-                    for cand in mask_to_vec(other_candidates) {
-                        eliminations.push(Elimination {
-                            index: idx,
-                            value: cand,
-                        });
-                    }
-                }
-            }
-
-            if !eliminations.is_empty() {
-                return Some(SolvingStep {
-                    technique: tech_name.to_string(),
-                    placements: vec![],
-                    eliminations,
-                    cause: cell_vec
-                        .iter()
-                        .map(|&idx| CauseCell {
-                            index: idx,
-                            candidates: combo.clone(),
-                        })
-                        .collect(),
-                });
-            }
-        }
-
-        None
-    }
-
-    /// Find Pointing Pairs/Triples.
-    /// This occurs when a candidate within a box is confined to a single row or column.
-    fn find_pointing_subset(&self) -> Option<SolvingStep> {
-        for box_unit in BOX_UNITS.iter() {
-            for num in 1..=9 {
-                if let Some(step) = self.try_find_pointing_subset_in_box(box_unit, num) {
-                    return Some(step);
+                if self.cells[cell_idx] == 0 && (self.candidates[cell_idx] & cand_bit) != 0 {
+                    cause_cells.push(CauseCell {
+                        index: cell_idx,
+                        candidates: vec![num],
+                    });
                 }
             }
         }
-        None
+        cause_cells
     }
 
-    /// Try to find a pointing subset for a specific number in a box.
-    fn try_find_pointing_subset_in_box(&self, box_unit: &[usize], num: u8) -> Option<SolvingStep> {
-        let mask = 1 << (num - 1);
-        let cells_with_cand: Vec<usize> = box_unit
-            .iter()
-            .filter(|&&i| self.cells[i] == 0 && (self.candidates[i] & mask) != 0)
-            .cloned()
-            .collect();
-
-        if cells_with_cand.len() < 2 || cells_with_cand.len() > 3 {
-            return None;
-        }
-
-        let first_row = cells_with_cand[0] / 9;
-        let first_col = cells_with_cand[0] % 9;
-
-        let all_in_same_row = cells_with_cand.iter().all(|&i| i / 9 == first_row);
-        let all_in_same_col = cells_with_cand.iter().all(|&i| i % 9 == first_col);
-
-        if all_in_same_row {
-            return self.create_pointing_subset_step_for_row(
-                box_unit,
-                &cells_with_cand,
-                first_row,
-                num,
-                mask,
-            );
-        }
-
-        if all_in_same_col {
-            return self.create_pointing_subset_step_for_col(
-                box_unit,
-                &cells_with_cand,
-                first_col,
-                num,
-                mask,
-            );
-        }
-
-        None
-    }
-
-    /// Create a pointing subset step for a row alignment.
-    fn create_pointing_subset_step_for_row(
+    /// Collects eliminations for a Fish pattern.
+    #[inline]
+    fn collect_fish_eliminations(
         &self,
-        box_unit: &[usize],
-        cells_with_cand: &[usize],
-        first_row: usize,
+        cand_bit: u16,
         num: u8,
-        mask: u16,
-    ) -> Option<SolvingStep> {
-        let mut elims = Vec::new();
-
-        for col in 0..9 {
-            let idx = first_row * 9 + col;
-            if !box_unit.contains(&idx)
-                && self.cells[idx] == 0
-                && (self.candidates[idx] & mask) != 0
-            {
-                elims.push(Elimination {
-                    index: idx,
-                    value: num,
-                });
-            }
-        }
-
-        if elims.is_empty() {
-            return None;
-        }
-
-        Some(self.build_pointing_subset_step(cells_with_cand, elims, num))
-    }
-
-    /// Create a pointing subset step for a column alignment.
-    fn create_pointing_subset_step_for_col(
-        &self,
-        box_unit: &[usize],
-        cells_with_cand: &[usize],
-        first_col: usize,
-        num: u8,
-        mask: u16,
-    ) -> Option<SolvingStep> {
-        let mut elims = Vec::new();
-
-        for row in 0..9 {
-            let idx = row * 9 + first_col;
-            if !box_unit.contains(&idx)
-                && self.cells[idx] == 0
-                && (self.candidates[idx] & mask) != 0
-            {
-                elims.push(Elimination {
-                    index: idx,
-                    value: num,
-                });
-            }
-        }
-
-        if elims.is_empty() {
-            return None;
-        }
-
-        Some(self.build_pointing_subset_step(cells_with_cand, elims, num))
-    }
-
-    /// Build a SolvingStep for a pointing subset.
-    fn build_pointing_subset_step(
-        &self,
-        cells_with_cand: &[usize],
-        elims: Vec<Elimination>,
-        num: u8,
-    ) -> SolvingStep {
-        let technique = if cells_with_cand.len() == 2 {
-            "PointingPair".to_string()
-        } else {
-            "PointingTriple".to_string()
-        };
-
-        SolvingStep {
-            technique,
-            placements: vec![],
-            eliminations: elims,
-            cause: cells_with_cand
-                .iter()
-                .map(|&idx| CauseCell {
-                    index: idx,
-                    candidates: vec![num],
-                })
-                .collect(),
-        }
-    }
-
-    /// Find Claiming Candidates (Box-Line Reduction).
-    /// If a candidate in a row (or col) is confined to one box, it can be removed from the rest of that box.
-    fn find_claiming_candidates(&self) -> Option<SolvingStep> {
-        // Check Rows
-        for row in 0..9 {
-            if let Some(step) = self.find_claiming_in_linear_unit(row, true) {
-                return Some(step);
-            }
-        }
-        // Check Columns
-        for col in 0..9 {
-            if let Some(step) = self.find_claiming_in_linear_unit(col, false) {
-                return Some(step);
-            }
-        }
-        None
-    }
-
-    fn find_claiming_in_linear_unit(&self, unit_idx: usize, is_row: bool) -> Option<SolvingStep> {
-        let unit = if is_row {
-            &ROW_UNITS[unit_idx]
-        } else {
-            &COL_UNITS[unit_idx]
-        };
-
-        for num in 1..=9 {
-            let mask = 1 << (num - 1);
-            let mut cells_with_cand = Vec::new();
-            let mut box_indices = HashSet::new();
-
-            for &idx in unit.iter() {
-                if self.cells[idx] == 0 && (self.candidates[idx] & mask) != 0 {
-                    cells_with_cand.push(idx);
-                    box_indices.insert((idx / 9 / 3) * 3 + (idx % 9 / 3));
+        base_indices: &[usize],
+        cover_indices: &[usize],
+        is_row_base: bool,
+    ) -> Vec<Elimination> {
+        let mut eliminations = Vec::new();
+        for &cover_idx in cover_indices {
+            for orthogonal_idx in 0..9 {
+                // Skip if this row/col is part of the base set
+                if base_indices.contains(&orthogonal_idx) {
+                    continue;
                 }
-            }
 
-            if cells_with_cand.is_empty() || box_indices.len() != 1 {
-                continue;
-            }
+                let cell_idx = if is_row_base {
+                    orthogonal_idx * 9 + cover_idx // iterate rows in this col
+                } else {
+                    cover_idx * 9 + orthogonal_idx // iterate cols in this row
+                };
 
-            let box_idx = *box_indices.iter().next().unwrap();
-            let box_cells = &BOX_UNITS[box_idx];
-            let mut elims = Vec::new();
-
-            for &idx in box_cells.iter() {
-                // If cell is in the box but NOT in the current row/col unit
-                if !unit.contains(&idx)
-                    && self.cells[idx] == 0
-                    && (self.candidates[idx] & mask) != 0
-                {
-                    elims.push(Elimination {
-                        index: idx,
+                if self.cells[cell_idx] == 0 && (self.candidates[cell_idx] & cand_bit) != 0 {
+                    eliminations.push(Elimination {
+                        index: cell_idx,
                         value: num,
                     });
                 }
             }
-
-            if !elims.is_empty() {
-                return Some(SolvingStep {
-                    technique: "ClaimingCandidate".to_string(),
-                    placements: vec![],
-                    eliminations: elims,
-                    cause: cells_with_cand
-                        .iter()
-                        .map(|&idx| CauseCell {
-                            index: idx,
-                            candidates: vec![num],
-                        })
-                        .collect(),
-                });
-            }
         }
-        None
-    }
-
-    /// Generic "Fish" finder (X-Wing, Swordfish, Jellyfish).
-    ///
-    /// # Arguments
-    /// * `size` - The size of the fish (2 for X-Wing, 3 for Swordfish, 4 for Jellyfish).
-    fn find_fish(&self, size: usize) -> Option<SolvingStep> {
-        let tech_name = match size {
-            2 => "X-Wing",
-            3 => "Swordfish",
-            4 => "Jellyfish",
-            _ => return None,
-        };
-
-        // Check for fish in Rows (Base) -> Columns (Cover)
-        if let Some(step) = self.find_fish_in_orientation(size, true, tech_name) {
-            return Some(step);
-        }
-
-        // Check for fish in Columns (Base) -> Rows (Cover)
-        if let Some(step) = self.find_fish_in_orientation(size, false, tech_name) {
-            return Some(step);
-        }
-
-        None
-    }
-
-    /// Find fish pattern for a specific orientation (rows or columns as base sets).
-    fn find_fish_in_orientation(
-        &self,
-        size: usize,
-        rows_are_base: bool,
-        tech_name: &str,
-    ) -> Option<SolvingStep> {
-        let row_units: &[[usize; 9]; 9] = &ROW_UNITS;
-        let col_units: &[[usize; 9]; 9] = &COL_UNITS;
-        let base_sets = if rows_are_base { row_units } else { col_units };
-        let cover_sets = if rows_are_base { col_units } else { row_units };
-
-        for num in 1..=9 {
-            let mask = 1 << (num - 1);
-            let mut potential_bases = Vec::new();
-
-            // 1. Identify valid base sets (rows/cols) where the candidate appears <= size times.
-            for (i, set) in base_sets.iter().enumerate() {
-                let positions: Vec<usize> = set
-                    .iter()
-                    .enumerate()
-                    .filter(|&(_, &cell_idx)| {
-                        self.cells[cell_idx] == 0 && (self.candidates[cell_idx] & mask) != 0
-                    })
-                    .map(|(pos, _)| pos) // Store the orthogonal index (0-8)
-                    .collect();
-
-                if !positions.is_empty() && positions.len() <= size {
-                    potential_bases.push((i, positions));
-                }
-            }
-
-            if potential_bases.len() < size {
-                continue;
-            }
-
-            // 2. Check combinations of 'size' base sets.
-            let base_indices: Vec<usize> = (0..potential_bases.len()).collect();
-            let combinations = Self::get_combinations(&base_indices, size);
-
-            for combo_indices in combinations {
-                let mut cover_indices = HashSet::new();
-                let mut cause_cells = Vec::new();
-
-                for &base_idx in &combo_indices {
-                    let (real_base_idx, ref positions) = potential_bases[base_idx];
-                    for &pos in positions {
-                        cover_indices.insert(pos);
-                        // Reconstruct absolute cell index for cause highlighting
-                        let cell_idx = if rows_are_base {
-                            real_base_idx * 9 + pos
-                        } else {
-                            pos * 9 + real_base_idx
-                        };
-                        cause_cells.push(CauseCell {
-                            index: cell_idx,
-                            candidates: vec![num],
-                        });
-                    }
-                }
-
-                // If the union of positions (cover sets) has size <= 'size', we found a Fish!
-                // (e.g., X-Wing: 2 rows have candidate in same 2 columns).
-                if cover_indices.len() == size {
-                    let mut eliminations = Vec::new();
-
-                    for &cover_idx in &cover_indices {
-                        // Eliminate from this cover set (col/row), excluding the base set cells.
-                        let cover_unit = &cover_sets[cover_idx];
-                        for &cell_idx in cover_unit.iter() {
-                            // Check if this cell is part of our base sets
-                            let is_in_base = if rows_are_base {
-                                let row_idx = cell_idx / 9;
-                                combo_indices
-                                    .iter()
-                                    .any(|&bi| potential_bases[bi].0 == row_idx)
-                            } else {
-                                let col_idx = cell_idx % 9;
-                                combo_indices
-                                    .iter()
-                                    .any(|&bi| potential_bases[bi].0 == col_idx)
-                            };
-
-                            if !is_in_base
-                                && self.cells[cell_idx] == 0
-                                && (self.candidates[cell_idx] & mask) != 0
-                            {
-                                eliminations.push(Elimination {
-                                    index: cell_idx,
-                                    value: num,
-                                });
-                            }
-                        }
-                    }
-
-                    if !eliminations.is_empty() {
-                        return Some(SolvingStep {
-                            technique: tech_name.to_string(),
-                            placements: vec![],
-                            eliminations,
-                            cause: cause_cells,
-                        });
-                    }
-                }
-            }
-        }
-
-        None
+        eliminations
     }
 }
 
@@ -847,17 +1067,17 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
     let mut steps = Vec::new();
 
     loop {
+        // Try techniques in order of complexity/speed
         let progress = try_naked_single(&mut board, &mut steps)
             || try_hidden_single(&mut board, &mut steps)
-            || try_naked_subset(&mut board, &mut steps, 2) // Naked Pair
-            || try_naked_subset(&mut board, &mut steps, 3) // Naked Triple
+            || try_naked_pair(&mut board, &mut steps)
+            || try_naked_triple(&mut board, &mut steps)
             || try_pointing_subset(&mut board, &mut steps)
-            || try_hidden_subset(&mut board, &mut steps, 2) // Hidden Pair
-            || try_hidden_subset(&mut board, &mut steps, 3) // Hidden Triple
+            || try_hidden_pair(&mut board, &mut steps)
+            || try_hidden_triple(&mut board, &mut steps)
             || try_claiming_candidate(&mut board, &mut steps)
-            || try_fish(&mut board, &mut steps, 2) // X-Wing
-            || try_fish(&mut board, &mut steps, 3) // Swordfish
-            || try_fish(&mut board, &mut steps, 4); // Jellyfish
+            // Advanced Techniques (Optimized - Single Pass)
+            || try_fish_techniques(&mut board, &mut steps);
 
         if !progress {
             break;
@@ -867,7 +1087,6 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
     (steps, Board { cells: board.cells })
 }
 
-/// Try to apply a naked single technique.
 fn try_naked_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
     if let Some(step) = board.find_naked_single() {
         board.set_cell(step.placements[0].index, step.placements[0].value);
@@ -877,9 +1096,11 @@ fn try_naked_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> b
     false
 }
 
-/// Try to apply a hidden single technique across all units.
 fn try_hidden_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
-    for unit in ALL_UNITS.iter() {
+    // Explicitly typed variables allow Rust to invoke Deref coercion from the lazy_static wrapper
+    // to the underlying array type.
+    let all_units: &[&[usize]] = &ALL_UNITS;
+    for unit in all_units.iter() {
         if let Some(step) = board.find_hidden_single_in_group(unit) {
             board.set_cell(step.placements[0].index, step.placements[0].value);
             steps.push(step);
@@ -889,9 +1110,8 @@ fn try_hidden_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> 
     false
 }
 
-/// Try to apply a naked subset technique of given size.
-fn try_naked_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
-    if let Some(step) = board.find_naked_subset(size) {
+fn try_naked_pair(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_naked_pair() {
         for elim in &step.eliminations {
             board.candidates[elim.index] &= !(1 << (elim.value - 1));
         }
@@ -901,7 +1121,17 @@ fn try_naked_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size
     false
 }
 
-/// Try to apply a pointing subset technique.
+fn try_naked_triple(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_naked_triple() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
 fn try_pointing_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
     if let Some(step) = board.find_pointing_subset() {
         for elim in &step.eliminations {
@@ -913,9 +1143,8 @@ fn try_pointing_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -
     false
 }
 
-/// Try to apply a hidden subset technique of given size.
-fn try_hidden_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
-    if let Some(step) = board.find_hidden_subset(size) {
+fn try_hidden_pair(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_hidden_pair() {
         for elim in &step.eliminations {
             board.candidates[elim.index] &= !(1 << (elim.value - 1));
         }
@@ -925,7 +1154,17 @@ fn try_hidden_subset(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, siz
     false
 }
 
-/// Try to apply a claiming candidate technique.
+fn try_hidden_triple(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_hidden_triple() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
 fn try_claiming_candidate(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
     if let Some(step) = board.find_claiming_candidates() {
         for elim in &step.eliminations {
@@ -937,9 +1176,8 @@ fn try_claiming_candidate(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>
     false
 }
 
-/// Try to apply a Fish technique (X-Wing, Swordfish, Jellyfish).
-fn try_fish(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>, size: usize) -> bool {
-    if let Some(step) = board.find_fish(size) {
+fn try_fish_techniques(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_fish_techniques() {
         for elim in &step.eliminations {
             board.candidates[elim.index] &= !(1 << (elim.value - 1));
         }
@@ -960,7 +1198,7 @@ pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
             "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
             "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
             | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
-            "X-Wing" | "Swordfish" | "Jellyfish" => TechniqueLevel::Advanced,
+            "X-Wing" | "Swordfish" => TechniqueLevel::Advanced,
             _ => TechniqueLevel::None,
         })
         .max()

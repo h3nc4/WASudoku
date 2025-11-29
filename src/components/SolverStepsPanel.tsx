@@ -89,10 +89,6 @@ const getStepExplanation = (step: SolvingStep): string => {
       const candidate = cause[0].candidates[0]
       return `Swordfish: The candidate ${candidate} appears in only two or three positions in three rows (or columns), and these positions align perfectly within three columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
     }
-    case 'Jellyfish': {
-      const candidate = cause[0].candidates[0]
-      return `Jellyfish: The candidate ${candidate} appears in restricted positions across four rows (or columns) that align with four columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
-    }
     case 'Backtracking':
       return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
     default:

@@ -102,6 +102,18 @@ const mockSteps: SolvingStep[] = [
     cause: [{ index: 70, candidates: [2] }],
   },
   {
+    technique: 'X-Wing',
+    placements: [],
+    eliminations: [],
+    cause: [{ index: 0, candidates: [5] }], // Mock cause cell for X-Wing
+  },
+  {
+    technique: 'Swordfish',
+    placements: [],
+    eliminations: [],
+    cause: [{ index: 0, candidates: [7] }], // Mock cause cell for Swordfish
+  },
+  {
     technique: 'Backtracking',
     placements: [],
     eliminations: [],
@@ -144,7 +156,7 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Step 1: NakedSingle/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 10: Backtracking/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Step 12: Backtracking/ })).toBeInTheDocument()
   })
 
   it('calls viewSolverStep(0) when "Initial Board State" is clicked', async () => {
@@ -219,6 +231,11 @@ describe('SolverStepsPanel component', () => {
     }[] = [
       { stepIndex: 1, expectedText: /Cell R1C1 had only one possible candidate/ },
       {
+        stepIndex: 2,
+        expectedText:
+          /Within its row, column, or box, the number 3 could only be placed in cell R2C2. This is a Hidden Single./,
+      },
+      {
         stepIndex: 3,
         expectedText: /Naked Pair: Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/,
       },
@@ -249,6 +266,21 @@ describe('SolverStepsPanel component', () => {
         stepIndex: 9,
         expectedText:
           /Box-Line Reduction \(Claiming\): The candidates \{2\} in a row or column are confined to a single box/,
+      },
+      {
+        stepIndex: 10,
+        expectedText:
+          /X-Wing: The candidate 5 appears in only two positions in two rows \(or columns\)/,
+      },
+      {
+        stepIndex: 11,
+        expectedText:
+          /Swordfish: The candidate 7 appears in only two or three positions in three rows/,
+      },
+      {
+        stepIndex: 12,
+        expectedText:
+          /The available logical techniques were not sufficient to solve the puzzle. A backtracking \(brute-force\) algorithm was used to find the solution./,
       },
     ]
 

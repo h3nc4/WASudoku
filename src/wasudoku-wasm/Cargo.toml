@@ -46,7 +46,7 @@ opt-level = 0
 [profile.release]
 # Release profile: optimized for a balance of speed and small binary size.
 # `wasm-pack build --release` uses this profile.
-opt-level = "s"     # Optimize for speed, but avoid optimizations that bloat binary size.
+opt-level = 3       # Optimize for speed.
 lto = true          # Enable Link-Time Optimization for better whole-program optimization.
 codegen-units = 1   # Maximize optimization opportunities at the cost of compile time.
 panic = "abort"     # Abort on panic, which removes unwinding code and reduces binary size.
