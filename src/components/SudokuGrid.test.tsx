@@ -39,6 +39,7 @@ interface MockSudokuCellProps {
   isNumberHighlighted: boolean
   isCause: boolean
   isPlaced: boolean
+  isError?: boolean
   cell: CellState
   eliminatedCandidates?: ReadonlySet<number>
 }
@@ -78,6 +79,7 @@ describe('SudokuGrid component', () => {
       ...initialState.solver,
       gameMode: 'playing', // Set to playing for interactive tests
       visualizationBoard: initialState.board,
+      solution: null,
     },
     ui: {
       ...initialState.ui,
@@ -536,6 +538,98 @@ describe('SudokuGrid component', () => {
         const props = call[0] as MockSudokuCellProps
         expect(props.isPlaced).toBe(false)
       })
+    })
+  })
+
+  describe('Validation (Error Marking)', () => {
+    it('marks a cell as isError if value mismatches solution', () => {
+      const wrongValue = 5
+      const correctValue = 9
+      const solution = Array(81).fill(correctValue)
+      const boardWithWrongValue = initialState.board.map((cell, index) =>
+        index === 0 ? { ...cell, value: wrongValue, isGiven: false } : cell,
+      )
+
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithWrongValue,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'playing',
+          solution,
+        },
+      })
+
+      render(<SudokuGrid />)
+
+      const cell0Props = mockSudokuCellRender.mock.calls[0][0]
+      expect(cell0Props.isError).toBe(true)
+    })
+
+    it('does not mark a cell as isError if value matches solution', () => {
+      const correctValue = 9
+      const solution = Array(81).fill(correctValue)
+      const boardWithCorrectValue = initialState.board.map((cell, index) =>
+        index === 0 ? { ...cell, value: correctValue, isGiven: false } : cell,
+      )
+
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithCorrectValue,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'playing',
+          solution,
+        },
+      })
+
+      render(<SudokuGrid />)
+
+      const cell0Props = mockSudokuCellRender.mock.calls[0][0]
+      expect(cell0Props.isError).toBe(false)
+    })
+
+    it('does not mark given cells as errors', () => {
+      // Even if given somehow mismatches solution (shouldn't happen in valid state),
+      // we usually trust givens. But logic says !isGiven.
+      const solution = Array(81).fill(9)
+      const boardWithGiven = initialState.board.map((cell, index) =>
+        index === 0 ? { ...cell, value: 5, isGiven: true } : cell,
+      )
+
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithGiven,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'playing',
+          solution,
+        },
+      })
+
+      render(<SudokuGrid />)
+      const cell0Props = mockSudokuCellRender.mock.calls[0][0]
+      expect(cell0Props.isError).toBe(false)
+    })
+
+    it('does not mark cells as error if solution is not available', () => {
+      const boardWithVal = initialState.board.map((cell, index) =>
+        index === 0 ? { ...cell, value: 5, isGiven: false } : cell,
+      )
+
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithVal,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'playing',
+          solution: null,
+        },
+      })
+
+      render(<SudokuGrid />)
+      const cell0Props = mockSudokuCellRender.mock.calls[0][0]
+      expect(cell0Props.isError).toBe(false)
     })
   })
 

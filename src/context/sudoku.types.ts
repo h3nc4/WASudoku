@@ -83,6 +83,7 @@ export interface SolverState {
   readonly visualizationBoard: BoardState | null
   readonly candidatesForViz: (ReadonlySet<number> | null)[] | null
   readonly eliminationsForViz: readonly Elimination[] | null
+  readonly solution: readonly number[] | null
 }
 
 export interface DerivedState {
@@ -113,4 +114,5 @@ export interface SavedGameState {
     stack: BoardState[]
     index: number
   }
+  solution: number[] | null
 }

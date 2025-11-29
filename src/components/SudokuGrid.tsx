@@ -194,6 +194,13 @@ export function SudokuGrid() {
         const row = Math.floor(index / 9)
         const col = index % 9
 
+        const isError =
+          solver.gameMode === 'playing' &&
+          !displayCell.isGiven &&
+          displayCell.value !== null &&
+          solver.solution !== null &&
+          solver.solution[index] !== displayCell.value
+
         return (
           <SudokuCell
             ref={cellRefs[index]}
@@ -205,6 +212,7 @@ export function SudokuGrid() {
             isSolving={solver.isSolving}
             isSolved={solver.isSolved}
             isConflict={derived.conflicts.has(index)}
+            isError={isError}
             isActive={ui.activeCellIndex === index}
             isHighlighted={highlightedIndices.has(index)}
             isNumberHighlighted={

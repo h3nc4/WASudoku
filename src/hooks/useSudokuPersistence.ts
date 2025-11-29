@@ -61,6 +61,7 @@ export function useSudokuPersistence(state: SudokuState) {
         stack: state.history.stack as SavedGameState['history']['stack'],
         index: state.history.index,
       },
+      solution: state.solver.solution as SavedGameState['solution'],
     })
-  }, [state.history])
+  }, [state.history, state.solver.solution])
 }

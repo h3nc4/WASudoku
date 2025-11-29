@@ -33,8 +33,10 @@ interface SudokuCellProps {
   readonly isSolving: boolean
   /** Whether the board is in a solved state. */
   readonly isSolved: boolean
-  /** Whether this cell has a conflicting value. */
+  /** Whether this cell has a conflicting value based on peers. */
   readonly isConflict: boolean
+  /** Whether this cell has a value that mismatches the final solution. */
+  readonly isError?: boolean
   /** Whether this is the currently active/focused cell. */
   readonly isActive: boolean
   /** Whether this cell should be highlighted as part of the active row/column/box. */
@@ -57,6 +59,7 @@ interface SudokuCellProps {
  */
 const getBackgroundStyles = ({
   isConflict,
+  isError,
   isActive,
   isSolving,
   isCause,
@@ -66,6 +69,7 @@ const getBackgroundStyles = ({
 }: Pick<
   SudokuCellProps,
   | 'isConflict'
+  | 'isError'
   | 'isActive'
   | 'isSolving'
   | 'isCause'
@@ -73,7 +77,7 @@ const getBackgroundStyles = ({
   | 'isNumberHighlighted'
   | 'isHighlighted'
 >) => {
-  if (isConflict) return '!bg-destructive/20'
+  if (isConflict || isError) return '!bg-destructive/20'
   if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
   if (isSolving) return 'cursor-not-allowed bg-muted/50'
   if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
@@ -91,13 +95,14 @@ const getInputTextStyles = ({
   cell,
   hasPencilMarks,
   isConflict,
+  isError,
   isGiven,
   isSolved,
   isNumberHighlighted,
   isPlaced,
 }: Pick<
   SudokuCellProps,
-  'cell' | 'isConflict' | 'isGiven' | 'isSolved' | 'isNumberHighlighted' | 'isPlaced'
+  'cell' | 'isConflict' | 'isError' | 'isGiven' | 'isSolved' | 'isNumberHighlighted' | 'isPlaced'
 > & {
   hasPencilMarks: boolean
 }) => {
@@ -111,7 +116,7 @@ const getInputTextStyles = ({
     'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven && !isPlaced,
     'text-blue-600 dark:text-blue-400': isUserInput,
     'text-sky-600 dark:text-sky-400': isSolverResult,
-    '!text-destructive': isConflict,
+    '!text-destructive': isConflict || isError,
   })
 }
 
@@ -170,7 +175,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
           textClasses,
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
-        aria-invalid={props.isConflict}
+        aria-invalid={props.isConflict || props.isError}
       />
     </div>
   )

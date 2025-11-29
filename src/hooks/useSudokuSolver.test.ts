@@ -26,8 +26,8 @@ import { initialState } from '@/context/sudoku.reducer'
 
 type WorkerMessageData =
   | { type: 'solution'; result: SolveResult }
-  | { type: 'puzzle_generated'; puzzleString: string }
-  | { type: 'validation_result'; isValid: boolean }
+  | { type: 'puzzle_generated'; puzzleString: string; solutionString: string }
+  | { type: 'validation_result'; isValid: boolean; solutionString: string }
   | { type: 'error'; error: string }
 
 let messageHandler: (event: { data: WorkerMessageData }) => void
@@ -210,15 +210,18 @@ describe('useSudokuSolver', () => {
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
 
     const puzzleString = '1'.repeat(81)
+    const solutionString = '2'.repeat(81)
 
     mockWorkerInstance.__simulateMessage({
       type: 'puzzle_generated',
       puzzleString,
+      solutionString,
     })
 
     expect(mockDispatch).toHaveBeenCalledWith({
       type: 'GENERATE_PUZZLE_SUCCESS',
       puzzleString,
+      solutionString,
     })
     expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
   })
@@ -226,13 +229,17 @@ describe('useSudokuSolver', () => {
   it('should dispatch VALIDATE_PUZZLE_SUCCESS on receiving a valid validation_result', () => {
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
 
+    const solutionString = '1'.repeat(81)
+
     mockWorkerInstance.__simulateMessage({
       type: 'validation_result',
       isValid: true,
+      solutionString,
     })
 
     expect(mockDispatch).toHaveBeenCalledWith({
       type: 'VALIDATE_PUZZLE_SUCCESS',
+      solutionString,
     })
     expect(toast.success).toHaveBeenCalledWith('Puzzle is valid and has a unique solution.')
   })
@@ -243,6 +250,7 @@ describe('useSudokuSolver', () => {
     mockWorkerInstance.__simulateMessage({
       type: 'validation_result',
       isValid: false,
+      solutionString: '',
     })
 
     expect(mockDispatch).toHaveBeenCalledWith({

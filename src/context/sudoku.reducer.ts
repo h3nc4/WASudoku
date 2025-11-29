@@ -28,6 +28,7 @@ import type {
   GeneratePuzzleSuccessAction,
   GeneratePuzzleStartAction,
   ValidatePuzzleFailureAction,
+  ValidatePuzzleSuccessAction,
 } from './sudoku.actions.types'
 import type {
   BoardState,
@@ -97,6 +98,7 @@ export const initialState: SudokuState = {
     visualizationBoard: null,
     candidatesForViz: null,
     eliminationsForViz: null,
+    solution: null,
   },
   derived: getDerivedBoardState(createEmptyBoard()),
 }
@@ -144,6 +146,7 @@ export function loadInitialState(): SudokuState {
           solver: {
             ...initialState.solver,
             gameMode: 'playing', // Assume saved state is always in play
+            solution: savedState.solution ?? null,
           },
           derived: getDerivedBoardState(currentBoard),
         }
@@ -310,6 +313,8 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
         stack: [newBoard],
         index: 0,
       },
+      // Clear solution as well since we are resetting
+      solver: { ...state.solver, solution: null },
       ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
     }
   }
@@ -334,6 +339,10 @@ const handleImportBoard = (state: SudokuState, action: ImportBoardAction): Sudok
     solver: {
       ...initialState.solver,
       gameMode,
+      // If we import while playing, we effectively reset the game, so solution should be reset or re-calculated.
+      // Since recalculation requires worker, we reset it to null here.
+      // Ideally, importing while playing should probably trigger a solve/validate flow, but currently it's just setting the board.
+      solution: null,
     },
   }
 }
@@ -386,6 +395,10 @@ const handleGeneratePuzzleSuccess = (
   action: GeneratePuzzleSuccessAction,
 ): SudokuState => {
   const newBoard = boardStateFromString(action.puzzleString)
+  const solutionNumbers = action.solutionString.split('').map((c) => {
+    return c === '.' ? 0 : parseInt(c, 10)
+  })
+
   return {
     ...initialState,
     board: newBoard,
@@ -398,6 +411,7 @@ const handleGeneratePuzzleSuccess = (
       ...initialState.solver,
       isGenerating: false,
       gameMode: 'playing',
+      solution: solutionNumbers,
     },
   }
 }
@@ -442,6 +456,8 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
     centers: new Set<number>(),
   }))
 
+  const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : parseInt(c, 10)))
+
   const boardAfterLogic = state.initialBoard.map((cell) => ({ ...cell }))
   for (const step of steps) {
     for (const p of step.placements) {
@@ -470,6 +486,7 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
       steps: finalSteps,
       currentStepIndex: finalSteps.length,
       visualizationBoard: solvedBoard,
+      solution: solutionNumbers,
     },
   }
 }
@@ -582,7 +599,16 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
 const handleExitVisualization = (state: SudokuState): SudokuState => ({
   ...state,
   board: state.initialBoard,
-  solver: { ...initialState.solver, gameMode: 'playing' },
+  solver: {
+    ...state.solver,
+    gameMode: 'playing',
+    steps: [],
+    currentStepIndex: null,
+    visualizationBoard: null,
+    candidatesForViz: null,
+    eliminationsForViz: null,
+    solution: state.solver.solution,
+  },
   ui: {
     ...state.ui,
     highlightedValue: null,
@@ -599,11 +625,17 @@ const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): S
   },
 })
 
-const handleValidatePuzzleSuccess = (state: SudokuState): SudokuState => {
+const handleValidatePuzzleSuccess = (
+  state: SudokuState,
+  action: ValidatePuzzleSuccessAction,
+): SudokuState => {
   const newInitialBoard = state.board.map((cell) => ({
     ...cell,
     isGiven: cell.value !== null,
   }))
+  const solutionNumbers = action.solutionString.split('').map((c) => {
+    return c === '.' ? 0 : parseInt(c, 10)
+  })
 
   return {
     ...state,
@@ -617,6 +649,7 @@ const handleValidatePuzzleSuccess = (state: SudokuState): SudokuState => {
       ...state.solver,
       isValidating: false,
       gameMode: 'playing',
+      solution: solutionNumbers,
     },
   }
 }
@@ -696,7 +729,7 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       newState = { ...state, solver: { ...state.solver, isValidating: true } }
       break
     case 'VALIDATE_PUZZLE_SUCCESS':
-      newState = handleValidatePuzzleSuccess(state)
+      newState = handleValidatePuzzleSuccess(state, action)
       break
     case 'VALIDATE_PUZZLE_FAILURE':
       newState = handleValidatePuzzleFailure(state, action)

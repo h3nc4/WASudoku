@@ -91,6 +91,7 @@ export interface GeneratePuzzleStartAction {
 export interface GeneratePuzzleSuccessAction {
   type: 'GENERATE_PUZZLE_SUCCESS'
   puzzleString: string
+  solutionString: string
 }
 
 /** Action for when the puzzle generator fails. */
@@ -106,6 +107,7 @@ export interface ValidatePuzzleStartAction {
 /** Action for when validation succeeds. */
 export interface ValidatePuzzleSuccessAction {
   type: 'VALIDATE_PUZZLE_SUCCESS'
+  solutionString: string
 }
 
 /** Action for when validation fails. */

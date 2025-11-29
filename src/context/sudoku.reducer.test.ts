@@ -433,6 +433,7 @@ describe('sudokuReducer', () => {
         const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
         expect(newState.board).toEqual(createEmptyBoard())
         expect(newState.history.stack).toHaveLength(1)
+        expect(newState.solver.solution).toBeNull()
       })
 
       it('should do nothing if board is empty in customInput mode', () => {
@@ -460,6 +461,8 @@ describe('sudokuReducer', () => {
           derived: {
             ...initialState.derived,
             isBoardEmpty: false,
+            isBoardFull: false,
+            conflicts: new Set(),
           },
         }
         const newState = sudokuReducer(visualizingState, { type: 'CLEAR_BOARD' })
@@ -491,6 +494,7 @@ describe('sudokuReducer', () => {
         expect(newState.initialBoard[0].value).toBe(5)
         expect(newState.solver.isSolved).toBe(false)
         expect(newState.solver.gameMode).toBe('playing')
+        expect(newState.solver.solution).toBeNull()
       })
 
       it('should parse the board but not set initialBoard in customInput mode', () => {
@@ -685,9 +689,11 @@ describe('sudokuReducer', () => {
           },
         }
         const puzzleString = '1'.repeat(81)
+        const solutionString = '2'.repeat(81)
         const state = sudokuReducer(generatingState, {
           type: 'GENERATE_PUZZLE_SUCCESS',
           puzzleString,
+          solutionString,
         })
 
         expect(state.solver.isGenerating).toBe(false)
@@ -697,6 +703,29 @@ describe('sudokuReducer', () => {
         expect(state.initialBoard[0].value).toBe(1)
         expect(state.history.stack).toHaveLength(1)
         expect(state.history.index).toBe(0)
+        expect(state.solver.solution).toBeInstanceOf(Array)
+        expect(state.solver.solution?.[0]).toBe(2)
+      })
+
+      it('should handle GENERATE_PUZZLE_SUCCESS with dots in solution string (coverage)', () => {
+        const generatingState: SudokuState = {
+          ...initialState,
+          solver: {
+            ...initialState.solver,
+            isGenerating: true,
+            generationDifficulty: 'easy',
+          },
+        }
+        // Solution string with dots to exercise the `c === '.' ? 0 : ...` branch
+        const solutionStringWithDots = '1' + '.'.repeat(80)
+        const state = sudokuReducer(generatingState, {
+          type: 'GENERATE_PUZZLE_SUCCESS',
+          puzzleString: '.'.repeat(81),
+          solutionString: solutionStringWithDots,
+        })
+
+        expect(state.solver.solution?.[0]).toBe(1)
+        expect(state.solver.solution?.[1]).toBe(0)
       })
 
       it('should handle GENERATE_PUZZLE_FAILURE', () => {
@@ -725,17 +754,36 @@ describe('sudokuReducer', () => {
 
       it('should handle VALIDATE_PUZZLE_SUCCESS', () => {
         const board = initialState.board.map((c, i) => (i === 0 ? { ...c, value: 5 } : c))
+        const solutionString = '5'.repeat(81)
         const state: SudokuState = {
           ...initialState,
           board,
           solver: { ...initialState.solver, isValidating: true },
         }
-        const newState = sudokuReducer(state, { type: 'VALIDATE_PUZZLE_SUCCESS' })
+        const newState = sudokuReducer(state, {
+          type: 'VALIDATE_PUZZLE_SUCCESS',
+          solutionString,
+        })
         expect(newState.solver.isValidating).toBe(false)
         expect(newState.solver.gameMode).toBe('playing')
         expect(newState.board[0].isGiven).toBe(true)
         expect(newState.board[1].isGiven).toBe(false)
         expect(newState.initialBoard).toEqual(newState.board)
+        expect(newState.solver.solution?.[0]).toBe(5)
+      })
+
+      it('should handle VALIDATE_PUZZLE_SUCCESS with dots in solution string (coverage)', () => {
+        const state: SudokuState = {
+          ...initialState,
+          solver: { ...initialState.solver, isValidating: true },
+        }
+        const solutionStringWithDots = '9' + '.'.repeat(80)
+        const newState = sudokuReducer(state, {
+          type: 'VALIDATE_PUZZLE_SUCCESS',
+          solutionString: solutionStringWithDots,
+        })
+        expect(newState.solver.solution?.[0]).toBe(9)
+        expect(newState.solver.solution?.[1]).toBe(0)
       })
 
       it('should handle VALIDATE_PUZZLE_FAILURE', () => {
@@ -1102,6 +1150,7 @@ describe('loadInitialState', () => {
         stack: [boardWithPencilMarks],
         index: 0,
       },
+      solution: [5, ...Array(80).fill(null)],
     }
 
     function replacer(_key: string, value: unknown) {
@@ -1121,6 +1170,7 @@ describe('loadInitialState', () => {
     expect(state.derived.isBoardEmpty).toBe(false)
     expect(state.initialBoard[0].value).toBe(5)
     expect(state.initialBoard[1].value).toBe(null)
+    expect(state.solver.solution).toEqual([5, ...Array(80).fill(null)])
   })
 
   it('should handle JSON parsing errors gracefully', () => {
@@ -1143,7 +1193,10 @@ describe('loadInitialState', () => {
   })
 
   it('should return initial state if saved history stack is empty', () => {
-    const malformedData: SavedGameState = { history: { stack: [], index: 0 } }
+    const malformedData: SavedGameState = {
+      history: { stack: [], index: 0 },
+      solution: null,
+    }
     localStorageMock.getItem.mockReturnValue(JSON.stringify(malformedData))
     const state = loadInitialState()
     expect(state).toEqual(initialState)

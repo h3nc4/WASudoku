@@ -98,16 +98,41 @@ describe('Sudoku Action Creators', () => {
 
   it('should create a GENERATE_PUZZLE_SUCCESS action', () => {
     const puzzleString = '.'.repeat(81)
+    const solutionString = '1'.repeat(81)
     const expectedAction: SudokuAction = {
       type: 'GENERATE_PUZZLE_SUCCESS',
       puzzleString,
+      solutionString,
     }
-    expect(actions.generatePuzzleSuccess(puzzleString)).toEqual(expectedAction)
+    expect(actions.generatePuzzleSuccess(puzzleString, solutionString)).toEqual(expectedAction)
   })
 
   it('should create a GENERATE_PUZZLE_FAILURE action', () => {
     const expectedAction: SudokuAction = { type: 'GENERATE_PUZZLE_FAILURE' }
     expect(actions.generatePuzzleFailure()).toEqual(expectedAction)
+  })
+
+  it('should create a VALIDATE_PUZZLE_START action', () => {
+    const expectedAction: SudokuAction = { type: 'VALIDATE_PUZZLE_START' }
+    expect(actions.validatePuzzleStart()).toEqual(expectedAction)
+  })
+
+  it('should create a VALIDATE_PUZZLE_SUCCESS action', () => {
+    const solutionString = '1'.repeat(81)
+    const expectedAction: SudokuAction = {
+      type: 'VALIDATE_PUZZLE_SUCCESS',
+      solutionString,
+    }
+    expect(actions.validatePuzzleSuccess(solutionString)).toEqual(expectedAction)
+  })
+
+  it('should create a VALIDATE_PUZZLE_FAILURE action', () => {
+    const error = 'Failed'
+    const expectedAction: SudokuAction = {
+      type: 'VALIDATE_PUZZLE_FAILURE',
+      error,
+    }
+    expect(actions.validatePuzzleFailure(error)).toEqual(expectedAction)
   })
 
   it('should create a SET_ACTIVE_CELL action', () => {

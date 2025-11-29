@@ -51,10 +51,17 @@ export async function handleMessage(event: MessageEvent<WorkerMessage>) {
       self.postMessage({ type: 'solution', result })
     } else if (type === 'generate') {
       const puzzleString = generate_sudoku(event.data.difficulty)
-      self.postMessage({ type: 'puzzle_generated', puzzleString })
+      const solveResult = solve_sudoku(puzzleString)
+      const solutionString = solveResult.solution ?? ''
+      self.postMessage({ type: 'puzzle_generated', puzzleString, solutionString })
     } else if (type === 'validate') {
       const isValid = validate_puzzle(event.data.boardString)
-      self.postMessage({ type: 'validation_result', isValid })
+      let solutionString = ''
+      if (isValid) {
+        const solveResult = solve_sudoku(event.data.boardString)
+        solutionString = solveResult.solution ?? ''
+      }
+      self.postMessage({ type: 'validation_result', isValid, solutionString })
     }
   } catch (error) {
     // Capture any solver error and post it back for graceful handling in the UI.

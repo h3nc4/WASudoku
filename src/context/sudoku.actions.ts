@@ -118,9 +118,13 @@ export const generatePuzzleStart = (difficulty: string): GeneratePuzzleStartActi
 })
 
 /** Creates an action for when the generator successfully creates a puzzle. */
-export const generatePuzzleSuccess = (puzzleString: string): GeneratePuzzleSuccessAction => ({
+export const generatePuzzleSuccess = (
+  puzzleString: string,
+  solutionString: string,
+): GeneratePuzzleSuccessAction => ({
   type: 'GENERATE_PUZZLE_SUCCESS',
   puzzleString,
+  solutionString,
 })
 
 /** Creates an action for when the puzzle generator fails. */
@@ -134,8 +138,9 @@ export const validatePuzzleStart = (): ValidatePuzzleStartAction => ({
 })
 
 /** Creates an action for when a custom puzzle is successfully validated. */
-export const validatePuzzleSuccess = (): ValidatePuzzleSuccessAction => ({
+export const validatePuzzleSuccess = (solutionString: string): ValidatePuzzleSuccessAction => ({
   type: 'VALIDATE_PUZZLE_SUCCESS',
+  solutionString,
 })
 
 /** Creates an action for when a custom puzzle fails validation. */

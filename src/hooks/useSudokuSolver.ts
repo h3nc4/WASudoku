@@ -87,21 +87,22 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
         type: 'solution' | 'puzzle_generated' | 'validation_result' | 'error'
         result?: SolveResult
         puzzleString?: string
+        solutionString?: string
         isValid?: boolean
         error?: string
       }>,
     ) => {
-      const { type, result, puzzleString, isValid, error } = event.data
+      const { type, result, puzzleString, solutionString, isValid, error } = event.data
 
       if (type === 'solution' && result) {
         dispatch(solveSuccess(result))
         toast.success('Sudoku solved successfully!')
-      } else if (type === 'puzzle_generated' && puzzleString) {
-        dispatch(generatePuzzleSuccess(puzzleString))
+      } else if (type === 'puzzle_generated' && puzzleString && solutionString) {
+        dispatch(generatePuzzleSuccess(puzzleString, solutionString))
         toast.success('New puzzle generated!')
       } else if (type === 'validation_result') {
-        if (isValid) {
-          dispatch(validatePuzzleSuccess())
+        if (isValid && solutionString) {
+          dispatch(validatePuzzleSuccess(solutionString))
           toast.success('Puzzle is valid and has a unique solution.')
         } else {
           dispatch(validatePuzzleFailure('Puzzle is invalid or does not have a unique solution.'))

@@ -93,6 +93,21 @@ describe('SudokuCell component', () => {
       expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true')
     })
 
+    it('is marked as invalid when isError is true', () => {
+      render(<SudokuCell {...defaultProps} isError />)
+      expect(screen.getByRole('textbox')).toBeInvalid()
+      expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true')
+    })
+
+    it('applies destructive styles when isError is true', () => {
+      render(<SudokuCell {...defaultProps} isError cell={{ ...defaultProps.cell, value: 5 }} />)
+      const textbox = screen.getByRole('textbox')
+      const background = screen.getByTestId('cell-background')
+
+      expect(textbox).toHaveClass('!text-destructive')
+      expect(background).toHaveClass('!bg-destructive/20')
+    })
+
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
       expect(screen.getByRole('textbox')).toHaveClass('text-primary font-bold')
