@@ -338,6 +338,37 @@ const handleImportBoard = (state: SudokuState, action: ImportBoardAction): Sudok
   }
 }
 
+const handleAutoFillCandidates = (state: SudokuState): SudokuState => {
+  if (state.solver.gameMode !== 'playing') {
+    return state
+  }
+
+  const allCandidates = calculateCandidates(state.board)
+  const newBoard = state.board.map((cell, i) => {
+    if (cell.value !== null) return cell
+    const candidates = allCandidates[i]
+    if (candidates) {
+      return {
+        ...cell,
+        candidates,
+        centers: new Set<number>(), // Reset centers to prioritize valid candidates
+      }
+    }
+    return cell
+  })
+
+  // Avoid updating history if nothing changed (though improbable for auto-fill)
+  if (areBoardsEqual(state.board, newBoard)) {
+    return state
+  }
+
+  return {
+    ...state,
+    board: newBoard,
+    history: updateHistory(state.history, newBoard),
+  }
+}
+
 const handleGeneratePuzzleStart = (
   state: SudokuState,
   action: GeneratePuzzleStartAction,
@@ -623,6 +654,9 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       break
     case 'IMPORT_BOARD':
       newState = handleImportBoard(state, action)
+      break
+    case 'AUTO_FILL_CANDIDATES':
+      newState = handleAutoFillCandidates(state)
       break
     case 'UNDO':
       newState = handleUndo(state)

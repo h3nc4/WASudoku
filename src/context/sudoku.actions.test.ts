@@ -51,6 +51,11 @@ describe('Sudoku Action Creators', () => {
     expect(actions.clearBoard()).toEqual(expectedAction)
   })
 
+  it('should create an AUTO_FILL_CANDIDATES action', () => {
+    const expectedAction: SudokuAction = { type: 'AUTO_FILL_CANDIDATES' }
+    expect(actions.autoFillCandidates()).toEqual(expectedAction)
+  })
+
   it('should create an UNDO action', () => {
     const expectedAction: SudokuAction = { type: 'UNDO' }
     expect(actions.undo()).toEqual(expectedAction)

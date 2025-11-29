@@ -50,6 +50,11 @@ export interface ImportBoardAction {
   boardString: string
 }
 
+/** Action to automatically fill candidates for all empty cells. */
+export interface AutoFillCandidatesAction {
+  type: 'AUTO_FILL_CANDIDATES'
+}
+
 /** Action to revert to the previous state in history. */
 export interface UndoAction {
   type: 'UNDO'
@@ -155,6 +160,7 @@ export type SudokuAction =
   | EraseCellAction
   | ClearBoardAction
   | ImportBoardAction
+  | AutoFillCandidatesAction
   | UndoAction
   | RedoAction
   | SolveStartAction

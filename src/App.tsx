@@ -33,6 +33,7 @@ import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { useSudokuActions } from './hooks/useSudokuActions'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
 import { SelectionScreen } from './components/SelectionScreen'
+import { AutoFillButton } from './components/controls/AutoFillButton'
 import { cn } from './lib/utils'
 
 function App() {
@@ -82,8 +83,9 @@ function App() {
           <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
             <SudokuGrid />
             <div className="flex flex-col gap-4">
-              <div className="flex flex-row gap-2">
-                <InputModeToggle />
+              <div className="grid w-full grid-cols-4 place-items-center gap-2">
+                <UndoRedo />
+                <AutoFillButton />
                 <Button
                   variant="outline"
                   size="icon"
@@ -94,9 +96,9 @@ function App() {
                 >
                   <Eraser />
                 </Button>
-                <UndoRedo />
               </div>
               <NumberPad />
+              <InputModeToggle />
               <div className="flex flex-col gap-2">
                 <div className="flex w-full flex-row gap-2">
                   <NewPuzzleButton />

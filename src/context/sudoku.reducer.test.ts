@@ -20,7 +20,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sudokuReducer, createEmptyBoard, initialState, loadInitialState } from './sudoku.reducer'
 import type { SudokuAction } from './sudoku.actions.types'
 import type { BoardState, SudokuState, SolvingStep, SavedGameState } from './sudoku.types'
-import { getRelatedCellIndices, areBoardsEqual } from '@/lib/utils'
+import { getRelatedCellIndices, areBoardsEqual, calculateCandidates } from '@/lib/utils'
+
+// Mock utils to spy on calculateCandidates
+vi.mock('@/lib/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils')>()
+  return {
+    ...actual,
+    calculateCandidates: vi.fn((board) => actual.calculateCandidates(board)),
+  }
+})
 
 describe('sudokuReducer', () => {
   describe('Internal Actions', () => {
@@ -246,6 +255,95 @@ describe('sudokuReducer', () => {
         }
         const newState = sudokuReducer(stateWithMark, action)
         expect(newState.board[0].centers.has(5)).toBe(false)
+      })
+    })
+
+    describe('AUTO_FILL_CANDIDATES', () => {
+      it('should populate candidates for all empty cells based on current board state', () => {
+        // Setup: Cell 0 has value 1. Cell 1 is empty (peer). Cell 80 is empty (non-peer).
+        const boardWithVal = initialState.board.map((c, i) => (i === 0 ? { ...c, value: 1 } : c))
+        const state: SudokuState = {
+          ...initialState,
+          board: boardWithVal,
+          solver: { ...initialState.solver, gameMode: 'playing' },
+        }
+
+        const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
+
+        // Peer cell (1) should NOT have 1 as a candidate
+        expect(newState.board[1].candidates.has(1)).toBe(false)
+        expect(newState.board[1].candidates.size).toBe(8) // 9 minus the 1
+
+        // Non-peer cell (80) should have all candidates including 1
+        expect(newState.board[80].candidates.has(1)).toBe(true)
+        expect(newState.board[80].candidates.size).toBe(9)
+
+        // History should update
+        expect(newState.history.stack).toHaveLength(2)
+      })
+
+      it('should clear existing centers and candidates before filling', () => {
+        const boardWithCenters = initialState.board.map((c, i) =>
+          i === 1 ? { ...c, centers: new Set([5]), candidates: new Set([2]) } : c,
+        )
+        const state: SudokuState = {
+          ...initialState,
+          board: boardWithCenters,
+          solver: { ...initialState.solver, gameMode: 'playing' },
+        }
+
+        const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
+
+        expect(newState.board[1].centers.size).toBe(0)
+        expect(newState.board[1].candidates.size).toBe(9) // Should be full set now
+      })
+
+      it('should do nothing if not in playing mode', () => {
+        const state: SudokuState = {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'selecting' },
+        }
+        const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
+        expect(newState).toBe(state)
+      })
+
+      it('should return original state if candidates are already filled', () => {
+        // Setup: Board is empty but candidates are already calculated and set
+        // Use the real calculateCandidates to simulate perfect state
+        const emptyBoard = createEmptyBoard()
+        const allCandidates = calculateCandidates(emptyBoard)
+        const filledBoard = emptyBoard.map((cell, i) => {
+          const c = allCandidates[i]
+          return c ? { ...cell, candidates: c } : cell
+        })
+
+        const state: SudokuState = {
+          ...initialState,
+          board: filledBoard,
+          solver: { ...initialState.solver, gameMode: 'playing' },
+        }
+
+        const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
+        expect(newState).toBe(state) // Reference equality check
+      })
+
+      it('should handle case where calculateCandidates returns null for empty cell', () => {
+        const state: SudokuState = {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'playing' },
+        }
+
+        // Mock calculateCandidates to return nulls even for empty cells.
+        // This forces the `if (candidates)` check to fail and fall through to `return cell`.
+        // It also subsequently triggers the `areBoardsEqual` check to return `state`.
+        vi.mocked(calculateCandidates).mockReturnValueOnce(Array(81).fill(null))
+
+        const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
+
+        // Since candidates map was null, cells should remain as is
+        expect(newState.board).toEqual(state.board)
+        // Since board didn't change, reference should be equal
+        expect(newState).toBe(state)
       })
     })
 

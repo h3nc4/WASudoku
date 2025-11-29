@@ -39,7 +39,7 @@ export function InputModeToggle() {
       type="single"
       value={ui.inputMode}
       onValueChange={handleModeChange}
-      className="flex-1"
+      className="w-full"
       aria-label="Input Mode"
       disabled={solver.gameMode === 'visualizing'}
     >

@@ -40,6 +40,7 @@ import type {
   ValidatePuzzleSuccessAction,
   ValidatePuzzleFailureAction,
   StartCustomPuzzleAction,
+  AutoFillCandidatesAction,
 } from './sudoku.actions.types'
 import type { InputMode, SolveResult } from './sudoku.types'
 
@@ -77,6 +78,11 @@ export const clearBoard = (): ClearBoardAction => ({
 export const importBoard = (boardString: string): ImportBoardAction => ({
   type: 'IMPORT_BOARD',
   boardString,
+})
+
+/** Creates an action to automatically fill candidates for empty cells. */
+export const autoFillCandidates = (): AutoFillCandidatesAction => ({
+  type: 'AUTO_FILL_CANDIDATES',
 })
 
 /** Creates an action to undo the last move. */

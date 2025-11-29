@@ -311,6 +311,12 @@ describe('useSudokuActions', () => {
       expect(mockDispatch).toHaveBeenCalledWith(actionCreators.clearBoard())
     })
 
+    it('autoFillCandidates dispatches AUTO_FILL_CANDIDATES', () => {
+      const actions = getActions()
+      act(() => actions.autoFillCandidates())
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.autoFillCandidates())
+    })
+
     it('undo dispatches UNDO', () => {
       const actions = getActions()
       act(() => actions.undo())

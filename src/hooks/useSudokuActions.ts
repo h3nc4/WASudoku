@@ -101,6 +101,8 @@ export function useSudokuActions() {
 
       /** Clears the entire board. */
       clearBoard: () => dispatch(actions.clearBoard()),
+      /** Automatically fills candidates for all empty cells. */
+      autoFillCandidates: () => dispatch(actions.autoFillCandidates()),
       /** Exports the current board state to the clipboard. */
       exportBoard: () => {
         if (!navigator.clipboard) {
