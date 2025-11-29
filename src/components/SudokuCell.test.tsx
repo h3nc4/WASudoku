@@ -40,6 +40,7 @@ describe('SudokuCell component', () => {
     isHighlighted: false,
     isNumberHighlighted: false,
     isCause: false,
+    isPlaced: false,
     onFocus: mockOnFocus,
   }
 
@@ -112,6 +113,15 @@ describe('SudokuCell component', () => {
         />,
       )
       expect(screen.getByRole('textbox')).toHaveClass('text-sky-600 dark:text-sky-400')
+    })
+
+    it('applies correct classes for a placed cell (visualization)', () => {
+      render(<SudokuCell {...defaultProps} isPlaced cell={{ ...defaultProps.cell, value: 3 }} />)
+      const input = screen.getByRole('textbox')
+      const background = screen.getByTestId('cell-background')
+
+      expect(input).toHaveClass('text-green-600 dark:text-green-400 font-bold')
+      expect(background).toHaveClass('bg-green-100 dark:bg-green-900/80')
     })
 
     it('applies correct background for an active cell', () => {

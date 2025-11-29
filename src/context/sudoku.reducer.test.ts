@@ -731,6 +731,9 @@ describe('sudokuReducer', () => {
         // --- Check the eliminations (from step 2 itself) ---
         expect(state.solver.eliminationsForViz).not.toBeNull()
         expect(state.solver.eliminationsForViz).toEqual(steps[1].eliminations)
+
+        // Check if ui.highlightedValue is updated to the placed value
+        expect(state.ui.highlightedValue).toBe(3)
       })
 
       it('should correctly apply prior eliminations when viewing a later step', () => {
@@ -783,6 +786,8 @@ describe('sudokuReducer', () => {
         expect(state.solver.eliminationsForViz).toEqual([])
         // Candidates should be the initial candidates
         expect(state.solver.candidatesForViz?.[0]?.size).toBeGreaterThan(1)
+        // Highlight should be reset/null as no step is active
+        expect(state.ui.highlightedValue).toBeNull()
       })
 
       it('should show the final solved board when viewing the last step after backtracking', () => {

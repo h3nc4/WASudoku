@@ -43,6 +43,8 @@ interface SudokuCellProps {
   readonly isNumberHighlighted: boolean
   /** For visualization, whether this cell is part of the "cause" of the logical step. */
   readonly isCause: boolean
+  /** For visualization, whether this cell is the one being placed in the current step. */
+  readonly isPlaced: boolean
   /** Callback function when the cell receives focus (e.g., via click). */
   readonly onFocus: (index: number) => void
   /** For visualization, a set of candidates eliminated in the current step. */
@@ -58,16 +60,24 @@ const getBackgroundStyles = ({
   isActive,
   isSolving,
   isCause,
+  isPlaced,
   isNumberHighlighted,
   isHighlighted,
 }: Pick<
   SudokuCellProps,
-  'isConflict' | 'isActive' | 'isSolving' | 'isCause' | 'isNumberHighlighted' | 'isHighlighted'
+  | 'isConflict'
+  | 'isActive'
+  | 'isSolving'
+  | 'isCause'
+  | 'isPlaced'
+  | 'isNumberHighlighted'
+  | 'isHighlighted'
 >) => {
   if (isConflict) return '!bg-destructive/20'
   if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
   if (isSolving) return 'cursor-not-allowed bg-muted/50'
   if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
+  if (isPlaced) return 'bg-green-100 dark:bg-green-900/80'
   if (isNumberHighlighted) return 'bg-blue-100 dark:bg-sky-900/80'
   if (isHighlighted) return 'bg-blue-50 dark:bg-sky-900/60'
   return ''
@@ -84,16 +94,21 @@ const getInputTextStyles = ({
   isGiven,
   isSolved,
   isNumberHighlighted,
-}: Pick<SudokuCellProps, 'cell' | 'isConflict' | 'isGiven' | 'isSolved' | 'isNumberHighlighted'> & {
+  isPlaced,
+}: Pick<
+  SudokuCellProps,
+  'cell' | 'isConflict' | 'isGiven' | 'isSolved' | 'isNumberHighlighted' | 'isPlaced'
+> & {
   hasPencilMarks: boolean
 }) => {
   const isSolverResult = isSolved && !isGiven
-  const isUserInput = cell.value !== null && !isGiven && !isSolved
+  const isUserInput = cell.value !== null && !isGiven && !isSolved && !isPlaced
   return cn({
     'text-transparent': hasPencilMarks && cell.value === null,
     'text-xl md:text-2xl': !(hasPencilMarks && cell.value === null),
     'text-primary font-bold': isGiven,
-    'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven,
+    'text-green-600 dark:text-green-400 font-bold': isPlaced,
+    'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven && !isPlaced,
     'text-blue-600 dark:text-blue-400': isUserInput,
     'text-sky-600 dark:text-sky-400': isSolverResult,
     '!text-destructive': isConflict,

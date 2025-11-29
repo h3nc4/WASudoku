@@ -480,8 +480,21 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
 
   const elims = action.index > 0 ? state.solver.steps[action.index - 1].eliminations : []
 
+  // Determine which number should be highlighted based on the step being viewed.
+  let newHighlightedValue: number | null = null
+  if (action.index > 0 && action.index <= state.solver.steps.length) {
+    const currentStep = state.solver.steps[action.index - 1]
+    if (currentStep.placements.length > 0) {
+      newHighlightedValue = currentStep.placements[0].value
+    }
+  }
+
   return {
     ...state,
+    ui: {
+      ...state.ui,
+      highlightedValue: newHighlightedValue,
+    },
     solver: {
       ...state.solver,
       currentStepIndex: action.index,
@@ -496,6 +509,10 @@ const handleExitVisualization = (state: SudokuState): SudokuState => ({
   ...state,
   board: state.initialBoard,
   solver: { ...initialState.solver, gameMode: 'playing' },
+  ui: {
+    ...state.ui,
+    highlightedValue: null,
+  },
 })
 
 const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): SudokuState => ({

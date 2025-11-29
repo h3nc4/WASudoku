@@ -38,6 +38,7 @@ interface MockSudokuCellProps {
   isHighlighted: boolean
   isNumberHighlighted: boolean
   isCause: boolean
+  isPlaced: boolean
   cell: CellState
   eliminatedCandidates?: ReadonlySet<number>
 }
@@ -412,15 +413,22 @@ describe('SudokuGrid component', () => {
     })
   })
 
-  describe('causeIndices calculation', () => {
+  describe('causeIndices and placedIndices calculation', () => {
     const mockStep: SolvingStep = {
       technique: 'NakedPair',
-      placements: [],
+      placements: [{ index: 15, value: 3 }],
       eliminations: [],
       cause: [
         { index: 10, candidates: [1, 2] },
         { index: 11, candidates: [1, 2] },
       ],
+    }
+
+    const mockStepNoPlacements: SolvingStep = {
+      technique: 'PointingPair',
+      placements: [],
+      eliminations: [],
+      cause: [],
     }
 
     it('passes isCause=true to the correct cells', () => {
@@ -446,7 +454,28 @@ describe('SudokuGrid component', () => {
       expect(cell12Props.isCause).toBe(false)
     })
 
-    it('returns an empty set if currentStepIndex is 0', () => {
+    it('passes isPlaced=true to the correct cells', () => {
+      const visualizingState: SudokuState = {
+        ...defaultState,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'visualizing',
+          visualizationBoard: initialState.board,
+          steps: [mockStep],
+          currentStepIndex: 1,
+        },
+      }
+      mockUseSudokuState.mockReturnValue(visualizingState)
+      render(<SudokuGrid />)
+
+      const cell15Props = mockSudokuCellRender.mock.calls[15][0]
+      const cell10Props = mockSudokuCellRender.mock.calls[10][0]
+
+      expect(cell15Props.isPlaced).toBe(true)
+      expect(cell10Props.isPlaced).toBe(false)
+    })
+
+    it('returns empty sets for cause and placed if currentStepIndex is 0', () => {
       const visualizingState: SudokuState = {
         ...defaultState,
         solver: {
@@ -463,23 +492,40 @@ describe('SudokuGrid component', () => {
       mockSudokuCellRender.mock.calls.forEach((call) => {
         const props = call[0] as MockSudokuCellProps
         expect(props.isCause).toBe(false)
+        expect(props.isPlaced).toBe(false)
       })
     })
 
-    it('returns an empty set if the current step has no cause property', () => {
-      const stepWithoutCause: SolvingStep = {
-        technique: 'NakedSingle',
-        placements: [],
-        eliminations: [],
-        cause: undefined as unknown as [],
-      }
+    it('returns empty sets if currentStepIndex is out of bounds', () => {
       const visualizingState: SudokuState = {
         ...defaultState,
         solver: {
           ...defaultState.solver,
           gameMode: 'visualizing',
           visualizationBoard: initialState.board,
-          steps: [stepWithoutCause],
+          steps: [], // Empty steps
+          currentStepIndex: 1, // Index 1 implies asking for steps[0], which doesn't exist
+        },
+      }
+      mockUseSudokuState.mockReturnValue(visualizingState)
+      render(<SudokuGrid />)
+
+      // Expect no highlights, confirming the guard clause returned empty Sets
+      mockSudokuCellRender.mock.calls.forEach((call) => {
+        const props = call[0] as MockSudokuCellProps
+        expect(props.isCause).toBe(false)
+        expect(props.isPlaced).toBe(false)
+      })
+    })
+
+    it('handles a step with no placements safely (empty array)', () => {
+      const visualizingState: SudokuState = {
+        ...defaultState,
+        solver: {
+          ...defaultState.solver,
+          gameMode: 'visualizing',
+          visualizationBoard: initialState.board,
+          steps: [mockStepNoPlacements],
           currentStepIndex: 1,
         },
       }
@@ -488,7 +534,7 @@ describe('SudokuGrid component', () => {
 
       mockSudokuCellRender.mock.calls.forEach((call) => {
         const props = call[0] as MockSudokuCellProps
-        expect(props.isCause).toBe(false)
+        expect(props.isPlaced).toBe(false)
       })
     })
   })
