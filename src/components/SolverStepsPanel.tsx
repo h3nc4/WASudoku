@@ -146,6 +146,7 @@ export function SolverStepsPanel() {
           collapsible
           value={activeAccordionItem}
           onValueChange={handleAccordionChange}
+          className="pr-4"
         >
           {steps.map((step, index) => (
             <AccordionItem key={`step-${index}-${step.technique}`} value={index.toString()}>
