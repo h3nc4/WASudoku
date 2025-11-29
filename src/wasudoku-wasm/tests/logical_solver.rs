@@ -53,15 +53,11 @@ fn test_candidate_initialization() {
         "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79";
     let board = board_from_str(puzzle_str);
 
-    // Cell (0,0) has value 5, so it should have 0 candidates.
     assert_eq!(board.candidates[0], 0);
 
-    // Cell (0,2) is empty. It's in a row with 5,3,7, a col with 6,9,8, etc.
-    // Let's check if 5 is eliminated. Mask for 5 is 1 << 4.
     let mask_for_5 = 1 << 4;
     assert_eq!(board.candidates[2] & mask_for_5, 0);
 
-    // Check if 1 is a valid candidate for (0,2)
     let mask_for_1 = 1 << 0;
     assert_ne!(board.candidates[2] & mask_for_1, 0);
 }
@@ -75,8 +71,6 @@ fn test_naked_single_step_generation() {
     assert_eq!(first_step.placements[0].index, 9);
     assert_eq!(first_step.placements[0].value, 1);
 
-    // Check that eliminations were correctly identified.
-    // Placing 1 at index 9 (R1C0) should eliminate 1 from its peers in the same box, like index 0.
     let has_elimination_for_cell_0 = first_step
         .eliminations
         .iter()
@@ -96,8 +90,6 @@ fn test_hidden_single_detection_in_box() {
     assert_eq!(first_step.placements[0].index, 0);
     assert_eq!(first_step.placements[0].value, 4);
 
-    // Check that eliminations were correctly identified.
-    // Placing 4 at index 0 should eliminate other candidates from cell 0 (2, 6).
     let elims: Vec<&Elimination> = first_step
         .eliminations
         .iter()
@@ -114,7 +106,6 @@ fn test_naked_pair_detection() {
         ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....";
     let step = assert_nth_logical_step(puzzle_str, 31, "NakedPair");
 
-    // The pair {4, 6} exists at indices 14 (R2C6) and 32 (R4C6) in column 6.
     assert_eq!(step.cause.len(), 2);
     assert!(step.cause.iter().any(|c| c.index == 14));
     assert!(step.cause.iter().any(|c| c.index == 32));
@@ -123,7 +114,6 @@ fn test_naked_pair_detection() {
     cause_cands.sort();
     assert_eq!(cause_cands, vec![4, 6]);
 
-    // This should eliminate 4 from index 68 (R8C6) in the same column.
     assert!(
         step.eliminations
             .iter()
@@ -137,13 +127,11 @@ fn test_pointing_pair_detection() {
         ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....";
     let step = assert_nth_logical_step(puzzle_str, 32, "PointingPair");
 
-    // The candidate '2' is confined to row 2 (cells R2C7, R2C9).
     assert_eq!(step.cause.len(), 2);
     assert!(step.cause.iter().any(|c| c.index == 15));
     assert!(step.cause.iter().any(|c| c.index == 17));
     assert_eq!(step.cause[0].candidates, vec![2]);
 
-    // This should eliminate '2' from index 13 (R1C5) in the same row.
     assert!(
         step.eliminations
             .iter()
@@ -153,18 +141,11 @@ fn test_pointing_pair_detection() {
 
 #[test]
 fn test_claiming_candidate_detection() {
-    // A constructed board where a Claiming Candidate is the first necessary step
-    // Box-Line reduction: In Row 5, candidate 5 is restricted to Box 6.
-    // Thus 5 can be eliminated from other cells in Box 6.
     let puzzle_str =
         "7356814..681492.3.4..7356813.71..9.894..73.1.1....937.5.4318...8.392.15.21.5.78.3";
-    // This specific board might solve earlier steps first, so we need to find
-    // *where* the ClaimingCandidate occurs.
-    // Actually, let's use a puzzle specifically known for this or check existence in list.
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    // Find any ClaimingCandidate step
     let step = steps
         .iter()
         .find(|s| s.technique == "ClaimingCandidate")
@@ -176,11 +157,8 @@ fn test_claiming_candidate_detection() {
 
 #[test]
 fn test_hidden_pair_detection() {
-    // A board that requires Hidden Pair
     let puzzle_str =
         "538421769421769...769538....8.17.6.2..29........28.3..857312946...6.71...1.8...7.";
-    // Indices 6 and 8 in Row 0 form a Hidden Pair for {2, 3} (example scenario)
-    // Or search specifically for the technique in steps
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
@@ -190,7 +168,6 @@ fn test_hidden_pair_detection() {
 
 #[test]
 fn test_naked_triple_detection() {
-    // A puzzle known to require Naked Triple
     let puzzle_str =
         ".613.5.8.3.5.8.26..8..6.3.561254....8....615.5..9.....12..5...893....5..75...2.4.";
     let initial_board: Board = puzzle_str.parse().unwrap();
@@ -202,7 +179,6 @@ fn test_naked_triple_detection() {
 
 #[test]
 fn test_pointing_triple_detection() {
-    // A puzzle known to require Pointing Triple
     let puzzle_str =
         "6...5481.9.48136..81.62...42.648....18.36274.4..5.1268.68..5...5.2.38..6..1..658.";
     let initial_board: Board = puzzle_str.parse().unwrap();
@@ -217,7 +193,6 @@ fn test_pointing_triple_detection() {
 
 #[test]
 fn test_x_wing_detection() {
-    // A classic X-Wing example for candidate 7 in rows 1 and 4 (indices 0-based: 1 and 4).
     let puzzle_str =
         "3..6148726148723958723956......86......2.95....6.5...85..9..2...6..2..5.24756.1.9";
     let initial_board: Board = puzzle_str.parse().unwrap();
@@ -229,7 +204,7 @@ fn test_x_wing_detection() {
         .expect("Expected an X-Wing step");
 
     let x_wing_val = step.cause[0].candidates[0];
-    assert_eq!(x_wing_val, 3, "X-Wing should be for candidate 7");
+    assert_eq!(x_wing_val, 3, "X-Wing should be for candidate 3");
     assert!(
         !step.eliminations.is_empty(),
         "X-Wing should yield eliminations"
@@ -238,7 +213,6 @@ fn test_x_wing_detection() {
 
 #[test]
 fn test_swordfish_detection() {
-    // This puzzle is known to contain a Swordfish pattern.
     let puzzle_str =
         "4..6...95.2..95478.954..6..........2.125.7.3.3..2......417.256.26795....53..64..7";
     let initial_board: Board = puzzle_str.parse().unwrap();
@@ -248,7 +222,50 @@ fn test_swordfish_detection() {
     assert!(has_swordfish, "Expected Swordfish technique usage");
 }
 
-/// Replicates the hybrid solving logic from `lib.rs` for native testing.
+#[test]
+fn test_xy_wing_detection() {
+    let puzzle_str =
+        "68.5172.451.2946....468351.8.67.59419.14683.5.451.986..628.14..1.89427.64..3.61..";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_xy_wing = steps.iter().any(|s| s.technique == "XY-Wing");
+    assert!(has_xy_wing, "Expected XY-Wing technique usage");
+}
+
+#[test]
+fn test_xyz_wing_detection() {
+    let puzzle_str =
+        ".92..175.5..2....8....3.2...75..496.2...6..75.697...3...8.9..2.7....3.899.38...4.";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_xyz_wing = steps.iter().any(|s| s.technique == "XYZ-Wing");
+    assert!(has_xyz_wing, "Expected XYZ-Wing technique usage");
+}
+
+#[test]
+fn test_skyscraper_detection() {
+    let puzzle_str =
+        ".89.2....2..5.94.8...8..9.21629875..5..4.2.89948....2.79.2.83..32.6..89.8...9.2..";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_skyscraper = steps.iter().any(|s| s.technique == "Skyscraper");
+    assert!(has_skyscraper, "Expected Skyscraper technique usage");
+}
+
+#[test]
+fn test_two_string_kite_detection() {
+    let puzzle_str =
+        ".89.2....2..5.94.8...8..9.21629875..5..4.2.89948....2.79.2.83..32.6..89.8...9.2..";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_kite = steps.iter().any(|s| s.technique == "TwoStringKite");
+    assert!(has_kite, "Expected Two-String Kite technique usage");
+}
+
 fn solve_natively(puzzle_str: &str) -> Option<Board> {
     let initial_board: Board = puzzle_str.parse().ok()?;
     let (_, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
@@ -266,7 +283,6 @@ fn solve_natively(puzzle_str: &str) -> Option<Board> {
 
 #[test]
 fn test_hybrid_solver_logic_solves_puzzle() {
-    // An easy puzzle that can be solved entirely by naked and hidden singles.
     let puzzle_str =
         "...2..7...5..96832.8.7....641.....78.2..745..7.31854....2531..4.3164..5...9...61.";
     let solution_str =
@@ -279,8 +295,6 @@ fn test_hybrid_solver_logic_solves_puzzle() {
 
 #[test]
 fn test_hybrid_solver_falls_back_to_backtracking() {
-    // A hard puzzle that might require techniques beyond our current logical set (or is just very hard).
-    // Even with X-Wing/Swordfish, some puzzles need XY-Wing or Chains.
     let puzzle_str =
         "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
     let solution_str =

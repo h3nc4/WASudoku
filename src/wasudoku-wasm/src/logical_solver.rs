@@ -95,7 +95,7 @@ pub enum TechniqueLevel {
     None,         // No logical moves found
     Basic,        // Naked/Hidden Singles
     Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
-    Advanced,     // X-Wing, Swordfish
+    Advanced,     // X-Wing, Swordfish, XY-Wing, XYZ-Wing, Skyscraper, 2-String Kite
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
@@ -1059,6 +1059,564 @@ impl LogicalBoard {
         }
         eliminations
     }
+
+    // --- Advanced Techniques: Wings and Chains ---
+
+    /// Searches for XY-Wings.
+    fn find_xy_wing(&self) -> Option<SolvingStep> {
+        // Collect bi-value cells
+        let bivalue_cells: Vec<usize> = (0..81)
+            .filter(|&i| self.cells[i] == 0 && self.candidates[i].count_ones() == 2)
+            .collect();
+
+        if bivalue_cells.len() < 3 {
+            return None;
+        }
+
+        for &pivot_idx in &bivalue_cells {
+            if let Some(step) = self.find_xy_wing_for_pivot(pivot_idx) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn find_xy_wing_for_pivot(&self, pivot_idx: usize) -> Option<SolvingStep> {
+        let pivot_cands = mask_to_vec(self.candidates[pivot_idx]);
+        let a = pivot_cands[0];
+        let b = pivot_cands[1];
+
+        // Find peers of pivot that are also bi-value
+        let peer_bivalues: Vec<usize> = PEER_MAP[pivot_idx]
+            .iter()
+            .cloned()
+            .filter(|&idx| {
+                self.cells[idx] == 0
+                    && self.candidates[idx].count_ones() == 2
+                    && (self.candidates[idx] & self.candidates[pivot_idx]) != 0
+            })
+            .collect();
+
+        for &p1_idx in &peer_bivalues {
+            if let Some(step) = self.check_xy_wing_pincers(pivot_idx, p1_idx, &peer_bivalues, a, b)
+            {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn check_xy_wing_pincers(
+        &self,
+        pivot_idx: usize,
+        p1_idx: usize,
+        peers: &[usize],
+        a: u8,
+        b: u8,
+    ) -> Option<SolvingStep> {
+        let p1_cands = self.candidates[p1_idx];
+        let share_a = (p1_cands & (1 << (a - 1))) != 0;
+        let share_b = (p1_cands & (1 << (b - 1))) != 0;
+
+        // Only strictly one shared value for a valid XY-Wing connection from this pivot side
+        if share_a == share_b {
+            return None;
+        }
+
+        let c_val = if share_a {
+            // Pincer1 is (A, C). Find C.
+            (p1_cands & !(1 << (a - 1))).trailing_zeros() + 1
+        } else {
+            // Pincer1 is (B, C).
+            (p1_cands & !(1 << (b - 1))).trailing_zeros() + 1
+        } as u8;
+
+        // We need Pincer2. It must share the OTHER pivot value.
+        let other_pivot_val = if share_a { b } else { a };
+        let target_mask = (1 << (other_pivot_val - 1)) | (1 << (c_val - 1));
+
+        for &p2_idx in peers {
+            if p1_idx == p2_idx {
+                continue;
+            }
+            if self.candidates[p2_idx] == target_mask {
+                // Found a potential XY-Wing. Eliminate C from cells seen by BOTH P1 and P2
+                let elims = self.find_xy_wing_eliminations(p1_idx, p2_idx, pivot_idx, c_val);
+
+                if !elims.is_empty() {
+                    return Some(SolvingStep {
+                        technique: "XY-Wing".to_string(),
+                        placements: vec![],
+                        eliminations: elims,
+                        cause: vec![
+                            CauseCell {
+                                index: pivot_idx,
+                                candidates: vec![a, b],
+                            },
+                            CauseCell {
+                                index: p1_idx,
+                                candidates: mask_to_vec(self.candidates[p1_idx]),
+                            },
+                            CauseCell {
+                                index: p2_idx,
+                                candidates: mask_to_vec(self.candidates[p2_idx]),
+                            },
+                        ],
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    fn find_xy_wing_eliminations(
+        &self,
+        p1_idx: usize,
+        p2_idx: usize,
+        pivot_idx: usize,
+        c_val: u8,
+    ) -> Vec<Elimination> {
+        let mut elims = Vec::new();
+        let c_mask = 1 << (c_val - 1);
+
+        for &target_idx in &PEER_MAP[p1_idx] {
+            if target_idx != pivot_idx
+                && target_idx != p2_idx
+                && self.cells[target_idx] == 0
+                && (self.candidates[target_idx] & c_mask) != 0
+                && PEER_MAP[p2_idx].contains(&target_idx)
+            {
+                elims.push(Elimination {
+                    index: target_idx,
+                    value: c_val,
+                });
+            }
+        }
+        elims
+    }
+
+    /// Searches for XYZ-Wings.
+    fn find_xyz_wing(&self) -> Option<SolvingStep> {
+        // Pivot must have 3 candidates
+        let trivalue_cells: Vec<usize> = (0..81)
+            .filter(|&i| self.cells[i] == 0 && self.candidates[i].count_ones() == 3)
+            .collect();
+
+        for &pivot_idx in &trivalue_cells {
+            if let Some(step) = self.find_xyz_wing_for_pivot(pivot_idx) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn find_xyz_wing_for_pivot(&self, pivot_idx: usize) -> Option<SolvingStep> {
+        let pivot_mask = self.candidates[pivot_idx];
+
+        // Find potential pincers: bivalue cells that are subsets of the pivot
+        let potential_pincers: Vec<usize> = PEER_MAP[pivot_idx]
+            .iter()
+            .cloned()
+            .filter(|&idx| {
+                self.cells[idx] == 0
+                    && self.candidates[idx].count_ones() == 2
+                    && (self.candidates[idx] & !pivot_mask) == 0
+            })
+            .collect();
+
+        if potential_pincers.len() < 2 {
+            return None;
+        }
+
+        for i in 0..potential_pincers.len() {
+            for j in (i + 1)..potential_pincers.len() {
+                if let Some(step) = self.check_xyz_wing_pincers(
+                    pivot_idx,
+                    potential_pincers[i],
+                    potential_pincers[j],
+                    pivot_mask,
+                ) {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    fn check_xyz_wing_pincers(
+        &self,
+        pivot: usize,
+        p1: usize,
+        p2: usize,
+        pivot_mask: u16,
+    ) -> Option<SolvingStep> {
+        let m1 = self.candidates[p1];
+        let m2 = self.candidates[p2];
+
+        // Must have common candidate Z in ALL THREE cells
+        let common_mask = pivot_mask & m1 & m2;
+        if common_mask.count_ones() != 1 {
+            return None;
+        }
+
+        // Union(P1, P2) must equal Pivot
+        if (m1 | m2) != pivot_mask {
+            return None;
+        }
+
+        let elim_val = (common_mask.trailing_zeros() + 1) as u8;
+        let elim_bit = common_mask;
+
+        // Find eliminations: cells that see Pivot AND P1 AND P2
+        let mut elims = Vec::new();
+
+        for &target_idx in &PEER_MAP[pivot] {
+            if target_idx != p1
+                && target_idx != p2
+                && self.cells[target_idx] == 0
+                && (self.candidates[target_idx] & elim_bit) != 0
+                && PEER_MAP[p1].contains(&target_idx)
+                && PEER_MAP[p2].contains(&target_idx)
+            {
+                elims.push(Elimination {
+                    index: target_idx,
+                    value: elim_val,
+                });
+            }
+        }
+
+        if !elims.is_empty() {
+            return Some(SolvingStep {
+                technique: "XYZ-Wing".to_string(),
+                placements: vec![],
+                eliminations: elims,
+                cause: vec![
+                    CauseCell {
+                        index: pivot,
+                        candidates: mask_to_vec(pivot_mask),
+                    },
+                    CauseCell {
+                        index: p1,
+                        candidates: mask_to_vec(m1),
+                    },
+                    CauseCell {
+                        index: p2,
+                        candidates: mask_to_vec(m2),
+                    },
+                ],
+            });
+        }
+        None
+    }
+
+    /// Searches for Skyscraper pattern.
+    fn find_skyscraper(&self) -> Option<SolvingStep> {
+        let (row_masks, col_masks) = self.get_all_fish_masks();
+
+        for num in 1..=9 {
+            // Check Rows base
+            if let Some(step) = self.check_skyscraper(num, &row_masks[num], true) {
+                return Some(step);
+            }
+            // Check Cols base
+            if let Some(step) = self.check_skyscraper(num, &col_masks[num], false) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn check_skyscraper(
+        &self,
+        num: usize,
+        masks: &[u16; 9],
+        is_row_base: bool,
+    ) -> Option<SolvingStep> {
+        // Find indices of rows/cols with exactly 2 candidates
+        let valid_indices: Vec<usize> = masks
+            .iter()
+            .enumerate()
+            .filter(|&(_, m)| m.count_ones() == 2)
+            .map(|(i, _)| i)
+            .collect();
+
+        if valid_indices.len() < 2 {
+            return None;
+        }
+
+        for i in 0..valid_indices.len() {
+            for j in (i + 1)..valid_indices.len() {
+                if let Some(step) = self.check_skyscraper_pair(
+                    num,
+                    masks,
+                    is_row_base,
+                    valid_indices[i],
+                    valid_indices[j],
+                ) {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    fn check_skyscraper_pair(
+        &self,
+        num: usize,
+        masks: &[u16; 9],
+        is_row_base: bool,
+        r1: usize,
+        r2: usize,
+    ) -> Option<SolvingStep> {
+        let m1 = masks[r1];
+        let m2 = masks[r2];
+
+        // Check alignment: Do they share exactly ONE common column bit?
+        let common = m1 & m2;
+        if common.count_ones() != 1 {
+            return None;
+        }
+
+        // The "roof" tips are the non-common bits.
+        let roof_mask = (m1 ^ m2) & !common;
+        if roof_mask.count_ones() != 2 {
+            return None;
+        }
+
+        // Get coordinates of the roof cells
+        let c1_idx = (m1 & !common).trailing_zeros() as usize;
+        let c2_idx = (m2 & !common).trailing_zeros() as usize;
+
+        let roof_cell_1 = if is_row_base {
+            r1 * 9 + c1_idx
+        } else {
+            c1_idx * 9 + r1
+        };
+        let roof_cell_2 = if is_row_base {
+            r2 * 9 + c2_idx
+        } else {
+            c2_idx * 9 + r2
+        };
+
+        // Also store the base cells for highlighting
+        let base_col = common.trailing_zeros() as usize;
+        let base_cell_1 = if is_row_base {
+            r1 * 9 + base_col
+        } else {
+            base_col * 9 + r1
+        };
+        let base_cell_2 = if is_row_base {
+            r2 * 9 + base_col
+        } else {
+            base_col * 9 + r2
+        };
+
+        // Eliminate num from intersection of roof cells
+        let mut elims = Vec::new();
+        let cand_bit = 1 << (num - 1);
+
+        for &target_idx in &PEER_MAP[roof_cell_1] {
+            if self.cells[target_idx] == 0
+                && (self.candidates[target_idx] & cand_bit) != 0
+                && PEER_MAP[roof_cell_2].contains(&target_idx)
+            {
+                elims.push(Elimination {
+                    index: target_idx,
+                    value: num as u8,
+                });
+            }
+        }
+
+        if !elims.is_empty() {
+            return Some(SolvingStep {
+                technique: "Skyscraper".to_string(),
+                placements: vec![],
+                eliminations: elims,
+                cause: vec![
+                    CauseCell {
+                        index: roof_cell_1,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: roof_cell_2,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: base_cell_1,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: base_cell_2,
+                        candidates: vec![num as u8],
+                    },
+                ],
+            });
+        }
+        None
+    }
+
+    /// Searches for Two-String Kite.
+    fn find_two_string_kite(&self) -> Option<SolvingStep> {
+        let (row_masks, col_masks) = self.get_all_fish_masks();
+
+        for num in 1..=9 {
+            if let Some(step) = self.check_two_string_kite_for_num(num, &row_masks, &col_masks) {
+                return Some(step);
+            }
+        }
+        None
+    }
+
+    fn check_two_string_kite_for_num(
+        &self,
+        num: usize,
+        row_masks: &[[u16; 9]; 10],
+        col_masks: &[[u16; 9]; 10],
+    ) -> Option<SolvingStep> {
+        let rows_2: Vec<usize> = row_masks[num]
+            .iter()
+            .enumerate()
+            .filter(|&(_, m)| m.count_ones() == 2)
+            .map(|(i, _)| i)
+            .collect();
+        let cols_2: Vec<usize> = col_masks[num]
+            .iter()
+            .enumerate()
+            .filter(|&(_, m)| m.count_ones() == 2)
+            .map(|(i, _)| i)
+            .collect();
+
+        for &r in &rows_2 {
+            for &c in &cols_2 {
+                if let Some(step) =
+                    self.check_kite_intersection(num, r, c, row_masks[num][r], col_masks[num][c])
+                {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    fn check_kite_intersection(
+        &self,
+        num: usize,
+        r: usize,
+        c: usize,
+        r_mask: u16,
+        c_mask: u16,
+    ) -> Option<SolvingStep> {
+        let r_cols = mask_to_vec(r_mask);
+        let c_rows = mask_to_vec(c_mask);
+
+        let cell_r1 = r * 9 + (r_cols[0] as usize - 1);
+        let cell_r2 = r * 9 + (r_cols[1] as usize - 1);
+
+        let cell_c1 = (c_rows[0] as usize - 1) * 9 + c;
+        let cell_c2 = (c_rows[1] as usize - 1) * 9 + c;
+
+        self.find_kite_connection(num, [cell_r1, cell_r2], [cell_c1, cell_c2])
+    }
+
+    fn find_kite_connection(
+        &self,
+        num: usize,
+        row_cells: [usize; 2],
+        col_cells: [usize; 2],
+    ) -> Option<SolvingStep> {
+        for &rc in &row_cells {
+            for &cc in &col_cells {
+                if let Some(step) = self.check_kite_pair(num, rc, cc, row_cells, col_cells) {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    fn check_kite_pair(
+        &self,
+        num: usize,
+        rc: usize,
+        cc: usize,
+        row_cells: [usize; 2],
+        col_cells: [usize; 2],
+    ) -> Option<SolvingStep> {
+        if rc == cc {
+            return None;
+        }
+
+        // Helper to get box index
+        let get_box = |idx: usize| (idx / 9 / 3) * 3 + (idx % 9 / 3);
+
+        if get_box(rc) == get_box(cc) {
+            let other_rc = if rc == row_cells[0] {
+                row_cells[1]
+            } else {
+                row_cells[0]
+            };
+            let other_cc = if cc == col_cells[0] {
+                col_cells[1]
+            } else {
+                col_cells[0]
+            };
+            return self.construct_kite_step(num, rc, cc, other_rc, other_cc);
+        }
+        None
+    }
+
+    fn construct_kite_step(
+        &self,
+        num: usize,
+        rc: usize,
+        cc: usize,
+        other_rc: usize,
+        other_cc: usize,
+    ) -> Option<SolvingStep> {
+        // Eliminate from intersection of other_rc and other_cc
+        let mut elims = Vec::new();
+        let cand_bit = 1 << (num - 1);
+
+        for &target_idx in &PEER_MAP[other_rc] {
+            if self.cells[target_idx] == 0
+                && (self.candidates[target_idx] & cand_bit) != 0
+                && PEER_MAP[other_cc].contains(&target_idx)
+            {
+                elims.push(Elimination {
+                    index: target_idx,
+                    value: num as u8,
+                });
+            }
+        }
+
+        if !elims.is_empty() {
+            return Some(SolvingStep {
+                technique: "TwoStringKite".to_string(),
+                placements: vec![],
+                eliminations: elims,
+                cause: vec![
+                    CauseCell {
+                        index: rc,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: cc,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: other_rc,
+                        candidates: vec![num as u8],
+                    },
+                    CauseCell {
+                        index: other_cc,
+                        candidates: vec![num as u8],
+                    },
+                ],
+            });
+        }
+        None
+    }
 }
 
 /// Solve the board by repeatedly applying logical techniques and return the steps.
@@ -1076,8 +1634,12 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
             || try_hidden_pair(&mut board, &mut steps)
             || try_hidden_triple(&mut board, &mut steps)
             || try_claiming_candidate(&mut board, &mut steps)
-            // Advanced Techniques (Optimized - Single Pass)
-            || try_fish_techniques(&mut board, &mut steps);
+            // Advanced Techniques
+            || try_fish_techniques(&mut board, &mut steps)
+            || try_xy_wing(&mut board, &mut steps)
+            || try_xyz_wing(&mut board, &mut steps)
+            || try_skyscraper(&mut board, &mut steps)
+            || try_two_string_kite(&mut board, &mut steps);
 
         if !progress {
             break;
@@ -1187,6 +1749,50 @@ fn try_fish_techniques(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -
     false
 }
 
+fn try_xy_wing(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_xy_wing() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
+fn try_xyz_wing(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_xyz_wing() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
+fn try_skyscraper(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_skyscraper() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
+fn try_two_string_kite(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_two_string_kite() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
 /// Determines the logical difficulty of solving a board by finding the hardest
 /// technique required to make any progress.
 pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
@@ -1198,7 +1804,9 @@ pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
             "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
             "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
             | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
-            "X-Wing" | "Swordfish" => TechniqueLevel::Advanced,
+            "X-Wing" | "Swordfish" | "XY-Wing" | "XYZ-Wing" | "Skyscraper" | "TwoStringKite" => {
+                TechniqueLevel::Advanced
+            }
             _ => TechniqueLevel::None,
         })
         .max()

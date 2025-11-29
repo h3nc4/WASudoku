@@ -89,6 +89,28 @@ const getStepExplanation = (step: SolvingStep): string => {
       const candidate = cause[0].candidates[0]
       return `Swordfish: The candidate ${candidate} appears in only two or three positions in three rows (or columns), and these positions align perfectly within three columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
     }
+    case 'XY-Wing': {
+      const pivot = formatCell(cause[0].index)
+      const pincer1 = formatCell(cause[1].index)
+      const pincer2 = formatCell(cause[2].index)
+      const eliminationVal = step.eliminations[0].value
+      return `XY-Wing: Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a Y-Wing pattern. No matter what value the pivot takes, one of the pincers must be ${eliminationVal}. Therefore, ${eliminationVal} can be removed from any cell seen by both pincers.`
+    }
+    case 'XYZ-Wing': {
+      const pivot = formatCell(cause[0].index)
+      const pincer1 = formatCell(cause[1].index)
+      const pincer2 = formatCell(cause[2].index)
+      const eliminationVal = step.eliminations[0].value
+      return `XYZ-Wing: Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a bent triple connection. The pivot has 3 candidates, and the pincers have 2. The value ${eliminationVal} is common to all three. Any cell seeing all three can no longer be ${eliminationVal}.`
+    }
+    case 'Skyscraper': {
+      const candidate = cause[0].candidates[0]
+      return `Skyscraper: Two rows (or columns) have the candidate ${candidate} in only two positions. One end of each line aligns in the same column (or row). The other two ends (the "roof") eliminate ${candidate} from any cell that sees both of them.`
+    }
+    case 'TwoStringKite': {
+      const candidate = cause[0].candidates[0]
+      return `Two-String Kite: A row and a column each have exactly two positions for candidate ${candidate}. One end of the row and one end of the column meet inside the same box. This connection implies that ${candidate} must be in one of the outer ends, eliminating it from their intersection.`
+    }
     case 'Backtracking':
       return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
     default:

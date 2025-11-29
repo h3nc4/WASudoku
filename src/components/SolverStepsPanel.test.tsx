@@ -114,6 +114,38 @@ const mockSteps: SolvingStep[] = [
     cause: [{ index: 0, candidates: [7] }], // Mock cause cell for Swordfish
   },
   {
+    technique: 'XY-Wing',
+    placements: [],
+    eliminations: [{ index: 20, value: 3 }],
+    cause: [
+      { index: 0, candidates: [1, 2] }, // Pivot (R1C1)
+      { index: 1, candidates: [1, 3] }, // Pincer 1 (R1C2)
+      { index: 9, candidates: [2, 3] }, // Pincer 2 (R2C1)
+    ],
+  },
+  {
+    technique: 'XYZ-Wing',
+    placements: [],
+    eliminations: [{ index: 20, value: 3 }],
+    cause: [
+      { index: 0, candidates: [1, 2, 3] }, // Pivot (R1C1)
+      { index: 1, candidates: [1, 3] }, // Pincer 1 (R1C2)
+      { index: 9, candidates: [2, 3] }, // Pincer 2 (R2C1)
+    ],
+  },
+  {
+    technique: 'Skyscraper',
+    placements: [],
+    eliminations: [{ index: 80, value: 1 }],
+    cause: [{ index: 0, candidates: [5] }], // Mock cause cell
+  },
+  {
+    technique: 'TwoStringKite',
+    placements: [],
+    eliminations: [{ index: 80, value: 1 }],
+    cause: [{ index: 0, candidates: [7] }], // Mock cause cell
+  },
+  {
     technique: 'Backtracking',
     placements: [],
     eliminations: [],
@@ -156,7 +188,7 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Step 1: NakedSingle/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 12: Backtracking/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Step 16: Backtracking/ })).toBeInTheDocument()
   })
 
   it('calls viewSolverStep(0) when "Initial Board State" is clicked', async () => {
@@ -279,6 +311,24 @@ describe('SolverStepsPanel component', () => {
       },
       {
         stepIndex: 12,
+        expectedText: /XY-Wing: Pivot R1C1 and pincers R1C2, R2C1 form a Y-Wing pattern/,
+      },
+      {
+        stepIndex: 13,
+        expectedText: /XYZ-Wing: Pivot R1C1 and pincers R1C2, R2C1 form a bent triple connection/,
+      },
+      {
+        stepIndex: 14,
+        expectedText:
+          /Skyscraper: Two rows \(or columns\) have the candidate 5 in only two positions/,
+      },
+      {
+        stepIndex: 15,
+        expectedText:
+          /Two-String Kite: A row and a column each have exactly two positions for candidate 7/,
+      },
+      {
+        stepIndex: 16,
         expectedText:
           /The available logical techniques were not sufficient to solve the puzzle. A backtracking \(brute-force\) algorithm was used to find the solution./,
       },
