@@ -17,9 +17,13 @@
  */
 
 import { useEffect } from 'react'
-import type { SavedGameState, SudokuState } from '@/context/sudoku.types'
-
-const LOCAL_STORAGE_KEY = 'wasudoku-game-state'
+import type {
+  SudokuState,
+  PersistedGameState,
+  PersistedPool,
+  BoardState,
+} from '@/context/sudoku.types'
+import { STORAGE_KEYS } from '@/context/sudoku.reducer'
 
 /**
  * Custom JSON replacer to handle serializing `Set` objects.
@@ -36,33 +40,53 @@ function replacer(_key: string, value: any) {
 }
 
 /**
- * Saves the game state to local storage.
- * @param state - The game state to save.
+ * Saves a portion of the game state to local storage.
+ * @param key - The localStorage key.
+ * @param data - The data object to save.
  */
-function saveGameState(state: SavedGameState) {
+function saveToStorage<T>(key: string, data: T) {
   try {
-    const stateJSON = JSON.stringify(state, replacer)
-    window.localStorage.setItem(LOCAL_STORAGE_KEY, stateJSON)
+    const json = JSON.stringify(data, replacer)
+    window.localStorage.setItem(key, json)
   } catch (error) {
-    console.error('Failed to save game state to local storage:', error)
+    console.error(`Failed to save ${key} to local storage:`, error)
   }
 }
 
 /**
- * A hook that listens to changes in the Sudoku state and persists them
- * to the browser's local storage.
+ * A hook that listens to specific changes in the Sudoku state and persists them
+ * to the browser's local storage using separated keys to improve performance.
  *
  * @param state - The current Sudoku state from the reducer.
  */
 export function useSudokuPersistence(state: SudokuState) {
+  // 1. Persist Core Game State (Board, History, Initial Board, Solution)
+  // This updates only when the board/history changes (user moves).
   useEffect(() => {
-    saveGameState({
+    const data: PersistedGameState = {
       history: {
-        stack: state.history.stack as SavedGameState['history']['stack'],
+        stack: state.history.stack as BoardState[],
         index: state.history.index,
       },
-      solution: state.solver.solution as SavedGameState['solution'],
-      game: state.game,
-    })
-  }, [state.history, state.solver.solution, state.game])
+      initialBoard: state.initialBoard,
+      solution: state.solver.solution as number[] | null,
+    }
+    saveToStorage(STORAGE_KEYS.GAME, data)
+  }, [state.history, state.initialBoard, state.solver.solution])
+
+  // 2. Persist Metrics (Timer, Mistakes)
+  // This updates every second when the timer ticks. The payload is tiny.
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.METRICS, state.game)
+  }, [state.game])
+
+  // 3. Persist Puzzle Pool
+  // This updates only when a background generation finishes. The payload is large.
+  useEffect(() => {
+    const data: PersistedPool = {
+      puzzlePool: state.puzzlePool,
+      poolRequestCount: state.poolRequestCount,
+    }
+    saveToStorage(STORAGE_KEYS.POOL, data)
+  }, [state.puzzlePool, state.poolRequestCount])
 }

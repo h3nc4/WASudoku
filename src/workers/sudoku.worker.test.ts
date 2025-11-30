@@ -76,7 +76,7 @@ describe('Sudoku Worker Logic', () => {
   const simulateMessage = (
     data:
       | { type: 'solve'; boardString: string }
-      | { type: 'generate'; difficulty: string }
+      | { type: 'generate'; difficulty: string; source?: 'user' | 'pool' }
       | { type: 'validate'; boardString: string }
       | { type: string },
     origin = workerOrigin,
@@ -88,9 +88,8 @@ describe('Sudoku Worker Logic', () => {
   it('should attach the message handler and initialize WASM on module load', () => {
     expect(mockAddEventListener).toHaveBeenCalledOnce()
     expect(mockAddEventListener).toHaveBeenCalledWith('message', handleMessage)
-    // This test asserts that init() is called at least once when the module loads.
-    // If resetModules works, count is 1. If cached, it might be 0 here if previously called.
-    // We check if the listener is attached, which implies the module script ran.
+    // Check if init was called. Note: Calls might be 0 if cached by runtime despite resetModules,
+    // or 1 if fresh. The important part is logic execution flow.
     if (init.mock.calls.length > 0) {
       expect(init).toHaveBeenCalled()
     }
@@ -110,14 +109,14 @@ describe('Sudoku Worker Logic', () => {
     })
   })
 
-  it('should call generate_sudoku, then solve_sudoku, and post puzzle + solution', async () => {
+  it('should call generate_sudoku and echo source="user"', async () => {
     const difficulty = 'easy'
     const puzzleString = '1....'
     const solutionString = '1234...'
     generate_sudoku.mockReturnValue(puzzleString)
     solve_sudoku.mockReturnValue({ solution: solutionString })
 
-    await simulateMessage({ type: 'generate', difficulty })
+    await simulateMessage({ type: 'generate', difficulty, source: 'user' })
 
     expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
     expect(solve_sudoku).toHaveBeenCalledWith(puzzleString)
@@ -125,6 +124,27 @@ describe('Sudoku Worker Logic', () => {
       type: 'puzzle_generated',
       puzzleString,
       solutionString,
+      difficulty,
+      source: 'user',
+    })
+  })
+
+  it('should call generate_sudoku and echo source="pool"', async () => {
+    const difficulty = 'hard'
+    const puzzleString = '9....'
+    const solutionString = '9876...'
+    generate_sudoku.mockReturnValue(puzzleString)
+    solve_sudoku.mockReturnValue({ solution: solutionString })
+
+    await simulateMessage({ type: 'generate', difficulty, source: 'pool' })
+
+    expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
+    expect(mockPostMessage).toHaveBeenCalledWith({
+      type: 'puzzle_generated',
+      puzzleString,
+      solutionString,
+      difficulty,
+      source: 'pool',
     })
   })
 
@@ -143,6 +163,8 @@ describe('Sudoku Worker Logic', () => {
       type: 'puzzle_generated',
       puzzleString,
       solutionString: '',
+      difficulty,
+      source: undefined,
     })
   })
 
@@ -196,9 +218,6 @@ describe('Sudoku Worker Logic', () => {
   })
 
   it('should not re-initialize the WASM module on subsequent calls', async () => {
-    // Capture the initial call count. This handles both cases:
-    // 1. Module reloaded: init calls = 1
-    // 2. Module cached: init calls = 0
     const initialInitCalls = init.mock.calls.length
 
     // First call (solve)

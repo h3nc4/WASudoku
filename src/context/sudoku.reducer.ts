@@ -29,13 +29,18 @@ import type {
   GeneratePuzzleStartAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleSuccessAction,
+  RequestPoolRefillAction,
+  PoolRefillSuccessAction,
 } from './sudoku.actions.types'
 import type {
   BoardState,
   SudokuState,
-  SavedGameState,
   HistoryState,
   SolvingStep,
+  PuzzleData,
+  PersistedGameState,
+  PersistedMetrics,
+  PersistedPool,
 } from './sudoku.types'
 import {
   getRelatedCellIndices,
@@ -47,8 +52,13 @@ import {
 } from '@/lib/utils'
 
 const BOARD_SIZE = 81
-const LOCAL_STORAGE_KEY = 'wasudoku-game-state'
 const MAX_HISTORY_ENTRIES = 100
+
+export const STORAGE_KEYS = {
+  GAME: 'wasudoku.state.game',
+  METRICS: 'wasudoku.state.metrics',
+  POOL: 'wasudoku.state.pool',
+}
 
 export const createEmptyBoard = (): BoardState =>
   Array(BOARD_SIZE)
@@ -105,6 +115,18 @@ export const initialState: SudokuState = {
     timer: 0,
     mistakes: 0,
   },
+  puzzlePool: {
+    easy: [],
+    medium: [],
+    hard: [],
+    extreme: [],
+  },
+  poolRequestCount: {
+    easy: 0,
+    medium: 0,
+    hard: 0,
+    extreme: 0,
+  },
 }
 
 /**
@@ -123,44 +145,80 @@ function reviver(_key: string, value: any) {
   return value
 }
 
+/**
+ * Helper to safely load and parse an item from local storage.
+ * @param key The local storage key.
+ * @param reviverFn Optional JSON reviver function.
+ */
+function loadFromStorage<T>(
+  key: string,
+  reviverFn?: (this: unknown, key: string, value: unknown) => unknown,
+): T | null {
+  const item = window.localStorage.getItem(key)
+  return item ? (JSON.parse(item, reviverFn) as T) : null
+}
+
+/**
+ * Resolves the game state (board, history, mode) from persisted data.
+ * Validates the history stack to ensure it's safe to use.
+ */
+function resolveGameState(game: PersistedGameState | null) {
+  const stack = game?.history?.stack
+  const index = game?.history?.index
+  // Ensure stack is valid and index points to an existing board
+  const hasValidHistory =
+    Array.isArray(stack) && stack.length > 0 && typeof index === 'number' && stack[index]
+
+  if (hasValidHistory && game) {
+    return {
+      board: stack[index],
+      initialBoard: game.initialBoard ?? createEmptyBoard(),
+      history: game.history,
+      gameMode: 'playing' as const,
+      solution: game.solution ?? null,
+    }
+  }
+
+  return {
+    board: createEmptyBoard(),
+    initialBoard: createEmptyBoard(),
+    history: initialState.history,
+    gameMode: 'selecting' as const,
+    solution: null,
+  }
+}
+
 export function loadInitialState(): SudokuState {
   try {
-    const savedStateJSON = window.localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (savedStateJSON) {
-      const savedState = JSON.parse(savedStateJSON, reviver) as SavedGameState
-      if (
-        savedState?.history &&
-        Array.isArray(savedState.history.stack) &&
-        typeof savedState.history.index === 'number' &&
-        savedState.history.stack.length > 0
-      ) {
-        const currentBoard = savedState.history.stack[savedState.history.index]
-        const initialBoard: BoardState = currentBoard.map((cell) => ({
-          value: cell.isGiven ? cell.value : null,
-          isGiven: cell.isGiven,
-          candidates: new Set<number>(),
-          centers: new Set<number>(),
-        }))
+    const game = loadFromStorage<PersistedGameState>(STORAGE_KEYS.GAME, reviver)
+    const metrics = loadFromStorage<PersistedMetrics>(STORAGE_KEYS.METRICS)
+    const pool = loadFromStorage<PersistedPool>(STORAGE_KEYS.POOL)
 
-        return {
-          ...initialState,
-          history: savedState.history,
-          board: currentBoard,
-          initialBoard: initialBoard,
-          solver: {
-            ...initialState.solver,
-            gameMode: 'playing', // Assume saved state is always in play
-            solution: savedState.solution ?? null,
-          },
-          derived: getDerivedBoardState(currentBoard),
-          game: savedState.game ?? { timer: 0, mistakes: 0 },
-        }
-      }
+    if (!game && !metrics && !pool) {
+      return initialState
+    }
+
+    const { board, initialBoard, history, gameMode, solution } = resolveGameState(game)
+
+    return {
+      ...initialState,
+      board,
+      initialBoard,
+      history,
+      solver: {
+        ...initialState.solver,
+        gameMode,
+        solution,
+      },
+      derived: getDerivedBoardState(board),
+      game: metrics ?? initialState.game,
+      puzzlePool: pool?.puzzlePool ?? initialState.puzzlePool,
+      poolRequestCount: pool?.poolRequestCount ?? initialState.poolRequestCount,
     }
   } catch (error) {
     console.error('Failed to load game state from local storage:', error)
+    return initialState
   }
-  return initialState
 }
 
 function updateHistory(historyState: HistoryState, newBoard: BoardState): HistoryState {
@@ -365,6 +423,9 @@ const handleImportBoard = (state: SudokuState, action: ImportBoardAction): Sudok
       solution: null,
     },
     game: { timer: 0, mistakes: 0 },
+    // Preserve pool info from current state (not initialState)
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
   }
 }
 
@@ -399,24 +460,16 @@ const handleAutoFillCandidates = (state: SudokuState): SudokuState => {
   }
 }
 
-const handleGeneratePuzzleStart = (
+/**
+ * Initializes a new game from a puzzle string and solution.
+ */
+const initializeGameFromPuzzle = (
   state: SudokuState,
-  action: GeneratePuzzleStartAction,
-): SudokuState => ({
-  ...initialState,
-  solver: {
-    ...state.solver,
-    isGenerating: true,
-    generationDifficulty: action.difficulty,
-  },
-})
-
-const handleGeneratePuzzleSuccess = (
-  _state: SudokuState,
-  action: GeneratePuzzleSuccessAction,
+  puzzleString: string,
+  solutionString: string,
 ): SudokuState => {
-  const newBoard = boardStateFromString(action.puzzleString)
-  const solutionNumbers = action.solutionString.split('').map((c) => {
+  const newBoard = boardStateFromString(puzzleString)
+  const solutionNumbers = solutionString.split('').map((c) => {
     return c === '.' ? 0 : parseInt(c, 10)
   })
 
@@ -435,6 +488,91 @@ const handleGeneratePuzzleSuccess = (
       solution: solutionNumbers,
     },
     game: { timer: 0, mistakes: 0 },
+    // Preserve existing pool data
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
+  }
+}
+
+const handleGeneratePuzzleStart = (
+  state: SudokuState,
+  action: GeneratePuzzleStartAction,
+): SudokuState => {
+  // Check if we have a puzzle in the pool for this difficulty
+  const pool = state.puzzlePool[action.difficulty] || []
+
+  if (pool.length > 0) {
+    // Consume from pool: Take the first puzzle
+    const [nextPuzzle, ...remainingPool] = pool
+    const newPool = { ...state.puzzlePool, [action.difficulty]: remainingPool }
+
+    // Start the game immediately with the cached puzzle
+    const nextState = initializeGameFromPuzzle(
+      state,
+      nextPuzzle.puzzleString,
+      nextPuzzle.solutionString,
+    )
+
+    return {
+      ...nextState,
+      puzzlePool: newPool,
+      // poolRequestCount is preserved by initializeGameFromPuzzle
+    }
+  }
+
+  // Fallback: If pool is empty, show loading state and trigger generation (handled by hook)
+  return {
+    ...initialState,
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
+    solver: {
+      ...state.solver,
+      isGenerating: true,
+      generationDifficulty: action.difficulty,
+    },
+  }
+}
+
+const handleGeneratePuzzleSuccess = (
+  state: SudokuState,
+  action: GeneratePuzzleSuccessAction,
+): SudokuState => {
+  return initializeGameFromPuzzle(state, action.puzzleString, action.solutionString)
+}
+
+const handleRequestPoolRefill = (
+  state: SudokuState,
+  action: RequestPoolRefillAction,
+): SudokuState => {
+  return {
+    ...state,
+    poolRequestCount: {
+      ...state.poolRequestCount,
+      [action.difficulty]: (state.poolRequestCount[action.difficulty] || 0) + 1,
+    },
+  }
+}
+
+const handlePoolRefillSuccess = (
+  state: SudokuState,
+  action: PoolRefillSuccessAction,
+): SudokuState => {
+  const currentPool = state.puzzlePool[action.difficulty] || []
+  const newPuzzle: PuzzleData = {
+    puzzleString: action.puzzleString,
+    solutionString: action.solutionString,
+  }
+
+  return {
+    ...state,
+    puzzlePool: {
+      ...state.puzzlePool,
+      [action.difficulty]: [...currentPool, newPuzzle],
+    },
+    poolRequestCount: {
+      ...state.poolRequestCount,
+      [action.difficulty]: Math.max(0, (state.poolRequestCount[action.difficulty] || 0) - 1),
+    },
   }
 }
 
@@ -749,6 +887,12 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
         ui: { ...state.ui, lastError: 'Failed to generate a new puzzle.' },
       }
       break
+    case 'REQUEST_POOL_REFILL':
+      newState = handleRequestPoolRefill(state, action)
+      break
+    case 'POOL_REFILL_SUCCESS':
+      newState = handlePoolRefillSuccess(state, action)
+      break
     case 'VALIDATE_PUZZLE_START':
       newState = { ...state, solver: { ...state.solver, isValidating: true } }
       break
@@ -762,6 +906,8 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       newState = {
         ...initialState,
         solver: { ...initialState.solver, gameMode: 'customInput' },
+        puzzlePool: state.puzzlePool,
+        poolRequestCount: state.poolRequestCount,
       }
       break
     case 'VIEW_SOLVER_STEP':

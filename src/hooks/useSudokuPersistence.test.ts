@@ -20,7 +20,7 @@ import { renderHook } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
 import { useSudokuPersistence } from './useSudokuPersistence'
 import type { SudokuState } from '@/context/sudoku.types'
-import { initialState } from '@/context/sudoku.reducer'
+import { initialState, STORAGE_KEYS } from '@/context/sudoku.reducer'
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -76,21 +76,20 @@ describe('useSudokuPersistence', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('should save the initial state to local storage on first render', () => {
+  it('should save to all split keys on first render', () => {
     renderHook(() => useSudokuPersistence(initialState))
-    expect(setItemSpy).toHaveBeenCalledOnce()
-    expect(setItemSpy).toHaveBeenCalledWith('wasudoku-game-state', expect.any(String))
-    const savedData = JSON.parse(setItemSpy.mock.calls[0][1] as string)
-    expect(savedData.history.index).toBe(0)
-    expect(savedData.history.stack).toHaveLength(1)
-    expect(savedData.game.timer).toBe(0)
+    // Expect separate calls for GAME, METRICS, and POOL
+    expect(setItemSpy).toHaveBeenCalledTimes(3)
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.GAME, expect.any(String))
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.METRICS, expect.any(String))
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.POOL, expect.any(String))
   })
 
-  it('should save state to local storage when history changes', () => {
+  it('should save only GAME state when history changes', () => {
     const updatedState: SudokuState = {
       ...initialState,
       history: {
-        stack: [...initialState.history.stack, initialState.board], // Simulate adding a new state
+        stack: [...initialState.history.stack, initialState.board],
         index: 1,
       },
     }
@@ -99,17 +98,15 @@ describe('useSudokuPersistence', () => {
       initialProps: initialState,
     })
 
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-
+    setItemSpy.mockClear()
     rerender(updatedState)
 
-    expect(setItemSpy).toHaveBeenCalledTimes(2)
-    const savedData = JSON.parse(setItemSpy.mock.calls[1][1] as string)
-    expect(savedData.history.index).toBe(1)
-    expect(savedData.history.stack).toHaveLength(2)
+    // Should ONLY save GAME, not metrics or pool
+    expect(setItemSpy).toHaveBeenCalledTimes(1)
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.GAME, expect.any(String))
   })
 
-  it('should save state to local storage when game metrics change', () => {
+  it('should save only METRICS when timer changes', () => {
     const updatedState: SudokuState = {
       ...initialState,
       game: { timer: 5, mistakes: 1 },
@@ -119,32 +116,49 @@ describe('useSudokuPersistence', () => {
       initialProps: initialState,
     })
 
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-
+    setItemSpy.mockClear()
     rerender(updatedState)
 
-    expect(setItemSpy).toHaveBeenCalledTimes(2)
-    const savedData = JSON.parse(setItemSpy.mock.calls[1][1] as string)
-    expect(savedData.game.timer).toBe(5)
-    expect(savedData.game.mistakes).toBe(1)
+    // Should ONLY save METRICS
+    expect(setItemSpy).toHaveBeenCalledTimes(1)
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.METRICS, expect.any(String))
   })
 
-  it('should not save state if only irrelevant props change', () => {
+  it('should save only POOL when puzzle pool changes', () => {
     const updatedState: SudokuState = {
       ...initialState,
-      solver: { ...initialState.solver, isSolving: true }, // This prop change should not trigger a save
+      puzzlePool: {
+        ...initialState.puzzlePool,
+        easy: [{ puzzleString: 'abc', solutionString: 'def' }],
+      },
     }
 
     const { rerender } = renderHook((props) => useSudokuPersistence(props), {
       initialProps: initialState,
     })
 
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-
+    setItemSpy.mockClear()
     rerender(updatedState)
 
-    // Should not have been called again
+    // Should ONLY save POOL
     expect(setItemSpy).toHaveBeenCalledTimes(1)
+    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.POOL, expect.any(String))
+  })
+
+  it('should not save if irrelevant props change', () => {
+    const updatedState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, isSolving: true }, // This prop isn't in any deps array
+    }
+
+    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
+      initialProps: initialState,
+    })
+
+    setItemSpy.mockClear()
+    rerender(updatedState)
+
+    expect(setItemSpy).not.toHaveBeenCalled()
   })
 
   it('should handle local storage write errors gracefully', () => {
@@ -154,9 +168,9 @@ describe('useSudokuPersistence', () => {
 
     renderHook(() => useSudokuPersistence(initialState))
 
-    expect(setItemSpy).toThrow('Storage is full')
+    // Expect error logs for each failed save attempt
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to save game state to local storage:',
+      expect.stringContaining('Failed to save'),
       expect.any(Error),
     )
   })

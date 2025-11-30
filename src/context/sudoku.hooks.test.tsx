@@ -16,11 +16,27 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import React from 'react'
 import { render, renderHook } from '@testing-library/react'
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import { SudokuProvider } from './SudokuProvider'
 import { useSudokuState, useSudokuDispatch } from './sudoku.hooks'
 import { initialState } from './sudoku.reducer'
+
+// Mock the side-effect hooks used by SudokuProvider to ensure state remains pure
+// and tests are deterministic across environments (JSDOM vs Browser).
+vi.mock('@/hooks/useSudokuPersistence', () => ({
+  useSudokuPersistence: vi.fn(),
+}))
+vi.mock('@/hooks/useSudokuSolver', () => ({
+  useSudokuSolver: vi.fn(),
+}))
+vi.mock('@/hooks/useSudokuFeedback', () => ({
+  useSudokuFeedback: vi.fn(),
+}))
+vi.mock('@/hooks/useGameTimer', () => ({
+  useGameTimer: vi.fn(),
+}))
 
 beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})

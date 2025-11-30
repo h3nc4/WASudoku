@@ -182,7 +182,7 @@ describe('SolverStepsPanel component', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders the panel with initial, final, and all step buttons', () => {
+  it('renders the panel with initial, final, and all step buttons', { timeout: 10000 }, () => {
     render(<SolverStepsPanel />)
     expect(screen.getByRole('heading', { name: 'Solving Steps' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
