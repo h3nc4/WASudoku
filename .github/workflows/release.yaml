@@ -121,7 +121,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.runtime
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:${{ needs.prepare.outputs.version }}

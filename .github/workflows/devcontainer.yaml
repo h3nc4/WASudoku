@@ -24,9 +24,9 @@ jobs:
       matrix:
         image:
           - name: wasudoku-ci
-            dockerfile: .github/Dockerfile
+            dockerfile: ./Dockerfile.ci
           - name: wasudoku-dev
-            dockerfile: Dockerfile
+            dockerfile: ./Dockerfile.dev
     steps:
       - uses: actions/checkout@v5
       - name: Find version from tag

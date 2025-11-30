@@ -1,228 +1,143 @@
 # Copyright (C) 2025  Henrique Almeida
 # This file is part of WASudoku.
-
+#
 # WASudoku is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
 # by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
+#
 # WASudoku is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
-
+#
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
 ################################################################################
-# A Dockerfile to build a development container for WASudoku.
+# A Dockerfile to build a runtime container for WASudoku.
 
-########################################
-# Rust versions
-ARG RUST_VERSION="1.91.0"
-ARG RUST_DISTRO="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"
-ARG RUST_DISTRO_WASM="rust-std-${RUST_VERSION}-wasm32-unknown-unknown"
-ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
+# CI image tag
+ARG CI_IMAGE_TAG="latest"
 
-########################################
-# Node.js versions
-ARG NODE_VERSION="24.11.0"
-ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
-
-########################################
-# Runtime user configuration
-ARG USER="wasudoku"
-ARG UID="1000"
-ARG GID="1000"
-ARG CARGO_HOME="/home/${USER}/.local/share/cargo"
+# NGINX version
+ARG NGINX_VERSION="1.29.3"
+ARG NGINX_SHA256="9befcced12ee09c2f4e1385d7e8e21c91f1a5a63b196f78f897c2d044b8c9312"
 
 ################################################################################
-# Shared builder image
-FROM debian:trixie AS builder-base
+# Build stage
+FROM h3nc4/wasudoku-ci:${CI_IMAGE_TAG} AS wasudoku-builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  gnupg \
-  tar \
-  xz-utils
+WORKDIR /app
 
-################################################################################
-# Shared Rust image
-FROM builder-base AS rust-base
+# Install npm dependencies
+COPY "package.json" "package-lock.json" ./
+RUN npm ci
 
-ADD https://static.rust-lang.org/rust-key.gpg.ascii /tmp/rust-key.gpg.ascii
+# Build WASM module
+COPY "src/wasudoku-wasm" "./src/wasudoku-wasm"
+RUN npm run wasm:build:prod
 
-RUN mkdir -p /usr/share/keyrings && \
-  gpg --batch --yes --no-default-keyring \
-  --keyring /usr/share/keyrings/rust-keyring.gpg \
-  --import /tmp/rust-key.gpg.ascii
+# Copy source code
+COPY "README.md" "LICENSE" *.js *.json *.ts *.html ./
+COPY src/ src/
+COPY public/ public/
 
-########################################
-# Install toolchain
-FROM rust-base AS rust-toolchain
-ARG RUST_VERSION
-ARG RUST_DISTRO
+# Build app for production
+RUN npm run build
 
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz" /tmp/
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz.asc" /tmp/
+# Create root filesystem
+RUN mkdir -p /rootfs && \
+  mv /app/dist /rootfs/static
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO}.tar.xz.asc" "/tmp/${RUST_DISTRO}.tar.xz" && \
-  mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer"
-RUN tar -xf "/tmp/${RUST_DISTRO}.tar.xz" -C "/tmp/rust-installer" --strip-components=1 && \
-  cd "/tmp/rust-installer" && ./install.sh --prefix="/rootfs/opt/rust"
-
-########################################
-# Install wasm32 target
-FROM rust-base AS rust-wasm
-ARG RUST_VERSION
-ARG RUST_DISTRO_WASM
-
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz" /tmp/
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz.asc" /tmp/
-
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO_WASM}.tar.xz.asc" "/tmp/${RUST_DISTRO_WASM}.tar.xz" && \
-  mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer-wasm"
-RUN tar -xf "/tmp/${RUST_DISTRO_WASM}.tar.xz" -C "/tmp/rust-installer-wasm" --strip-components=1 && \
-  cd "/tmp/rust-installer-wasm" && ./install.sh --prefix="/rootfs/opt/rust"
-
-########################################
-# Install rust source code
-FROM rust-base AS rust-src
-ARG RUST_VERSION
-ARG RUST_DISTRO_SRC
-
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_SRC}.tar.xz" /tmp/
-ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_SRC}.tar.xz.asc" /tmp/
-
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO_SRC}.tar.xz.asc" "/tmp/${RUST_DISTRO_SRC}.tar.xz" && \
-  mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer-src"
-RUN tar -xf "/tmp/${RUST_DISTRO_SRC}.tar.xz" -C "/tmp/rust-installer-src" --strip-components=1 && \
-  cd "/tmp/rust-installer-src" && ./install.sh --prefix="/rootfs/opt/rust"
-
-########################################
-#  Merge all Rust components
-FROM builder-base AS rust-stage
-
-# Copy components from each stage
-COPY --from=rust-toolchain "/rootfs/" "/rootfs/"
-COPY --from=rust-wasm "/rootfs/" "/rootfs/"
-COPY --from=rust-src  "/rootfs/" "/rootfs/"
-
-# Symlink binaries into PATH
-RUN mkdir -p "/rootfs/usr/local/bin"
-RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/rust/bin/* .
+# Pre-compress static assets and remove originals
+RUN find "/rootfs/static" -type f \( -name '*.js' -o -name '*.css' -o -name '*.wasm' -o -name '*.json' -o -name '*.svg' \) \
+  -exec sh -c 'gzip -9 "$1"' _ {} \; && \
+  gzip -9 -k "/rootfs/static/index.html"
 
 ################################################################################
-# Node.js stage
-FROM builder-base AS node-stage
-ARG NODE_VERSION
-ARG NODE_DISTRO
+# Nginx builder stage
+FROM alpine:3.22 AS nginx-builder
+ARG NGINX_VERSION
+ARG NGINX_SHA256
 
-########################################
-# Download and verify Node.js
-ADD "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt.asc" /tmp/
-ADD "https://github.com/nodejs/release-keys/raw/HEAD/gpg/pubring.kbx" /tmp/node-keyring.kbx
-ADD "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_DISTRO}.tar.xz" /tmp/
+# Package installation
+# Check if openssl-dev can be removed and build-base broken into less packages
+RUN apk add --no-cache gcc make libc-dev upx
 
-RUN gpg --batch --yes --no-default-keyring --keyring /tmp/node-keyring.kbx \
-  --trust-model always --decrypt /tmp/SHASUMS256.txt.asc >/tmp/SHASUMS256.txt && \
-  cd /tmp && grep "${NODE_DISTRO}.tar.xz" SHASUMS256.txt | sha256sum -c -
+# Download and sources
+ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
 
-########################################
-# Install Node.js to /opt/node
-RUN mkdir -p "/rootfs/opt/node" "/rootfs/usr/local/bin" && \
-  tar -xf "/tmp/${NODE_DISTRO}.tar.xz" -C "/rootfs/opt/node" --strip-components=1
+# Verify and extract sources
+RUN echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
+  tar -xzf "nginx-${NGINX_VERSION}.tar.gz"
 
-# Symlink node binaries to /usr/local/bin
-RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/node/bin/* .
+# Build Nginx
+WORKDIR "/nginx-${NGINX_VERSION}"
+RUN ./configure \
+  --prefix="/run" \
+  --pid-path="/run/nginx.pid" \
+  --conf-path="/nginx.conf" \
+  --error-log-path="/dev/stderr" \
+  --http-log-path="/dev/stdout" \
+  --without-pcre \
+  --without-http_autoindex_module \
+  --without-http_rewrite_module \
+  --without-http_gzip_module \
+  --with-http_gzip_static_module \
+  --without-http_proxy_module \
+  --without-http_fastcgi_module \
+  --without-http_uwsgi_module \
+  --without-http_scgi_module \
+  --without-http_memcached_module \
+  --without-http_empty_gif_module \
+  --without-http_browser_module \
+  --without-http_userid_module \
+  --with-cc-opt="-Os -fdata-sections -ffunction-sections -fomit-frame-pointer -flto" \
+  --with-ld-opt="-static -Wl,--gc-sections -fuse-linker-plugin" && \
+  make -j"$(nproc)"
 
-################################################################################
-# Debian main stage
-FROM debian:trixie AS main
-ARG USER
-ARG UID
-ARG GID
+# Minify nginx binary
+RUN strip --strip-all "objs/nginx" && \
+  upx --ultra-brute "objs/nginx"
 
-# Update apt lists
-RUN apt-get update -qq
+# Create root filesystem
+RUN mkdir -p "/rootfs/run" && \
+  mv "objs/nginx" "/rootfs/nginx" && \
+  chown -R "65534:65534" "/rootfs/run"
 
-# Gen locale
-RUN apt-get install --no-install-recommends -y -qq locales && \
-  echo "en_US.UTF-8 UTF-8" >/etc/locale.gen && \
-  locale-gen en_US.UTF-8 && \
-  update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-
-# Install generic tools
-RUN apt-get install --no-install-recommends -y -qq \
-  bash-completion \
-  ca-certificates \
-  curl \
-  git \
-  gnupg \
-  iputils-ping \
-  iproute2 \
-  jq \
-  less \
-  man-db \
-  nano \
-  net-tools \
-  opendoas \
-  openssh-client \
-  procps \
-  shellcheck \
-  tree \
-  wget \
-  yq
-
-# Install build tools
-RUN apt-get install --no-install-recommends -y -qq \
-  build-essential \
-  pkg-config \
-  libssl-dev \
-  zlib1g-dev
-
-# Install debugging tools
-RUN apt-get install --no-install-recommends -y -qq \
-  lldb
-
-########################################
-# Create a non-root developing user and configure doas
-RUN addgroup --gid "${GID}" "${USER}"
-RUN adduser --uid "${UID}" --gid "${GID}" \
-  --shell "/bin/bash" --disabled-password "${USER}"
-
-RUN printf "permit nopass nolog keepenv %s as root\n" "${USER}" >/etc/doas.conf && \
-  chmod 400 /etc/doas.conf && \
-  printf "%s\nset -e\n%s\n" "#!/bin/sh" "doas \$@" >/usr/local/bin/sudo && \
-  chmod a+rx /usr/local/bin/sudo
-
-########################################
-# Copy features from other stages
-COPY --from=node-stage /rootfs/ /
-COPY --from=rust-stage /rootfs/ /
-
-########################################
-# Upgrade npm to the latest version
-RUN npm install -g npm@latest
-
-########################################
-# Clean cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN rm -rf /var/cache/* /var/log/* /tmp/*
+# Copy and minify nginx config
+COPY "nginx.conf" "/rootfs/nginx.conf"
+RUN sed -E 's/#.*//g;/^[[:space:]]*$/d' "/rootfs/nginx.conf" | tr -d '\n' | tr -s ' ' >"/rootfs/nginx.conf.min" && \
+  mv "/rootfs/nginx.conf.min" "/rootfs/nginx.conf"
 
 ################################################################################
-# Final squash image.
+# Assemble runtime image
+FROM scratch AS assemble
+
+COPY --from=wasudoku-builder "/rootfs" "/"
+COPY --from=nginx-builder "/rootfs" "/"
+
+################################################################################
+# Final squashed image
 FROM scratch AS final
-ARG USER
-ARG RUST_VERSION
-ARG CARGO_HOME
-ENV USER="${USER}" \
-  RUST_VERSION="${RUST_VERSION}" \
-  CARGO_HOME="${CARGO_HOME}" \
-  PATH="/wasudoku/node_modules/.bin:${CARGO_HOME}/bin:${PATH}" \
-  MANPATH="/opt/rust/share/man:/opt/node/share/man:" \
-  LANG="en_US.UTF-8" \
-  LC_ALL="en_US.UTF-8"
+ARG VERSION="dev"
+ARG COMMIT_SHA="unknown"
+ARG BUILD_DATE="unknown"
 
-COPY --from=main / /
+COPY --from=assemble "/" "/"
+USER 65534:65534
+CMD ["/nginx", "-c", "/nginx.conf"]
 
-USER "${USER}"
+LABEL org.opencontainers.image.title="WASudoku" \
+  org.opencontainers.image.description="A WebAssembly Sudoku solver" \
+  org.opencontainers.image.authors="Henrique Almeida <me@h3nc4.com>" \
+  org.opencontainers.image.vendor="Henrique Almeida" \
+  org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+  org.opencontainers.image.url="https://h3nc4.com/WASudoku" \
+  org.opencontainers.image.source="https://github.com/h3nc4/WASudoku" \
+  org.opencontainers.image.documentation="https://github.com/h3nc4/WASudoku/blob/main/README.md" \
+  org.opencontainers.image.version="${VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.created="${BUILD_DATE}" \
+  org.opencontainers.image.ref.name="${VERSION}"
