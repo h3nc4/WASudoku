@@ -97,6 +97,11 @@ export interface GameMetrics {
   readonly mistakes: number
 }
 
+export interface PuzzleData {
+  readonly puzzleString: string
+  readonly solutionString: string
+}
+
 /** The complete state of the Sudoku game. */
 export interface SudokuState {
   /** The current state of the 81 Sudoku cells. */
@@ -113,6 +118,10 @@ export interface SudokuState {
   readonly derived: DerivedState
   /** Metrics for the current game session (time, mistakes). */
   readonly game: GameMetrics
+  /** Pool of pre-generated puzzles keyed by difficulty. */
+  readonly puzzlePool: Record<string, PuzzleData[]>
+  /** Count of pending generation requests per difficulty. */
+  readonly poolRequestCount: Record<string, number>
 }
 
 /** The shape of the game state object saved to local storage. */
@@ -123,4 +132,5 @@ export interface SavedGameState {
   }
   solution: number[] | null
   game: GameMetrics
+  puzzlePool: Record<string, PuzzleData[]>
 }

@@ -99,6 +99,20 @@ export interface GeneratePuzzleFailureAction {
   type: 'GENERATE_PUZZLE_FAILURE'
 }
 
+/** Action to signal that a pool refill request has been sent. */
+export interface RequestPoolRefillAction {
+  type: 'REQUEST_POOL_REFILL'
+  difficulty: string
+}
+
+/** Action to store a generated puzzle in the pool. */
+export interface PoolRefillSuccessAction {
+  type: 'POOL_REFILL_SUCCESS'
+  difficulty: string
+  puzzleString: string
+  solutionString: string
+}
+
 /** Action to begin validating a custom puzzle. */
 export interface ValidatePuzzleStartAction {
   type: 'VALIDATE_PUZZLE_START'
@@ -176,6 +190,8 @@ export type SudokuAction =
   | GeneratePuzzleStartAction
   | GeneratePuzzleSuccessAction
   | GeneratePuzzleFailureAction
+  | RequestPoolRefillAction
+  | PoolRefillSuccessAction
   | ValidatePuzzleStartAction
   | ValidatePuzzleSuccessAction
   | ValidatePuzzleFailureAction

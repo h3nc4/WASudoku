@@ -24,7 +24,7 @@ const wasmReady = init()
 
 type WorkerMessage =
   | { type: 'solve'; boardString: string }
-  | { type: 'generate'; difficulty: string }
+  | { type: 'generate'; difficulty: string; source?: 'user' | 'pool' }
   | { type: 'validate'; boardString: string }
 
 /**
@@ -50,10 +50,17 @@ export async function handleMessage(event: MessageEvent<WorkerMessage>) {
       const result = solve_sudoku(event.data.boardString)
       self.postMessage({ type: 'solution', result })
     } else if (type === 'generate') {
-      const puzzleString = generate_sudoku(event.data.difficulty)
+      const { difficulty, source } = event.data
+      const puzzleString = generate_sudoku(difficulty)
       const solveResult = solve_sudoku(puzzleString)
       const solutionString = solveResult.solution ?? ''
-      self.postMessage({ type: 'puzzle_generated', puzzleString, solutionString })
+      self.postMessage({
+        type: 'puzzle_generated',
+        puzzleString,
+        solutionString,
+        difficulty,
+        source,
+      })
     } else if (type === 'validate') {
       const isValid = validate_puzzle(event.data.boardString)
       let solutionString = ''

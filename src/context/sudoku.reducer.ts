@@ -29,6 +29,8 @@ import type {
   GeneratePuzzleStartAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleSuccessAction,
+  RequestPoolRefillAction,
+  PoolRefillSuccessAction,
 } from './sudoku.actions.types'
 import type {
   BoardState,
@@ -36,6 +38,7 @@ import type {
   SavedGameState,
   HistoryState,
   SolvingStep,
+  PuzzleData,
 } from './sudoku.types'
 import {
   getRelatedCellIndices,
@@ -105,6 +108,18 @@ export const initialState: SudokuState = {
     timer: 0,
     mistakes: 0,
   },
+  puzzlePool: {
+    easy: [],
+    medium: [],
+    hard: [],
+    extreme: [],
+  },
+  poolRequestCount: {
+    easy: 0,
+    medium: 0,
+    hard: 0,
+    extreme: 0,
+  },
 }
 
 /**
@@ -154,6 +169,12 @@ export function loadInitialState(): SudokuState {
           },
           derived: getDerivedBoardState(currentBoard),
           game: savedState.game ?? { timer: 0, mistakes: 0 },
+          puzzlePool: savedState.puzzlePool ?? {
+            easy: [],
+            medium: [],
+            hard: [],
+            extreme: [],
+          },
         }
       }
     }
@@ -365,6 +386,9 @@ const handleImportBoard = (state: SudokuState, action: ImportBoardAction): Sudok
       solution: null,
     },
     game: { timer: 0, mistakes: 0 },
+    // Preserve pool info from current state (not initialState)
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
   }
 }
 
@@ -399,24 +423,16 @@ const handleAutoFillCandidates = (state: SudokuState): SudokuState => {
   }
 }
 
-const handleGeneratePuzzleStart = (
+/**
+ * Initializes a new game from a puzzle string and solution.
+ */
+const initializeGameFromPuzzle = (
   state: SudokuState,
-  action: GeneratePuzzleStartAction,
-): SudokuState => ({
-  ...initialState,
-  solver: {
-    ...state.solver,
-    isGenerating: true,
-    generationDifficulty: action.difficulty,
-  },
-})
-
-const handleGeneratePuzzleSuccess = (
-  _state: SudokuState,
-  action: GeneratePuzzleSuccessAction,
+  puzzleString: string,
+  solutionString: string,
 ): SudokuState => {
-  const newBoard = boardStateFromString(action.puzzleString)
-  const solutionNumbers = action.solutionString.split('').map((c) => {
+  const newBoard = boardStateFromString(puzzleString)
+  const solutionNumbers = solutionString.split('').map((c) => {
     return c === '.' ? 0 : parseInt(c, 10)
   })
 
@@ -435,6 +451,91 @@ const handleGeneratePuzzleSuccess = (
       solution: solutionNumbers,
     },
     game: { timer: 0, mistakes: 0 },
+    // Preserve existing pool data
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
+  }
+}
+
+const handleGeneratePuzzleStart = (
+  state: SudokuState,
+  action: GeneratePuzzleStartAction,
+): SudokuState => {
+  // Check if we have a puzzle in the pool for this difficulty
+  const pool = state.puzzlePool[action.difficulty] || []
+
+  if (pool.length > 0) {
+    // Consume from pool: Take the first puzzle
+    const [nextPuzzle, ...remainingPool] = pool
+    const newPool = { ...state.puzzlePool, [action.difficulty]: remainingPool }
+
+    // Start the game immediately with the cached puzzle
+    const nextState = initializeGameFromPuzzle(
+      state,
+      nextPuzzle.puzzleString,
+      nextPuzzle.solutionString,
+    )
+
+    return {
+      ...nextState,
+      puzzlePool: newPool,
+      // poolRequestCount is preserved by initializeGameFromPuzzle
+    }
+  }
+
+  // Fallback: If pool is empty, show loading state and trigger generation (handled by hook)
+  return {
+    ...initialState,
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
+    solver: {
+      ...state.solver,
+      isGenerating: true,
+      generationDifficulty: action.difficulty,
+    },
+  }
+}
+
+const handleGeneratePuzzleSuccess = (
+  state: SudokuState,
+  action: GeneratePuzzleSuccessAction,
+): SudokuState => {
+  return initializeGameFromPuzzle(state, action.puzzleString, action.solutionString)
+}
+
+const handleRequestPoolRefill = (
+  state: SudokuState,
+  action: RequestPoolRefillAction,
+): SudokuState => {
+  return {
+    ...state,
+    poolRequestCount: {
+      ...state.poolRequestCount,
+      [action.difficulty]: (state.poolRequestCount[action.difficulty] || 0) + 1,
+    },
+  }
+}
+
+const handlePoolRefillSuccess = (
+  state: SudokuState,
+  action: PoolRefillSuccessAction,
+): SudokuState => {
+  const currentPool = state.puzzlePool[action.difficulty] || []
+  const newPuzzle: PuzzleData = {
+    puzzleString: action.puzzleString,
+    solutionString: action.solutionString,
+  }
+
+  return {
+    ...state,
+    puzzlePool: {
+      ...state.puzzlePool,
+      [action.difficulty]: [...currentPool, newPuzzle],
+    },
+    poolRequestCount: {
+      ...state.poolRequestCount,
+      [action.difficulty]: Math.max(0, (state.poolRequestCount[action.difficulty] || 0) - 1),
+    },
   }
 }
 
@@ -749,6 +850,12 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
         ui: { ...state.ui, lastError: 'Failed to generate a new puzzle.' },
       }
       break
+    case 'REQUEST_POOL_REFILL':
+      newState = handleRequestPoolRefill(state, action)
+      break
+    case 'POOL_REFILL_SUCCESS':
+      newState = handlePoolRefillSuccess(state, action)
+      break
     case 'VALIDATE_PUZZLE_START':
       newState = { ...state, solver: { ...state.solver, isValidating: true } }
       break
@@ -762,6 +869,8 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       newState = {
         ...initialState,
         solver: { ...initialState.solver, gameMode: 'customInput' },
+        puzzlePool: state.puzzlePool,
+        poolRequestCount: state.poolRequestCount,
       }
       break
     case 'VIEW_SOLVER_STEP':

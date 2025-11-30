@@ -42,6 +42,8 @@ import type {
   StartCustomPuzzleAction,
   AutoFillCandidatesAction,
   TickTimerAction,
+  RequestPoolRefillAction,
+  PoolRefillSuccessAction,
 } from './sudoku.actions.types'
 import type { InputMode, SolveResult } from './sudoku.types'
 
@@ -131,6 +133,24 @@ export const generatePuzzleSuccess = (
 /** Creates an action for when the puzzle generator fails. */
 export const generatePuzzleFailure = (): GeneratePuzzleFailureAction => ({
   type: 'GENERATE_PUZZLE_FAILURE',
+})
+
+/** Creates an action to note that a pool refill request has been sent to the worker. */
+export const requestPoolRefill = (difficulty: string): RequestPoolRefillAction => ({
+  type: 'REQUEST_POOL_REFILL',
+  difficulty,
+})
+
+/** Creates an action to add a background-generated puzzle to the pool. */
+export const poolRefillSuccess = (
+  difficulty: string,
+  puzzleString: string,
+  solutionString: string,
+): PoolRefillSuccessAction => ({
+  type: 'POOL_REFILL_SUCCESS',
+  difficulty,
+  puzzleString,
+  solutionString,
 })
 
 /** Creates an action to signal the start of custom puzzle validation. */
