@@ -17,7 +17,7 @@
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
 # Called by CI to update version numbers in various files based on the Git tag.
-VERSION=${1#v}
-sed -i 's/"version": ".*"/"version": "'"${VERSION}"'"/' package.json
-sed -i 's/sonar.projectVersion=.*/sonar.projectVersion='"${VERSION}"'/' sonar-project.properties
-sed -i 's/^version = ".*"/version = "'"${VERSION}"'"/' src/wasudoku-wasm/Cargo.toml
+version=${1#v}
+sed -i 's/"version": ".*"/"version": "'"${version}"'"/' package.json
+sed -i 's/sonar.projectVersion=.*/sonar.projectVersion='"${version}"'/' sonar-project.properties
+sed -i 's/^version = ".*"/version = "'"${version}"'"/' src/wasudoku-wasm/Cargo.toml

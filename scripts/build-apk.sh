@@ -17,6 +17,10 @@
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
 # Called by CI to build the Android APK using Bubblewrap.
+set -e
+
+cd "$(dirname "$0")/../"
+
 # shellcheck disable=SC2154 # KEYSTORE_PASSWORD is always set in CI
 docker run \
   --rm \
@@ -24,6 +28,6 @@ docker run \
   -e "BUBBLEWRAP_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}" \
   -e "BUBBLEWRAP_KEY_PASSWORD=${KEYSTORE_PASSWORD}" \
   -e "VERSION=${1#v}" \
-  -v "${PWD}":/app \
+  -v "${WASUDOKU_HOST_ROOT:-${PWD}}":/app \
   ghcr.io/googlechromelabs/bubblewrap:1.24.1 \
   -c 'printf "%s\n" "${VERSION}" | bubblewrap update && yes | bubblewrap build'

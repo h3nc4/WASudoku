@@ -156,6 +156,7 @@ RUN apt-get install --no-install-recommends -y -qq \
   bash-completion \
   ca-certificates \
   curl \
+  docker-cli \
   git \
   gnupg \
   iputils-ping \
@@ -190,6 +191,8 @@ RUN addgroup --gid "${GID}" "${USER}"
 RUN adduser --uid "${UID}" --gid "${GID}" \
   --shell "/bin/bash" --disabled-password "${USER}"
 
+RUN addgroup --gid 110 docker && usermod -aG docker "${USER}"
+
 RUN printf "permit nopass nolog keepenv %s as root\n" "${USER}" >/etc/doas.conf && \
   chmod 400 /etc/doas.conf && \
   printf "%s\nset -e\n%s\n" "#!/bin/sh" "doas \$@" >/usr/local/bin/sudo && \
@@ -218,7 +221,7 @@ ARG CARGO_HOME
 ENV USER="${USER}" \
   RUST_VERSION="${RUST_VERSION}" \
   CARGO_HOME="${CARGO_HOME}" \
-  PATH="/wasudoku/node_modules/.bin:${CARGO_HOME}/bin:${PATH}" \
+  PATH="${CARGO_HOME}/bin:${PATH}" \
   MANPATH="/opt/rust/share/man:/opt/node/share/man:" \
   LANG="en_US.UTF-8" \
   LC_ALL="en_US.UTF-8"
