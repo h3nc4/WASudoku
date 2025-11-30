@@ -39,6 +39,9 @@ import type {
   HistoryState,
   SolvingStep,
   PuzzleData,
+  PersistedGameState,
+  PersistedMetrics,
+  PersistedPool,
 } from './sudoku.types'
 import {
   getRelatedCellIndices,
@@ -50,8 +53,14 @@ import {
 } from '@/lib/utils'
 
 const BOARD_SIZE = 81
-const LOCAL_STORAGE_KEY = 'wasudoku-game-state'
 const MAX_HISTORY_ENTRIES = 100
+
+export const STORAGE_KEYS = {
+  LEGACY: 'wasudoku-game-state',
+  GAME: 'wasudoku.state.game',
+  METRICS: 'wasudoku.state.metrics',
+  POOL: 'wasudoku.state.pool',
+}
 
 export const createEmptyBoard = (): BoardState =>
   Array(BOARD_SIZE)
@@ -140,7 +149,47 @@ function reviver(_key: string, value: any) {
 
 export function loadInitialState(): SudokuState {
   try {
-    const savedStateJSON = window.localStorage.getItem(LOCAL_STORAGE_KEY)
+    // 1. Try loading from new split keys
+    const gameJSON = window.localStorage.getItem(STORAGE_KEYS.GAME)
+    const metricsJSON = window.localStorage.getItem(STORAGE_KEYS.METRICS)
+    const poolJSON = window.localStorage.getItem(STORAGE_KEYS.POOL)
+
+    if (gameJSON || metricsJSON || poolJSON) {
+      const game = gameJSON ? (JSON.parse(gameJSON, reviver) as PersistedGameState) : null
+      const metrics = metricsJSON ? (JSON.parse(metricsJSON) as PersistedMetrics) : null
+      const pool = poolJSON ? (JSON.parse(poolJSON) as PersistedPool) : null
+
+      // Restore board from history if available, with safety checks
+      const hasValidHistory =
+        game &&
+        game.history &&
+        Array.isArray(game.history.stack) &&
+        game.history.stack.length > 0 &&
+        typeof game.history.index === 'number'
+
+      const currentBoard = hasValidHistory
+        ? game.history.stack[game.history.index]
+        : createEmptyBoard()
+
+      return {
+        ...initialState,
+        board: currentBoard,
+        initialBoard: game?.initialBoard ?? createEmptyBoard(),
+        history: game?.history ?? initialState.history,
+        solver: {
+          ...initialState.solver,
+          gameMode: hasValidHistory ? 'playing' : 'selecting',
+          solution: game?.solution ?? null,
+        },
+        derived: getDerivedBoardState(currentBoard),
+        game: metrics ?? initialState.game,
+        puzzlePool: pool?.puzzlePool ?? initialState.puzzlePool,
+        poolRequestCount: pool?.poolRequestCount ?? initialState.poolRequestCount,
+      }
+    }
+
+    // 2. Fallback to legacy key for backward compatibility
+    const savedStateJSON = window.localStorage.getItem(STORAGE_KEYS.LEGACY)
     if (savedStateJSON) {
       const savedState = JSON.parse(savedStateJSON, reviver) as SavedGameState
       if (
@@ -150,6 +199,7 @@ export function loadInitialState(): SudokuState {
         savedState.history.stack.length > 0
       ) {
         const currentBoard = savedState.history.stack[savedState.history.index]
+        // Derive initial board from history (legacy behavior)
         const initialBoard: BoardState = currentBoard.map((cell) => ({
           value: cell.isGiven ? cell.value : null,
           isGiven: cell.isGiven,
@@ -164,7 +214,7 @@ export function loadInitialState(): SudokuState {
           initialBoard: initialBoard,
           solver: {
             ...initialState.solver,
-            gameMode: 'playing', // Assume saved state is always in play
+            gameMode: 'playing',
             solution: savedState.solution ?? null,
           },
           derived: getDerivedBoardState(currentBoard),

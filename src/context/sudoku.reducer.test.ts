@@ -17,7 +17,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sudokuReducer, createEmptyBoard, initialState, loadInitialState } from './sudoku.reducer'
+import {
+  sudokuReducer,
+  createEmptyBoard,
+  initialState,
+  loadInitialState,
+  STORAGE_KEYS,
+} from './sudoku.reducer'
 import type { SudokuAction } from './sudoku.actions.types'
 import type {
   BoardState,
@@ -25,6 +31,9 @@ import type {
   SolvingStep,
   SavedGameState,
   PuzzleData,
+  PersistedGameState,
+  PersistedMetrics,
+  PersistedPool,
 } from './sudoku.types'
 import { getRelatedCellIndices, areBoardsEqual, calculateCandidates } from '@/lib/utils'
 
@@ -1316,25 +1325,104 @@ describe('loadInitialState', () => {
     vi.restoreAllMocks()
   })
 
+  // Helper to stringify with Set support (mocking the app's persistence logic)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stringify = (data: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return JSON.stringify(data, (_key, value: any) => {
+      if (value instanceof Set) {
+        return { __dataType: 'Set', value: [...value] }
+      }
+      return value
+    })
+  }
+
   it('should return initial state if localStorage is empty', () => {
     localStorageMock.getItem.mockReturnValue(null)
     const state = loadInitialState()
     expect(state).toEqual(initialState)
   })
 
-  it('should load puzzle pool from local storage', () => {
-    const savedState: Partial<SavedGameState> = {
+  it('should load state from new split keys', () => {
+    const persistedGame: PersistedGameState = {
+      history: { stack: [createEmptyBoard()], index: 0 },
+      initialBoard: createEmptyBoard(),
+      solution: null,
+    }
+    const persistedMetrics: PersistedMetrics = { timer: 123, mistakes: 2 }
+    const persistedPool: PersistedPool = {
+      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
+      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.GAME) return JSON.stringify(persistedGame)
+      if (key === STORAGE_KEYS.METRICS) return JSON.stringify(persistedMetrics)
+      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
+      return null
+    })
+
+    const state = loadInitialState()
+    expect(state.game.timer).toBe(123)
+    expect(state.game.mistakes).toBe(2)
+    expect(state.history.stack).toHaveLength(1)
+  })
+
+  it('should fallback to legacy key if split keys are missing', () => {
+    const legacyState: SavedGameState = {
       history: { stack: [createEmptyBoard()], index: 0 },
       solution: null,
-      game: { timer: 0, mistakes: 0 },
+      game: { timer: 999, mistakes: 0 },
+      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.LEGACY) return JSON.stringify(legacyState)
+      return null
+    })
+
+    const state = loadInitialState()
+    expect(state.game.timer).toBe(999)
+    // Should derive initial board from history stack
+    expect(state.initialBoard[0].value).toBeNull()
+  })
+
+  it('should prioritize split keys over legacy key', () => {
+    const persistedMetrics: PersistedMetrics = { timer: 100, mistakes: 0 }
+    const legacyState: SavedGameState = {
+      history: { stack: [createEmptyBoard()], index: 0 },
+      solution: null,
+      game: { timer: 5, mistakes: 0 },
+      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.METRICS) return JSON.stringify(persistedMetrics)
+      if (key === STORAGE_KEYS.LEGACY) return JSON.stringify(legacyState)
+      return null
+    })
+
+    // If any split key exists (METRICS here), it should ignore legacy
+    const state = loadInitialState()
+    expect(state.game.timer).toBe(100)
+  })
+
+  it('should load puzzle pool from local storage (split key)', () => {
+    const pool: PersistedPool = {
       puzzlePool: {
         easy: [{ puzzleString: 'abc', solutionString: 'def' }],
         medium: [],
         hard: [],
         extreme: [],
       },
+      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
     }
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(savedState))
+    // Correctly mock implementation to only return pool data for the POOL key
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.POOL) return JSON.stringify(pool)
+      return null
+    })
+
     const state = loadInitialState()
     expect(state.puzzlePool.easy.length).toBe(1)
     expect(state.puzzlePool.easy[0].puzzleString).toBe('abc')
@@ -1365,14 +1453,17 @@ describe('loadInitialState', () => {
 
     const rawBoard = [rawCell, ...Array(80).fill(emptyCell)]
 
-    const savedState = {
+    const savedGame: PersistedGameState = {
       history: { stack: [rawBoard], index: 0 },
-      game: { timer: 120, mistakes: 1 },
+      initialBoard: createEmptyBoard(),
       solution: null,
-      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
     }
 
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(savedState))
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.GAME) return JSON.stringify(savedGame)
+      return null
+    })
+
     const state = loadInitialState()
 
     const cell0 = state.board[0]
@@ -1391,71 +1482,6 @@ describe('loadInitialState', () => {
     expect(cell0.centers.size).toBe(2)
   })
 
-  it('should pass through non-Set objects in the reviver', () => {
-    // This tests the `return value` case in `reviver`
-    // We create a state with normal data (no Sets)
-    const simpleState = {
-      history: { stack: [createEmptyBoard()], index: 0 },
-      game: { timer: 10, mistakes: 2 },
-    }
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(simpleState))
-    const state = loadInitialState()
-    expect(state.game.timer).toBe(10)
-  })
-
-  it('should provide default game state if missing in localStorage', () => {
-    // Create a legacy state structure without the 'game' property
-    const legacyState = {
-      history: {
-        stack: [createEmptyBoard()],
-        index: 0,
-      },
-      solution: null,
-    }
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(legacyState))
-    const state = loadInitialState()
-
-    expect(state.game).toEqual({ timer: 0, mistakes: 0 })
-  })
-
-  it('should handle undefined solution in saved state', () => {
-    const stateWithoutSolution: Partial<SavedGameState> = {
-      history: { stack: [createEmptyBoard()], index: 0 },
-      // solution missing
-      game: { timer: 0, mistakes: 0 },
-    }
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(stateWithoutSolution))
-    const state = loadInitialState()
-    expect(state.solver.solution).toBeNull()
-  })
-
-  it('should correctly derive initialBoard from saved board with user inputs', () => {
-    // Cell 0: User input (isGiven: false, value: 5)
-    // Cell 1: Given (isGiven: true, value: 3)
-    const savedBoard = createEmptyBoard().map((c, i) => {
-      if (i === 0) return { ...c, value: 5, isGiven: false }
-      if (i === 1) return { ...c, value: 3, isGiven: true }
-      return c
-    })
-
-    const savedState = {
-      history: { stack: [savedBoard], index: 0 },
-      game: { timer: 0, mistakes: 0 },
-    }
-    localStorageMock.getItem.mockReturnValue(JSON.stringify(savedState))
-    const state = loadInitialState()
-
-    // Initial board should strip user input
-    expect(state.initialBoard[0].value).toBeNull()
-    expect(state.initialBoard[0].isGiven).toBe(false)
-    // Initial board should keep given
-    expect(state.initialBoard[1].value).toBe(3)
-    expect(state.initialBoard[1].isGiven).toBe(true)
-
-    // Current board should keep user input
-    expect(state.board[0].value).toBe(5)
-  })
-
   it('should handle JSON parsing errors gracefully', () => {
     localStorageMock.getItem.mockReturnValue('not json')
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -1466,5 +1492,78 @@ describe('loadInitialState', () => {
       expect.any(Error),
     )
     consoleErrorSpy.mockRestore()
+  })
+
+  it('should derive initialBoard from legacy state with mixed given/user values', () => {
+    const cellGiven = { value: 5, isGiven: true, candidates: new Set(), centers: new Set() }
+    const cellUser = { value: 3, isGiven: false, candidates: new Set(), centers: new Set() }
+    const emptyCell = { value: null, isGiven: false, candidates: new Set(), centers: new Set() }
+
+    // Construct a board
+    const legacyBoard = Array(81).fill(emptyCell)
+    legacyBoard[0] = cellGiven
+    legacyBoard[1] = cellUser
+
+    // Use 'any' to bypass strict type check for mocking legacy structure if needed, though SavedGameState matches
+    const legacyState: SavedGameState = {
+      history: { stack: [legacyBoard], index: 0 },
+      solution: null,
+      game: { timer: 10, mistakes: 0 },
+      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.LEGACY) return stringify(legacyState)
+      return null
+    })
+
+    const state = loadInitialState()
+
+    // Check initialBoard derivation (Line 204 coverage)
+    expect(state.initialBoard[0].value).toBe(5)
+    expect(state.initialBoard[0].isGiven).toBe(true)
+    // User value should be stripped in initialBoard
+    expect(state.initialBoard[1].value).toBeNull()
+    expect(state.initialBoard[1].isGiven).toBe(false)
+
+    // Check actual board has the values
+    expect(state.board[0].value).toBe(5)
+    expect(state.board[1].value).toBe(3)
+  })
+
+  it('should provide defaults for game and puzzlePool when missing in legacy state', () => {
+    // Legacy state missing 'game' and 'puzzlePool'
+    const legacyState = {
+      history: { stack: [createEmptyBoard()], index: 0 },
+      solution: null,
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.LEGACY) return stringify(legacyState)
+      return null
+    })
+
+    const state = loadInitialState()
+
+    // Lines 221-222 coverage
+    expect(state.game).toEqual(initialState.game)
+    expect(state.puzzlePool).toEqual(initialState.puzzlePool)
+  })
+
+  it('should return initial state if legacy state is malformed', () => {
+    // Malformed state (missing stack array)
+    const malformedState = {
+      history: { index: 0 }, // stack is missing
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.LEGACY) return JSON.stringify(malformedState)
+      return null
+    })
+
+    const state = loadInitialState()
+
+    // Should fall through Line 195 check and return default
+    expect(state).toEqual(initialState)
   })
 })

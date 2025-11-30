@@ -124,7 +124,32 @@ export interface SudokuState {
   readonly poolRequestCount: Record<string, number>
 }
 
-/** The shape of the game state object saved to local storage. */
+/** Data persisted for the active game session. */
+export interface PersistedGameState {
+  history: {
+    stack: BoardState[]
+    index: number
+  }
+  initialBoard: BoardState
+  solution: number[] | null
+}
+
+/** Data persisted for game metrics. */
+export interface PersistedMetrics {
+  timer: number
+  mistakes: number
+}
+
+/** Data persisted for the puzzle generator pool. */
+export interface PersistedPool {
+  puzzlePool: Record<string, PuzzleData[]>
+  poolRequestCount: Record<string, number>
+}
+
+/**
+ * Legacy shape for backward compatibility.
+ * @deprecated Use split persistence keys instead.
+ */
 export interface SavedGameState {
   history: {
     stack: BoardState[]
