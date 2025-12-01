@@ -92,10 +92,14 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
 
     match difficulty {
         Difficulty::Easy => {
+            // Must be solvable and only require Basic techniques
             is_logically_solvable && stats.max_level == logical_solver::TechniqueLevel::Basic
         }
         Difficulty::Medium => {
-            is_logically_solvable && stats.max_level == logical_solver::TechniqueLevel::Intermediate
+            // Must be solvable, meet minimum counts for steps, and not exceed Intermediate level
+            is_logically_solvable
+                && stats.max_level == logical_solver::TechniqueLevel::Intermediate
+                && stats.intermediate_count >= 5
         }
         Difficulty::Hard => {
             // Must be solvable, meet minimum counts for steps, and not exceed Advanced level

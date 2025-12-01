@@ -71,6 +71,41 @@ fn test_unsolvable_puzzle_returns_false() {
 }
 
 #[test]
+fn test_solve_randomized_unsolvable_immediate() {
+    // Construct a board where a specific cell is empty but has no valid moves.
+    let mut board = Board { cells: [0; 81] };
+    for i in 1..9 {
+        board.cells[i] = i as u8;
+    }
+    board.cells[9] = 9;
+
+    let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let result = solve_randomized(&mut board, &numbers);
+    assert!(!result);
+}
+
+#[test]
+fn test_solve_randomized_backtracking() {
+    // Manually construct a specific board state that forces backtracking.
+    let mut board = Board { cells: [0; 81] };
+
+    // Fill Row 0 indices 3..8 with 3..8
+    for i in 3..9 {
+        board.cells[i] = i as u8;
+    }
+
+    // Block 9 from (0,0), (0,1), (0,2) using column blockers
+    board.cells[9] = 9; // Blocks 9 for (0,0)
+    board.cells[19] = 9; // Blocks 9 for (0,1)
+    board.cells[29] = 9; // Blocks 9 for (0,2)
+
+    let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let result = solve_randomized(&mut board, &numbers);
+
+    assert!(!result, "Pigeonhole board should be unsolvable");
+}
+
+#[test]
 fn test_board_from_str_valid() {
     let puzzle_str =
         "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79";

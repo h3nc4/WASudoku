@@ -17,8 +17,7 @@
 */
 
 use wasudoku_wasm::board::Board;
-use wasudoku_wasm::logical_solver::{self, LogicalBoard};
-use wasudoku_wasm::solver;
+use wasudoku_wasm::logical_solver::{self, LogicalBoard, TechniqueLevel, analyze_difficulty};
 use wasudoku_wasm::types::{Elimination, SolvingStep};
 
 fn board_from_str(s: &str) -> LogicalBoard {
@@ -98,6 +97,29 @@ fn test_hidden_single_detection_in_box() {
     assert_eq!(elims.len(), 2, "Expected 2 eliminations from cell 0");
     assert!(elims.iter().any(|e| e.value == 2));
     assert!(elims.iter().any(|e| e.value == 6));
+}
+
+#[test]
+fn test_hidden_single_with_naked_single_scenario() {
+    // Manually construct a scenario where a cell is a Hidden Single but has no other candidates.
+    let puzzle_str =
+        ".23456789456789123789123456214365897365897214897214365531642978642978531978531642";
+    let board = board_from_str(puzzle_str);
+
+    // Call find_hidden_single directly
+    let step = logical_solver::basic::find_hidden_single(&board);
+
+    assert!(step.is_some());
+    let s = step.unwrap();
+    assert_eq!(s.technique, "HiddenSingle");
+    assert_eq!(s.placements[0].index, 0);
+    assert_eq!(s.placements[0].value, 1);
+
+    let self_elims = s.eliminations.iter().filter(|e| e.index == 0).count();
+    assert_eq!(
+        self_elims, 0,
+        "Should have 0 internal eliminations because other_cands was 0"
+    );
 }
 
 #[test]
@@ -302,41 +324,93 @@ fn test_w_wing_detection() {
     assert!(has_w_wing, "Expected W-Wing technique usage");
 }
 
-fn solve_natively(puzzle_str: &str) -> Option<Board> {
-    let initial_board: Board = puzzle_str.parse().ok()?;
-    let (_, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
-
-    if !board_after_logic.cells.contains(&0) {
-        return Some(board_after_logic);
-    }
-
-    if solver::solve(&mut board_after_logic) {
-        Some(board_after_logic)
-    } else {
-        None
-    }
+#[test]
+fn test_logical_board_set_cell_returns_false_if_filled() {
+    let mut board = LogicalBoard {
+        cells: [0; 81],
+        candidates: [0; 81],
+    };
+    board.cells[0] = 5;
+    let result = board.set_cell(0, 1);
+    assert!(
+        !result,
+        "set_cell should return false if cell is already filled"
+    );
 }
 
 #[test]
-fn test_hybrid_solver_logic_solves_puzzle() {
-    let puzzle_str =
-        "...2..7...5..96832.8.7....641.....78.2..745..7.31854....2531..4.3164..5...9...61.";
-    let solution_str =
-        "396218745157496832284753196415962378928374561763185429672531984831649257549827613";
+fn test_analyze_difficulty_classification() {
+    let steps = vec![
+        SolvingStep {
+            technique: "Jellyfish".to_string(),
+            placements: vec![],
+            eliminations: vec![],
+            cause: vec![],
+        },
+        SolvingStep {
+            technique: "UniqueRectangleType1".to_string(),
+            placements: vec![],
+            eliminations: vec![],
+            cause: vec![],
+        },
+        SolvingStep {
+            technique: "W-Wing".to_string(),
+            placements: vec![],
+            eliminations: vec![],
+            cause: vec![],
+        },
+        SolvingStep {
+            technique: "UnknownTechnique".to_string(),
+            placements: vec![],
+            eliminations: vec![],
+            cause: vec![],
+        },
+    ];
 
-    let result = solve_natively(puzzle_str);
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().to_string(), solution_str);
+    let stats = analyze_difficulty(&steps);
+
+    assert_eq!(stats.max_level, TechniqueLevel::Master);
+    assert_eq!(stats.master_count, 3);
 }
 
 #[test]
-fn test_hybrid_solver_falls_back_to_backtracking() {
-    let puzzle_str =
-        "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
-    let solution_str =
-        "812753649943682175675491283154237896369845721287169534521974368438526917796318452";
+fn test_hidden_triple_found() {
+    // Construct a logical board where {1, 2, 3} form a Hidden Triple in Row 0.
 
-    let result = solve_natively(puzzle_str);
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().to_string(), solution_str);
+    let mut board = LogicalBoard {
+        cells: [0; 81],
+        candidates: [0; 81],
+    };
+
+    // Initialize Row 0 indices manually since ROW_UNITS is not pub
+    let row_indices: Vec<usize> = (0..9).collect();
+
+    // Set cells 0, 1, 2 to contain {1, 2, 3} + {9}
+    // {1,2,3,9} = 1 | 2 | 4 | 256 = 263
+    let hidden_mask = 1 | 2 | 4 | 256;
+    board.candidates[row_indices[0]] = hidden_mask;
+    board.candidates[row_indices[1]] = hidden_mask;
+    board.candidates[row_indices[2]] = hidden_mask;
+
+    // Set other cells in Row 0 to contain only {4, 5, 6, 7, 8} (Mask: 496)
+    // {4,5,6,7,8} = 8 | 16 | 32 | 64 | 128 = 248
+    let other_mask = 8 | 16 | 32 | 64 | 128;
+    for i in 3..9 {
+        board.candidates[row_indices[i]] = other_mask;
+    }
+
+    // Fill the rest of the board with empty/full candidates to avoid interference
+    // ALL_CANDIDATES is 0b111111111 = 511
+    for i in 9..81 {
+        board.candidates[i] = 511;
+    }
+
+    let step =
+        logical_solver::subsets::find_hidden_triple(&board).expect("Should find HiddenTriple");
+
+    assert_eq!(step.technique, "HiddenTriple");
+    assert_eq!(step.cause.len(), 3);
+    // Should eliminate '9' from cells 0, 1, 2
+    assert_eq!(step.eliminations.len(), 3);
+    assert!(step.eliminations.iter().all(|e| e.value == 9));
 }

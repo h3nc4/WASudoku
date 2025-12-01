@@ -86,6 +86,25 @@ fn test_generate_hard_puzzle_difficulty() {
 }
 
 #[test]
+fn test_generate_expert_puzzle_difficulty() {
+    let puzzle = generate::generate(Difficulty::Expert);
+    let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
+    let stats = logical_solver::analyze_difficulty(&steps);
+
+    assert_eq!(
+        stats.max_level,
+        TechniqueLevel::Master,
+        "Expert puzzle must require Master techniques, but was {:?}.",
+        stats.max_level
+    );
+
+    assert!(
+        solved_board.cells.iter().all(|&c| c != 0),
+        "Expert puzzle must be fully solvable with logic."
+    );
+}
+
+#[test]
 fn test_generate_extreme_puzzle_difficulty() {
     let puzzle = generate::generate(Difficulty::Extreme);
     assert_eq!(
