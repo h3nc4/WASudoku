@@ -120,12 +120,14 @@ export const initialState: SudokuState = {
     easy: [],
     medium: [],
     hard: [],
+    expert: [],
     extreme: [],
   },
   poolRequestCount: {
     easy: 0,
     medium: 0,
     hard: 0,
+    expert: 0,
     extreme: 0,
   },
 }

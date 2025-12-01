@@ -96,7 +96,7 @@ pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
 /// ### Arguments
 ///
 /// * `difficulty_str` - A string representing the desired difficulty:
-///   "easy", "medium", "hard", or "extreme".
+///   "easy", "medium", "hard", "expert", or "extreme".
 ///
 /// ### Returns
 ///
@@ -112,6 +112,7 @@ pub fn generate_sudoku(difficulty_str: &str) -> Result<String, JsValue> {
         "easy" => Difficulty::Easy,
         "medium" => Difficulty::Medium,
         "hard" => Difficulty::Hard,
+        "expert" => Difficulty::Expert,
         "extreme" => Difficulty::Extreme,
         _ => return Err(JsValue::from_str("Invalid difficulty level.")),
     };

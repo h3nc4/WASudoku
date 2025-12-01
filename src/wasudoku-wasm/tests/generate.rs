@@ -41,39 +41,42 @@ fn test_generate_creates_valid_puzzle() {
 #[test]
 fn test_generate_easy_puzzle_difficulty() {
     let puzzle = generate::generate(Difficulty::Easy);
-    let (level, _) = logical_solver::get_difficulty(&puzzle);
+    let (steps, _) = logical_solver::solve_with_steps(&puzzle);
+    let stats = logical_solver::analyze_difficulty(&steps);
 
     assert_eq!(
-        level,
+        stats.max_level,
         TechniqueLevel::Basic,
         "Easy puzzle must be solvable with Basic techniques only, but was {:?}.",
-        level
+        stats.max_level
     );
 }
 
 #[test]
 fn test_generate_medium_puzzle_difficulty() {
     let puzzle = generate::generate(Difficulty::Medium);
-    let (level, _) = logical_solver::get_difficulty(&puzzle);
+    let (steps, _) = logical_solver::solve_with_steps(&puzzle);
+    let stats = logical_solver::analyze_difficulty(&steps);
 
     assert_eq!(
-        level,
+        stats.max_level,
         TechniqueLevel::Intermediate,
         "Medium puzzle must be solvable with Intermediate techniques (and not just Basic), but was {:?}.",
-        level
+        stats.max_level
     );
 }
 
 #[test]
 fn test_generate_hard_puzzle_difficulty() {
     let puzzle = generate::generate(Difficulty::Hard);
-    let (level, solved_board) = logical_solver::get_difficulty(&puzzle);
+    let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
+    let stats = logical_solver::analyze_difficulty(&steps);
 
     assert_eq!(
-        level,
+        stats.max_level,
         TechniqueLevel::Advanced,
         "Hard puzzle must require Advanced techniques (X-Wing/Swordfish), but was {:?}.",
-        level
+        stats.max_level
     );
 
     assert!(
@@ -91,7 +94,7 @@ fn test_generate_extreme_puzzle_difficulty() {
         "Extreme puzzle must still have a unique solution."
     );
 
-    let (_level, solved_board) = logical_solver::get_difficulty(&puzzle);
+    let (_, solved_board) = logical_solver::solve_with_steps(&puzzle);
 
     let is_completely_solved = solved_board.cells.iter().all(|&c| c != 0);
     assert!(

@@ -146,6 +146,24 @@ const mockSteps: SolvingStep[] = [
     cause: [{ index: 0, candidates: [7] }], // Mock cause cell
   },
   {
+    technique: 'Jellyfish',
+    placements: [],
+    eliminations: [],
+    cause: [{ index: 0, candidates: [4] }],
+  },
+  {
+    technique: 'UniqueRectangleType1',
+    placements: [],
+    eliminations: [{ index: 10, value: 2 }], // Eliminating from R2C2
+    cause: [{ index: 0, candidates: [2, 8] }], // Pattern on {2, 8}
+  },
+  {
+    technique: 'W-Wing',
+    placements: [],
+    eliminations: [{ index: 20, value: 5 }],
+    cause: [{ index: 0, candidates: [5, 9] }], // Pair {5, 9}
+  },
+  {
     technique: 'Backtracking',
     placements: [],
     eliminations: [],
@@ -188,7 +206,7 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Step 1: NakedSingle/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 16: Backtracking/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Step 19: Backtracking/ })).toBeInTheDocument()
   })
 
   it('calls viewSolverStep(0) when "Initial Board State" is clicked', async () => {
@@ -330,6 +348,20 @@ describe('SolverStepsPanel component', () => {
       {
         stepIndex: 16,
         expectedText:
+          /Jellyfish: The candidate 4 appears in specific positions across four rows \(or columns\)/,
+      },
+      {
+        stepIndex: 17,
+        expectedText:
+          /Unique Rectangle \(Type 1\): A "deadly pattern" of candidates \{2, 8\} was detected in two boxes.*removed from cell R2C2/,
+      },
+      {
+        stepIndex: 18,
+        expectedText: /W-Wing: Two cells contain the identical pair \{5, 9\}/,
+      },
+      {
+        stepIndex: 19,
+        expectedText:
           /The available logical techniques were not sufficient to solve the puzzle. A backtracking \(brute-force\) algorithm was used to find the solution./,
       },
     ]
@@ -357,6 +389,29 @@ describe('SolverStepsPanel component', () => {
       })
       render(<SolverStepsPanel />)
       expect(await screen.findByText('Technique used: Magic.')).toBeInTheDocument()
+    })
+
+    it('handles malformed W-Wing data gracefully (coverage for fallback)', async () => {
+      const malformedStep: SolvingStep = {
+        technique: 'W-Wing',
+        placements: [],
+        eliminations: [{ index: 20, value: 5 }],
+        cause: [{ index: 0, candidates: [5] }], // Missing the second candidate
+      }
+
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: {
+          ...defaultState.solver,
+          steps: [malformedStep],
+          currentStepIndex: 1,
+        },
+      })
+      render(<SolverStepsPanel />)
+      // valB should fall back to 0 because find() returns undefined for 5 (valX)
+      expect(
+        await screen.findByText(/W-Wing: Two cells contain the identical pair \{5, 0\}/),
+      ).toBeInTheDocument()
     })
   })
 

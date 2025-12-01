@@ -111,6 +111,21 @@ const getStepExplanation = (step: SolvingStep): string => {
       const candidate = cause[0].candidates[0]
       return `Two-String Kite: A row and a column each have exactly two positions for candidate ${candidate}. One end of the row and one end of the column meet inside the same box. This connection implies that ${candidate} must be in one of the outer ends, eliminating it from their intersection.`
     }
+    case 'Jellyfish': {
+      const candidate = cause[0].candidates[0]
+      return `Jellyfish: The candidate ${candidate} appears in specific positions across four rows (or columns) that align within four columns (or rows). This large fish pattern eliminates ${candidate} from the rest of the covering lines.`
+    }
+    case 'UniqueRectangleType1': {
+      const candidates = formatNums(cause[0].candidates)
+      const targetCell = formatCell(step.eliminations[0].index)
+      return `Unique Rectangle (Type 1): A "deadly pattern" of candidates ${candidates} was detected in two boxes. To avoid an ambiguous puzzle with multiple solutions, the candidates ${candidates} must be removed from cell ${targetCell}, which contains extra possibilities.`
+    }
+    case 'W-Wing': {
+      const valX = step.eliminations[0].value
+      // Usually cause[0] and cause[1] are the bivalue cells
+      const valB = cause[0].candidates.find((c) => c !== valX) ?? 0
+      return `W-Wing: Two cells contain the identical pair {${valX}, ${valB}} but do not see each other. They are connected by a "Strong Link" on ${valB} (where ${valB} is only possible in two places in a unit). This forces one of the two cells to be ${valX}, eliminating ${valX} from any cell that sees both.`
+    }
     case 'Backtracking':
       return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
     default:

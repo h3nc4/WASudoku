@@ -96,6 +96,15 @@ pub enum TechniqueLevel {
     Basic,        // Naked/Hidden Singles
     Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
     Advanced,     // X-Wing, Swordfish, XY-Wing, XYZ-Wing, Skyscraper, 2-String Kite
+    Master,       // Jellyfish, Unique Rectangle, W-Wing
+}
+
+/// Stats for difficulty analysis
+pub struct DifficultyStats {
+    pub max_level: TechniqueLevel,
+    pub intermediate_count: usize,
+    pub advanced_count: usize,
+    pub master_count: usize,
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
@@ -114,6 +123,15 @@ pub struct LogicalBoard {
     /// A bitmask for each cell representing possible candidates (1-9).
     /// A `0` indicates the cell is filled.
     pub candidates: [u16; 81],
+}
+
+struct FishSearchContext<'a> {
+    num: u8,
+    valid_indices: &'a [usize],
+    masks: &'a [u16; 9],
+    size: usize,
+    is_row_base: bool,
+    tech_name: &'a str,
 }
 
 impl LogicalBoard {
@@ -817,18 +835,26 @@ impl LogicalBoard {
 
         for num in 1..=9 {
             // X-Wing (Size 2)
-            if let Some(step) = self.check_x_wing(num, &row_masks[num], true) {
+            if let Some(step) = self.check_fish(num, &row_masks[num], 2, true, "X-Wing") {
                 return Some(step);
             }
-            if let Some(step) = self.check_x_wing(num, &col_masks[num], false) {
+            if let Some(step) = self.check_fish(num, &col_masks[num], 2, false, "X-Wing") {
                 return Some(step);
             }
 
             // Swordfish (Size 3)
-            if let Some(step) = self.check_swordfish(num, &row_masks[num], true) {
+            if let Some(step) = self.check_fish(num, &row_masks[num], 3, true, "Swordfish") {
                 return Some(step);
             }
-            if let Some(step) = self.check_swordfish(num, &col_masks[num], false) {
+            if let Some(step) = self.check_fish(num, &col_masks[num], 3, false, "Swordfish") {
+                return Some(step);
+            }
+
+            // Jellyfish (Size 4) - Master Level
+            if let Some(step) = self.check_fish(num, &row_masks[num], 4, true, "Jellyfish") {
+                return Some(step);
+            }
+            if let Some(step) = self.check_fish(num, &col_masks[num], 4, false, "Jellyfish") {
                 return Some(step);
             }
         }
@@ -861,102 +887,77 @@ impl LogicalBoard {
         (row_masks, col_masks)
     }
 
-    #[inline]
-    fn check_x_wing(&self, num: usize, masks: &[u16; 9], is_row_base: bool) -> Option<SolvingStep> {
-        let mut valid_indices: Vec<usize> = Vec::with_capacity(9);
-        for (i, &m) in masks.iter().enumerate() {
-            if m.count_ones() == 2 {
-                valid_indices.push(i);
-            }
-        }
-
-        if valid_indices.len() < 2 {
-            return None;
-        }
-
-        for i in 0..valid_indices.len() {
-            for j in (i + 1)..valid_indices.len() {
-                let r1 = valid_indices[i];
-                let r2 = valid_indices[j];
-
-                // Strict X-Wing: masks must be identical
-                if masks[r1] == masks[r2] {
-                    let union_mask = masks[r1];
-                    if let Some(step) = self.construct_fish_step(
-                        num as u8,
-                        &[r1, r2],
-                        union_mask,
-                        is_row_base,
-                        "X-Wing",
-                    ) {
-                        return Some(step);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Iterates triples of valid indices to find a Swordfish match.
-    #[inline]
-    fn check_swordfish(
+    /// Generalized Fish Finder (X-Wing, Swordfish, Jellyfish)
+    fn check_fish(
         &self,
         num: usize,
         masks: &[u16; 9],
+        size: usize,
         is_row_base: bool,
+        tech_name: &str,
     ) -> Option<SolvingStep> {
-        let mut valid_indices: Vec<usize> = Vec::with_capacity(9);
-        for (i, &m) in masks.iter().enumerate() {
-            let c = m.count_ones();
-            if (2..=3).contains(&c) {
-                valid_indices.push(i);
-            }
-        }
+        // Filter rows/cols that have 2..size occurrences of the candidate
+        let valid_indices: Vec<usize> = masks
+            .iter()
+            .enumerate()
+            .filter(|&(_, m)| {
+                let c = m.count_ones() as usize;
+                c >= 2 && c <= size
+            })
+            .map(|(i, _)| i)
+            .collect();
 
-        if valid_indices.len() < 3 {
+        if valid_indices.len() < size {
             return None;
         }
 
-        if let Some(step) =
-            self.check_swordfish_combinations(num as u8, &valid_indices, masks, is_row_base)
-        {
-            return Some(step);
-        }
-        None
+        let ctx = FishSearchContext {
+            num: num as u8,
+            valid_indices: &valid_indices,
+            masks,
+            size,
+            is_row_base,
+            tech_name,
+        };
+
+        // Generate combinations of 'size' indices
+        // Simple recursion to iterate combinations
+        self.find_fish_combo(&ctx, 0, &mut Vec::with_capacity(size))
     }
 
-    #[inline]
-    fn check_swordfish_combinations(
+    fn find_fish_combo(
         &self,
-        num: u8,
-        indices: &[usize],
-        masks: &[u16; 9],
-        is_row_base: bool,
+        ctx: &FishSearchContext,
+        start: usize,
+        combo: &mut Vec<usize>,
     ) -> Option<SolvingStep> {
-        let len = indices.len();
-        for i in 0..len {
-            for j in (i + 1)..len {
-                for k in (j + 1)..len {
-                    let r1 = indices[i];
-                    let r2 = indices[j];
-                    let r3 = indices[k];
-                    let union_mask = masks[r1] | masks[r2] | masks[r3];
-
-                    if union_mask.count_ones() != 3 {
-                        continue;
-                    }
-
-                    if let Some(step) = self.construct_fish_step(
-                        num,
-                        &[r1, r2, r3],
-                        union_mask,
-                        is_row_base,
-                        "Swordfish",
-                    ) {
-                        return Some(step);
-                    }
-                }
+        if combo.len() == ctx.size {
+            // Check if union of masks has <= size bits set
+            let mut union_mask = 0;
+            for &idx in combo.iter() {
+                union_mask |= ctx.masks[idx];
             }
+
+            if union_mask.count_ones() as usize <= ctx.size {
+                // Strictly speaking, fish requires N lines covered by N columns/rows.
+                // count_ones == size usually implies exact match. < size is degenerate fish but valid.
+                return self.construct_fish_step(
+                    ctx.num,
+                    combo,
+                    union_mask,
+                    ctx.is_row_base,
+                    ctx.tech_name,
+                );
+            }
+            return None;
+        }
+
+        for i in start..ctx.valid_indices.len() {
+            combo.push(ctx.valid_indices[i]);
+            if let Some(step) = self.find_fish_combo(ctx, i + 1, combo) {
+                return Some(step);
+            }
+            combo.pop();
         }
         None
     }
@@ -1617,6 +1618,301 @@ impl LogicalBoard {
         }
         None
     }
+
+    // --- Master Techniques ---
+
+    /// Searches for Unique Rectangle Type 1.
+    /// Looks for a "deadly pattern" of candidates {x, y} in 4 cells forming a rectangle in 2 boxes.
+    /// If 3 cells have exactly {x, y} and the 4th has {x, y, ...}, we eliminate x and y from the 4th.
+    fn find_unique_rectangle_type_1(&self) -> Option<SolvingStep> {
+        // We iterate over all pairs of rows
+        for r1 in 0..9 {
+            for r2 in (r1 + 1)..9 {
+                // If rows span more than 2 boxes (e.g. row 0 and row 8), they are far apart, but UR can exist anywhere.
+                // However, standard UR definition requires the rectangle to be in exactly 2 blocks.
+                // Rows 0 and 1 are in same block set. Rows 0 and 3 are different block sets.
+                // Condition: (r1/3) == (r2/3) implies same block row.
+                // Actually, simple condition: The two cells in r1 must share a box, and the two in r2 must share a box.
+                // Since they share columns, they will naturally be in same boxes vertically if c1, c2 share a box.
+                // So we just iterate col pairs.
+
+                for c1 in 0..9 {
+                    for c2 in (c1 + 1)..9 {
+                        // Check box constraint: (r1,c1) and (r2,c1) must be in same box? NO.
+                        // UR pattern:
+                        // A(r1,c1)  B(r1,c2)
+                        // C(r2,c1)  D(r2,c2)
+                        // A and C must be in the same box? No.
+                        // A and B must be in same box. C and D must be in same box.
+                        // AND A and C are in same column. B and D are in same column.
+                        // So: box(A) == box(B) AND box(C) == box(D).
+                        // Also, box(A) != box(C) is implicitly true if we want them to span 2 boxes.
+
+                        let idx_tl = r1 * 9 + c1;
+                        let idx_tr = r1 * 9 + c2;
+                        let idx_bl = r2 * 9 + c1;
+                        let idx_br = r2 * 9 + c2;
+
+                        // Check blocks
+                        if (idx_tl / 27) != (idx_tr / 27)
+                            || (idx_tl % 9) / 3 != (idx_tr % 9) / 3
+                            || (idx_bl / 27) != (idx_br / 27)
+                            || (idx_bl % 9) / 3 != (idx_br % 9) / 3
+                        {
+                            continue;
+                        }
+
+                        // Check empty cells
+                        if self.cells[idx_tl] != 0
+                            || self.cells[idx_tr] != 0
+                            || self.cells[idx_bl] != 0
+                            || self.cells[idx_br] != 0
+                        {
+                            continue;
+                        }
+
+                        // Collect candidates
+                        let mask_tl = self.candidates[idx_tl];
+                        let mask_tr = self.candidates[idx_tr];
+                        let mask_bl = self.candidates[idx_bl];
+                        let mask_br = self.candidates[idx_br];
+
+                        // Find common pair mask
+                        // We look for a pair mask P such that 3 cells == P, and 1 cell has P as subset.
+                        // Or more generically for Type 1: 3 cells are bivalue with same candidates.
+                        let corners = [
+                            (idx_tl, mask_tl),
+                            (idx_tr, mask_tr),
+                            (idx_bl, mask_bl),
+                            (idx_br, mask_br),
+                        ];
+                        let mut bivalue_masks = Vec::new();
+
+                        for &(_, m) in &corners {
+                            if m.count_ones() == 2 {
+                                bivalue_masks.push(m);
+                            }
+                        }
+
+                        if bivalue_masks.len() < 3 {
+                            continue;
+                        }
+
+                        // Check if at least 3 have the SAME mask
+                        // Since mask count is 2, just direct equality check
+                        // We can just iterate the corners again to find the "odd one out"
+                        for i in 0..4 {
+                            let (target_idx, target_mask) = corners[i];
+                            let others: Vec<u16> = corners
+                                .iter()
+                                .enumerate()
+                                .filter(|&(idx, _)| idx != i)
+                                .map(|(_, &(_, m))| m)
+                                .collect();
+
+                            let common_mask = others[0];
+                            if common_mask.count_ones() == 2
+                                && others[1] == common_mask
+                                && others[2] == common_mask
+                            {
+                                // Found 3 cells with identical bivalue mask.
+                                // The target cell must contain this mask as subset to be a deadly pattern source.
+                                if (target_mask & common_mask) == common_mask
+                                    && target_mask != common_mask
+                                {
+                                    // Eliminate the common candidates from the target cell
+                                    let elim_vals = mask_to_vec(common_mask);
+                                    let eliminations: Vec<Elimination> = elim_vals
+                                        .iter()
+                                        .map(|&val| Elimination {
+                                            index: target_idx,
+                                            value: val,
+                                        })
+                                        .collect();
+
+                                    let cause: Vec<CauseCell> = corners
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|&(idx, _)| idx != i)
+                                        .map(|(_, &(idx, _))| CauseCell {
+                                            index: idx,
+                                            candidates: elim_vals.clone(),
+                                        })
+                                        .collect();
+
+                                    return Some(SolvingStep {
+                                        technique: "UniqueRectangleType1".to_string(),
+                                        placements: vec![],
+                                        eliminations,
+                                        cause,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Searches for W-Wing.
+    /// Pattern: Two cells [AB] (same bivalue candidates) that do not share a unit.
+    /// Connected by a Strong Link on B.
+    /// Eliminate A from any cell seeing both [AB] cells.
+    fn find_w_wing(&self) -> Option<SolvingStep> {
+        // 1. Find all bivalue cells
+        let bivalue_cells: Vec<(usize, u16)> = (0..81)
+            .filter(|&i| self.cells[i] == 0 && self.candidates[i].count_ones() == 2)
+            .map(|i| (i, self.candidates[i]))
+            .collect();
+
+        // 2. Iterate pairs of bivalue cells with SAME candidates
+        for i in 0..bivalue_cells.len() {
+            for j in (i + 1)..bivalue_cells.len() {
+                let (idx1, mask1) = bivalue_cells[i];
+                let (idx2, mask2) = bivalue_cells[j];
+
+                if mask1 != mask2 {
+                    continue;
+                }
+
+                // They must NOT share a unit (row, col, box) - otherwise it's a Naked Pair
+                if PEER_MAP[idx1].contains(&idx2) {
+                    continue;
+                }
+
+                let cands = mask_to_vec(mask1);
+                let a = cands[0];
+                let b = cands[1];
+
+                // Check for strong link on A -> Eliminate B
+                if let Some(step) = self.check_w_wing_link(idx1, idx2, a, b) {
+                    return Some(step);
+                }
+                // Check for strong link on B -> Eliminate A
+                if let Some(step) = self.check_w_wing_link(idx1, idx2, b, a) {
+                    return Some(step);
+                }
+            }
+        }
+        None
+    }
+
+    // Checks for a strong link on `link_val` connecting `idx1` and `idx2`.
+    // If found, eliminates `elim_val`.
+    fn check_w_wing_link(
+        &self,
+        idx1: usize,
+        idx2: usize,
+        link_val: u8,
+        elim_val: u8,
+    ) -> Option<SolvingStep> {
+        // A strong link is a unit where `link_val` appears exactly twice.
+        // One appearance must be seen by idx1, the other by idx2.
+        // Wait, W-Wing usually implies the strong link *endpoints* are seen by the bivalue cells?
+        // Standard W-Wing: [AB] --(A)-- [A] ==strong== [A] --(A)-- [AB].
+        // So we need to find a conjugate pair of `link_val` somewhere in the grid.
+        // One end of the conjugate pair must see `idx1`. The other must see `idx2`.
+
+        // Let's iterate all units to find strong links for `link_val`.
+        let link_mask = 1 << (link_val - 1);
+
+        for unit in ALL_UNITS.iter() {
+            let positions: Vec<usize> = unit
+                .iter()
+                .filter(|&&idx| self.cells[idx] == 0 && (self.candidates[idx] & link_mask) != 0)
+                .cloned()
+                .collect();
+
+            if positions.len() == 2 {
+                let p1 = positions[0];
+                let p2 = positions[1];
+
+                // Check connectivity
+                // p1 must be seen by idx1 AND p2 seen by idx2 OR vice-versa.
+                // Also, p1/p2 must be distinct from idx1/idx2 (usually true since idx1/2 are bivalue AB, and p1/p2 might be anything containing A)
+                // Actually, idx1/idx2 can BE p1/p2 if they are in that unit.
+                // But the definition "connected by a strong link" implies disjoint.
+                // Let's stick to standard def: bivalues are endpoints. Strong link is in the middle.
+                // So idx1 sees p1, idx2 sees p2. (Or idx1 sees p2, idx2 sees p1).
+
+                let case1 = self.are_peers(idx1, p1) && self.are_peers(idx2, p2);
+                let case2 = self.are_peers(idx1, p2) && self.are_peers(idx2, p1);
+
+                if case1 || case2 {
+                    // Valid W-Wing.
+                    // Eliminate `elim_val` from cells seeing BOTH `idx1` and `idx2`.
+                    let elims = self.get_common_peer_eliminations(idx1, idx2, elim_val);
+                    if !elims.is_empty() {
+                        return Some(SolvingStep {
+                            technique: "W-Wing".to_string(),
+                            placements: vec![],
+                            eliminations: elims,
+                            cause: vec![
+                                CauseCell {
+                                    index: idx1,
+                                    candidates: vec![link_val, elim_val],
+                                },
+                                CauseCell {
+                                    index: idx2,
+                                    candidates: vec![link_val, elim_val],
+                                },
+                                // Optionally include the strong link cells in cause for highlighting
+                                CauseCell {
+                                    index: p1,
+                                    candidates: vec![link_val],
+                                },
+                                CauseCell {
+                                    index: p2,
+                                    candidates: vec![link_val],
+                                },
+                            ],
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn are_peers(&self, i1: usize, i2: usize) -> bool {
+        // Fast check using PEER_MAP is too heavy if we iterate full map.
+        // Just check row/col/box.
+        if i1 == i2 {
+            return false;
+        } // A cell doesn't see itself in this context
+        let r1 = i1 / 9;
+        let c1 = i1 % 9;
+        let r2 = i2 / 9;
+        let c2 = i2 % 9;
+        if r1 == r2 || c1 == c2 {
+            return true;
+        }
+        let b1 = (r1 / 3) * 3 + (c1 / 3);
+        let b2 = (r2 / 3) * 3 + (c2 / 3);
+        b1 == b2
+    }
+
+    #[inline]
+    fn get_common_peer_eliminations(&self, idx1: usize, idx2: usize, val: u8) -> Vec<Elimination> {
+        let mask = 1 << (val - 1);
+        let mut elims = Vec::new();
+        // Intersection of peers
+        for &peer in &PEER_MAP[idx1] {
+            if PEER_MAP[idx2].contains(&peer)
+                && self.cells[peer] == 0
+                && (self.candidates[peer] & mask) != 0
+            {
+                elims.push(Elimination {
+                    index: peer,
+                    value: val,
+                });
+            }
+        }
+        elims
+    }
 }
 
 /// Solve the board by repeatedly applying logical techniques and return the steps.
@@ -1639,7 +1935,10 @@ pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
             || try_xy_wing(&mut board, &mut steps)
             || try_xyz_wing(&mut board, &mut steps)
             || try_skyscraper(&mut board, &mut steps)
-            || try_two_string_kite(&mut board, &mut steps);
+            || try_two_string_kite(&mut board, &mut steps)
+            // Master Techniques
+            || try_unique_rectangle(&mut board, &mut steps)
+            || try_w_wing(&mut board, &mut steps);
 
         if !progress {
             break;
@@ -1659,8 +1958,6 @@ fn try_naked_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> b
 }
 
 fn try_hidden_single(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
-    // Explicitly typed variables allow Rust to invoke Deref coercion from the lazy_static wrapper
-    // to the underlying array type.
     let all_units: &[&[usize]] = &ALL_UNITS;
     for unit in all_units.iter() {
         if let Some(step) = board.find_hidden_single_in_group(unit) {
@@ -1793,24 +2090,60 @@ fn try_two_string_kite(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -
     false
 }
 
-/// Determines the logical difficulty of solving a board by finding the hardest
-/// technique required to make any progress.
-pub fn get_difficulty(initial_board: &Board) -> (TechniqueLevel, Board) {
-    let (steps, final_board) = solve_with_steps(initial_board);
+fn try_unique_rectangle(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_unique_rectangle_type_1() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
 
-    let max_level = steps
-        .iter()
-        .map(|step| match step.technique.as_str() {
+fn try_w_wing(board: &mut LogicalBoard, steps: &mut Vec<SolvingStep>) -> bool {
+    if let Some(step) = board.find_w_wing() {
+        for elim in &step.eliminations {
+            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        }
+        steps.push(step);
+        return true;
+    }
+    false
+}
+
+/// Analyzes the steps to count technique levels.
+pub fn analyze_difficulty(steps: &[SolvingStep]) -> DifficultyStats {
+    let mut stats = DifficultyStats {
+        max_level: TechniqueLevel::None,
+        intermediate_count: 0,
+        advanced_count: 0,
+        master_count: 0,
+    };
+
+    for step in steps {
+        let level = match step.technique.as_str() {
             "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
             "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
             | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
             "X-Wing" | "Swordfish" | "XY-Wing" | "XYZ-Wing" | "Skyscraper" | "TwoStringKite" => {
                 TechniqueLevel::Advanced
             }
+            "Jellyfish" | "UniqueRectangleType1" | "W-Wing" => TechniqueLevel::Master,
             _ => TechniqueLevel::None,
-        })
-        .max()
-        .unwrap_or(TechniqueLevel::None);
+        };
 
-    (max_level, final_board)
+        if level > stats.max_level {
+            stats.max_level = level;
+        }
+
+        match level {
+            TechniqueLevel::Intermediate => stats.intermediate_count += 1,
+            TechniqueLevel::Advanced => stats.advanced_count += 1,
+            TechniqueLevel::Master => stats.master_count += 1,
+            _ => {}
+        }
+    }
+
+    stats
 }

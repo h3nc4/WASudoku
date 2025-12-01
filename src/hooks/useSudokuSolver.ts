@@ -35,7 +35,7 @@ import { WorkerPool, Priority } from '@/lib/worker-pool'
 import { boardStateToString } from '@/lib/utils'
 
 const MIN_POOL_SIZE = 3
-const DIFFICULTIES = ['easy', 'medium', 'hard', 'extreme']
+const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']
 
 /**
  * Manages the Sudoku solver using a multi-threaded Worker Pool.

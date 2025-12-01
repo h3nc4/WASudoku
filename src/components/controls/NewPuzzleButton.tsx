@@ -29,7 +29,7 @@ import {
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
-const DIFFICULTY_LEVELS = ['Easy', 'Medium', 'Hard', 'Extreme']
+const DIFFICULTY_LEVELS = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme']
 
 /**
  * A button with a dropdown menu to generate a new Sudoku puzzle.

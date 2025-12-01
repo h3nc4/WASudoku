@@ -17,7 +17,7 @@
 */
 
 use crate::board::Board;
-use crate::logical_solver::{self, TechniqueLevel};
+use crate::logical_solver;
 use crate::solver;
 use rand::rng;
 use rand::seq::SliceRandom;
@@ -28,6 +28,7 @@ pub enum Difficulty {
     Easy,
     Medium,
     Hard,
+    Expert,
     Extreme,
 }
 
@@ -40,11 +41,13 @@ fn generate_full_solution() -> Board {
     board
 }
 
-/// Creates a "minimal" puzzle from a solution by removing as many clues as possible while maintaining a unique solution.
+/// Creates a "minimal" puzzle from a solution by removing as many clues as possible.
 ///
-/// Uses rotational symmetry (removing pairs of cells) to speed up generation and improve puzzle quality.
-fn create_minimal_puzzle_symmetric(solution: &Board) -> Board {
+/// * `min_clues`: If specified, the minimization stops when the clue count drops below this number.
+///   This is used to generate easier puzzles with more cues.
+fn create_minimal_puzzle_symmetric(solution: &Board, min_clues: Option<usize>) -> Board {
     let mut puzzle = *solution;
+    let mut current_clues = 81;
 
     // Create a list of indices to try removing.
     // We only need 0..41 because we process pairs (i, 80-i).
@@ -53,6 +56,11 @@ fn create_minimal_puzzle_symmetric(solution: &Board) -> Board {
     indices.shuffle(&mut rng());
 
     for &index in &indices {
+        // If we have a lower bound on clues and we hit it, stop removing.
+        if min_clues.is_some_and(|min| current_clues <= min) {
+            break;
+        }
+
         let sym_index = 80 - index;
 
         let val1 = puzzle.cells[index];
@@ -67,6 +75,9 @@ fn create_minimal_puzzle_symmetric(solution: &Board) -> Board {
             // If not unique, restore
             puzzle.cells[index] = val1;
             puzzle.cells[sym_index] = val2;
+        } else {
+            // Successful removal
+            current_clues -= if index == sym_index { 1 } else { 2 };
         }
     }
     puzzle
@@ -74,15 +85,31 @@ fn create_minimal_puzzle_symmetric(solution: &Board) -> Board {
 
 /// Check if a puzzle matches the criteria for a specific difficulty.
 fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
-    let (level, solved_board) = logical_solver::get_difficulty(puzzle);
+    let (steps, solved_board) = logical_solver::solve_with_steps(puzzle);
     let is_logically_solvable = solved_board.cells.iter().all(|&c| c != 0);
 
+    let stats = logical_solver::analyze_difficulty(&steps);
+
     match difficulty {
-        Difficulty::Easy => is_logically_solvable && level == TechniqueLevel::Basic,
-        Difficulty::Medium => is_logically_solvable && level == TechniqueLevel::Intermediate,
+        Difficulty::Easy => {
+            is_logically_solvable && stats.max_level == logical_solver::TechniqueLevel::Basic
+        }
+        Difficulty::Medium => {
+            is_logically_solvable && stats.max_level == logical_solver::TechniqueLevel::Intermediate
+        }
         Difficulty::Hard => {
-            // Must be solvable, and MUST require at least one Advanced technique (Fish).
-            is_logically_solvable && level == TechniqueLevel::Advanced
+            // Must be solvable, meet minimum counts for steps, and not exceed Advanced level
+            is_logically_solvable
+                && stats.max_level == logical_solver::TechniqueLevel::Advanced
+                && stats.advanced_count >= 3
+                && stats.intermediate_count >= 5
+        }
+        Difficulty::Expert => {
+            // Must be solvable, and require Master techniques
+            is_logically_solvable
+                && stats.master_count >= 2
+                && stats.advanced_count >= 3
+                && stats.intermediate_count >= 5
         }
         Difficulty::Extreme => {
             // Must NOT be solvable by pure logic (requires backtracking / guessing).
@@ -93,12 +120,19 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
 
 /// Generates a puzzle of a specific difficulty.
 pub fn generate(difficulty: Difficulty) -> Board {
+    // For Easy puzzles, we stop minimizing around 32-36 clues to keep it approachable.
+    // Standard min is 17, typical easy is 36+.
+    let min_clues = if difficulty == Difficulty::Easy {
+        Some(32)
+    } else {
+        None
+    };
+
     loop {
         let solution = generate_full_solution();
 
         // Using symmetric minimization is the key performance optimization here.
-        // It creates harder puzzles faster.
-        let puzzle = create_minimal_puzzle_symmetric(&solution);
+        let puzzle = create_minimal_puzzle_symmetric(&solution, min_clues);
 
         if matches_difficulty(&puzzle, difficulty) {
             return puzzle;

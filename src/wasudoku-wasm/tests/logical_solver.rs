@@ -266,6 +266,42 @@ fn test_two_string_kite_detection() {
     assert!(has_kite, "Expected Two-String Kite technique usage");
 }
 
+#[test]
+fn test_jellyfish_detection() {
+    // A known pattern that requires a Jellyfish.
+    let puzzle_str =
+        "4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_jellyfish = steps.iter().any(|s| s.technique == "Jellyfish");
+    assert!(has_jellyfish, "Expected Jellyfish technique usage");
+}
+
+#[test]
+fn test_unique_rectangle_type1_detection() {
+    // A specific layout that has a deadly pattern UR Type 1
+    let puzzle_str =
+        ".....3....4.91.7..9.6....43.2......4...675...3......7.27....6.1..5.69.2....2.....";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_ur = steps.iter().any(|s| s.technique == "UniqueRectangleType1");
+    assert!(has_ur, "Expected Unique Rectangle Type 1 technique usage");
+}
+
+#[test]
+fn test_w_wing_detection() {
+    // Puzzle known to require W-Wing
+    let puzzle_str =
+        "4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7";
+    let initial_board: Board = puzzle_str.parse().unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&initial_board);
+
+    let has_w_wing = steps.iter().any(|s| s.technique == "W-Wing");
+    assert!(has_w_wing, "Expected W-Wing technique usage");
+}
+
 fn solve_natively(puzzle_str: &str) -> Option<Board> {
     let initial_board: Board = puzzle_str.parse().ok()?;
     let (_, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
