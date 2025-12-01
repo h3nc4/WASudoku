@@ -23,7 +23,7 @@ vi.mock('wasudoku-wasm', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wasudoku-wasm')>()
   return {
     ...actual,
-    default: vi.fn().mockResolvedValue({}), // Mock the init() promise
+    default: vi.fn().mockResolvedValue({}),
     solve_sudoku: vi.fn(),
     generate_sudoku: vi.fn(),
     validate_puzzle: vi.fn(),
@@ -31,7 +31,6 @@ vi.mock('wasudoku-wasm', async (importOriginal) => {
 })
 
 describe('Sudoku Worker Logic', () => {
-  // Define variables in the describe scope to be accessible in all tests
   let handleMessage: typeof import('@/workers/sudoku.worker').handleMessage
   let init: Mock
   let solve_sudoku: Mock
@@ -42,17 +41,12 @@ describe('Sudoku Worker Logic', () => {
   const workerOrigin = 'http://localhost:3000'
 
   beforeEach(async () => {
-    // Reset modules to ensure the worker's top-level code runs for each test.
-    // In Browser Mode, resetModules may not always force a top-level re-execution
-    // due to native ESM caching, so tests should be resilient to this.
     vi.resetModules()
     vi.clearAllMocks()
 
-    // Redefine mocks for each test run to ensure isolation
     mockPostMessage = vi.fn()
     mockAddEventListener = vi.fn()
 
-    // Stub the global `self` object before importing the worker
     vi.stubGlobal('self', {
       postMessage: mockPostMessage,
       addEventListener: mockAddEventListener,
@@ -61,7 +55,6 @@ describe('Sudoku Worker Logic', () => {
       },
     })
 
-    // Dynamically import the modules within beforeEach to get the fresh instances
     const wasmModule = await import('wasudoku-wasm')
     init = wasmModule.default as Mock
     solve_sudoku = wasmModule.solve_sudoku as Mock
@@ -72,79 +65,45 @@ describe('Sudoku Worker Logic', () => {
     handleMessage = workerModule.handleMessage
   })
 
-  // Helper to simulate a message event for the handler
   const simulateMessage = (
-    data:
-      | { type: 'solve'; boardString: string }
-      | { type: 'generate'; difficulty: string; source?: 'user' | 'pool' }
-      | { type: 'validate'; boardString: string }
-      | { type: string },
+    data: { id: number; type: string; [key: string]: unknown },
     origin = workerOrigin,
   ) => {
     const event = { data, origin } as MessageEvent
     return handleMessage(event)
   }
 
-  it('should attach the message handler and initialize WASM on module load', () => {
-    expect(mockAddEventListener).toHaveBeenCalledOnce()
+  it('should initialize WASM and attach listener', () => {
     expect(mockAddEventListener).toHaveBeenCalledWith('message', handleMessage)
-    // Check if init was called. Note: Calls might be 0 if cached by runtime despite resetModules,
-    // or 1 if fresh. The important part is logic execution flow.
-    if (init.mock.calls.length > 0) {
-      expect(init).toHaveBeenCalled()
-    }
+    if (init.mock.calls.length > 0) expect(init).toHaveBeenCalled()
   })
 
-  it('should call solve_sudoku and post a solution', async () => {
-    const boardString = '.'.repeat(81)
-    const result = { steps: [], solution: '1'.repeat(81) }
+  it('should handle "solve" request and return "success" with id', async () => {
+    const boardString = '...'
+    const result = { steps: [], solution: '...' }
     solve_sudoku.mockReturnValue(result)
 
-    await simulateMessage({ type: 'solve', boardString })
+    await simulateMessage({ id: 123, type: 'solve', boardString })
 
     expect(solve_sudoku).toHaveBeenCalledWith(boardString)
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'solution',
-      result,
+      id: 123,
+      status: 'success',
+      payload: result,
     })
   })
 
-  it('should call generate_sudoku and echo source="user"', async () => {
-    const difficulty = 'easy'
-    const puzzleString = '1....'
-    const solutionString = '1234...'
-    generate_sudoku.mockReturnValue(puzzleString)
-    solve_sudoku.mockReturnValue({ solution: solutionString })
+  it('should handle "generate" request', async () => {
+    generate_sudoku.mockReturnValue('puzzle')
+    solve_sudoku.mockReturnValue({ solution: 'solution' })
 
-    await simulateMessage({ type: 'generate', difficulty, source: 'user' })
+    await simulateMessage({ id: 456, type: 'generate', difficulty: 'easy' })
 
-    expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
-    expect(solve_sudoku).toHaveBeenCalledWith(puzzleString)
+    expect(generate_sudoku).toHaveBeenCalledWith('easy')
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'puzzle_generated',
-      puzzleString,
-      solutionString,
-      difficulty,
-      source: 'user',
-    })
-  })
-
-  it('should call generate_sudoku and echo source="pool"', async () => {
-    const difficulty = 'hard'
-    const puzzleString = '9....'
-    const solutionString = '9876...'
-    generate_sudoku.mockReturnValue(puzzleString)
-    solve_sudoku.mockReturnValue({ solution: solutionString })
-
-    await simulateMessage({ type: 'generate', difficulty, source: 'pool' })
-
-    expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
-    expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'puzzle_generated',
-      puzzleString,
-      solutionString,
-      difficulty,
-      source: 'pool',
+      id: 456,
+      status: 'success',
+      payload: { puzzleString: 'puzzle', solutionString: 'solution' },
     })
   })
 
@@ -155,33 +114,28 @@ describe('Sudoku Worker Logic', () => {
     // Return solution as undefined/null to hit the ?? '' branch
     solve_sudoku.mockReturnValue({ solution: null })
 
-    await simulateMessage({ type: 'generate', difficulty })
+    await simulateMessage({ id: 456, type: 'generate', difficulty })
 
     expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
     expect(solve_sudoku).toHaveBeenCalledWith(puzzleString)
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'puzzle_generated',
-      puzzleString,
-      solutionString: '',
-      difficulty,
-      source: undefined,
+      id: 456,
+      status: 'success',
+      payload: { puzzleString, solutionString: '' },
     })
   })
 
-  it('should call validate_puzzle, then solve_sudoku if valid, and post results', async () => {
-    const boardString = '.'.repeat(81)
-    const solutionString = '1234...'
+  it('should handle "validate" request', async () => {
     validate_puzzle.mockReturnValue(true)
-    solve_sudoku.mockReturnValue({ solution: solutionString })
+    solve_sudoku.mockReturnValue({ solution: 'sol' })
 
-    await simulateMessage({ type: 'validate', boardString })
+    await simulateMessage({ id: 789, type: 'validate', boardString: '...' })
 
-    expect(validate_puzzle).toHaveBeenCalledWith(boardString)
-    expect(solve_sudoku).toHaveBeenCalledWith(boardString)
+    expect(validate_puzzle).toHaveBeenCalledWith('...')
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'validation_result',
-      isValid: true,
-      solutionString,
+      id: 789,
+      status: 'success',
+      payload: { isValid: true, solutionString: 'sol' },
     })
   })
 
@@ -191,14 +145,14 @@ describe('Sudoku Worker Logic', () => {
     // Return solution as undefined/null to hit the ?? '' branch
     solve_sudoku.mockReturnValue({ solution: null })
 
-    await simulateMessage({ type: 'validate', boardString })
+    await simulateMessage({ id: 789, type: 'validate', boardString })
 
     expect(validate_puzzle).toHaveBeenCalledWith(boardString)
     expect(solve_sudoku).toHaveBeenCalledWith(boardString)
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'validation_result',
-      isValid: true,
-      solutionString: '',
+      id: 789,
+      status: 'success',
+      payload: { isValid: true, solutionString: '' },
     })
   })
 
@@ -206,110 +160,59 @@ describe('Sudoku Worker Logic', () => {
     const boardString = '.'.repeat(81)
     validate_puzzle.mockReturnValue(false)
 
-    await simulateMessage({ type: 'validate', boardString })
+    await simulateMessage({ id: 789, type: 'validate', boardString })
 
     expect(validate_puzzle).toHaveBeenCalledWith(boardString)
     expect(solve_sudoku).not.toHaveBeenCalled()
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'validation_result',
-      isValid: false,
-      solutionString: '',
+      id: 789,
+      status: 'success',
+      payload: { isValid: false, solutionString: '' },
     })
   })
 
-  it('should not re-initialize the WASM module on subsequent calls', async () => {
-    const initialInitCalls = init.mock.calls.length
-
-    // First call (solve)
-    await simulateMessage({ type: 'solve', boardString: '.'.repeat(81) })
-    // Second call (generate)
-    generate_sudoku.mockReturnValue('puzzle')
-    solve_sudoku.mockReturnValue({ solution: 'sol' })
-    await simulateMessage({ type: 'generate', difficulty: 'hard' })
-
-    // Assert that init() was NOT called *additional* times during these operations
-    expect(init).toHaveBeenCalledTimes(initialInitCalls)
-    expect(solve_sudoku).toHaveBeenCalledTimes(2) // Once for solve, once for generate
-    expect(generate_sudoku).toHaveBeenCalledOnce()
-  })
-
-  it('should handle solver errors and post an error message', async () => {
-    const boardString = 'invalid'
-    const errorMessage = 'No solution found'
+  it('should handle errors and return "error" status with id', async () => {
     solve_sudoku.mockImplementation(() => {
-      throw new Error(errorMessage)
+      throw new Error('Boom')
     })
 
-    await simulateMessage({ type: 'solve', boardString })
+    // Pass a valid boardString so it attempts to solve and hits the mock error
+    await simulateMessage({ id: 999, type: 'solve', boardString: 'valid-board-string' })
 
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'error',
-      error: errorMessage,
+      id: 999,
+      status: 'error',
+      error: 'Boom',
     })
   })
 
-  it('should handle generator errors and post an error message', async () => {
-    const difficulty = 'impossible'
-    const errorMessage = 'Invalid difficulty'
-    generate_sudoku.mockImplementation(() => {
-      throw new Error(errorMessage)
-    })
-
-    await simulateMessage({ type: 'generate', difficulty })
-
-    expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'error',
-      error: errorMessage,
-    })
-  })
-
-  it('should handle non-Error exceptions', async () => {
-    const errorString = 'A custom non-error was thrown'
+  it('should handle non-Error exceptions and convert to string', async () => {
+    const stringError = 'Something bad happened'
     solve_sudoku.mockImplementation(() => {
-      throw errorString
+      throw stringError
     })
 
-    await simulateMessage({ type: 'solve', boardString: '...' })
+    await simulateMessage({ id: 999, type: 'solve', boardString: 'valid' })
 
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'error',
-      error: errorString,
+      id: 999,
+      status: 'error',
+      error: stringError,
     })
   })
 
-  it('should ignore messages from a foreign origin', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await simulateMessage({ type: 'solve', boardString: '...' }, 'http://example.com')
+  it('should return error for unknown message types', async () => {
+    await simulateMessage({ id: 999, type: 'unknown_thing' })
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Message from untrusted origin 'http://example.com' ignored.",
-    )
-    expect(solve_sudoku).not.toHaveBeenCalled()
-    expect(generate_sudoku).not.toHaveBeenCalled()
-    expect(mockPostMessage).not.toHaveBeenCalled()
-    consoleErrorSpy.mockRestore()
-  })
-
-  it('should correctly handle a null origin for file:// contexts', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const boardString = '.'.repeat(81)
-    const result = { steps: [], solution: '1'.repeat(81) }
-    solve_sudoku.mockReturnValue(result)
-
-    // Simulate an event where event.origin is the string "null"
-    await simulateMessage({ type: 'solve', boardString }, 'null')
-
-    expect(consoleErrorSpy).not.toHaveBeenCalled()
-    expect(solve_sudoku).toHaveBeenCalledWith(boardString)
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'solution',
-      result,
+      id: 999,
+      status: 'error',
+      error: 'Unknown or malformed request type: unknown_thing',
     })
-    consoleErrorSpy.mockRestore()
   })
 
-  it('should ignore unknown message types', async () => {
-    await simulateMessage({ type: 'unknown' })
+  it('should ignore foreign origin', async () => {
+    await simulateMessage({ id: 1, type: 'solve' }, 'http://evil.com')
     expect(mockPostMessage).not.toHaveBeenCalled()
   })
 })

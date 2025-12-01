@@ -44,6 +44,7 @@ import type {
   TickTimerAction,
   RequestPoolRefillAction,
   PoolRefillSuccessAction,
+  PoolRefillFailureAction,
 } from './sudoku.actions.types'
 import type { InputMode, SolveResult } from './sudoku.types'
 
@@ -151,6 +152,12 @@ export const poolRefillSuccess = (
   difficulty,
   puzzleString,
   solutionString,
+})
+
+/** Creates an action to decrement the pending count if a background refill fails. */
+export const poolRefillFailure = (difficulty: string): PoolRefillFailureAction => ({
+  type: 'POOL_REFILL_FAILURE',
+  difficulty,
 })
 
 /** Creates an action to signal the start of custom puzzle validation. */

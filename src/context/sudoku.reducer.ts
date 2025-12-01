@@ -31,6 +31,7 @@ import type {
   ValidatePuzzleSuccessAction,
   RequestPoolRefillAction,
   PoolRefillSuccessAction,
+  PoolRefillFailureAction,
 } from './sudoku.actions.types'
 import type {
   BoardState,
@@ -213,7 +214,9 @@ export function loadInitialState(): SudokuState {
       derived: getDerivedBoardState(board),
       game: metrics ?? initialState.game,
       puzzlePool: pool?.puzzlePool ?? initialState.puzzlePool,
-      poolRequestCount: pool?.poolRequestCount ?? initialState.poolRequestCount,
+      // Always reset poolRequestCount to 0 on load.
+      // In-flight requests do not survive a page refresh, so we must not persist them.
+      poolRequestCount: initialState.poolRequestCount,
     }
   } catch (error) {
     console.error('Failed to load game state from local storage:', error)
@@ -576,6 +579,19 @@ const handlePoolRefillSuccess = (
   }
 }
 
+const handlePoolRefillFailure = (
+  state: SudokuState,
+  action: PoolRefillFailureAction,
+): SudokuState => {
+  return {
+    ...state,
+    poolRequestCount: {
+      ...state.poolRequestCount,
+      [action.difficulty]: Math.max(0, (state.poolRequestCount[action.difficulty] || 0) - 1),
+    },
+  }
+}
+
 const handleUndo = (state: SudokuState): SudokuState => {
   if (state.history.index > 0) {
     const newHistoryIndex = state.history.index - 1
@@ -892,6 +908,9 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       break
     case 'POOL_REFILL_SUCCESS':
       newState = handlePoolRefillSuccess(state, action)
+      break
+    case 'POOL_REFILL_FAILURE':
+      newState = handlePoolRefillFailure(state, action)
       break
     case 'VALIDATE_PUZZLE_START':
       newState = { ...state, solver: { ...state.solver, isValidating: true } }

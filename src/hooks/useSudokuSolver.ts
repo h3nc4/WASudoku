@@ -29,157 +29,130 @@ import {
   validatePuzzleFailure,
   requestPoolRefill,
   poolRefillSuccess,
+  poolRefillFailure,
 } from '@/context/sudoku.actions'
-import SolverWorker from '@/workers/sudoku.worker?worker'
+import { WorkerPool, Priority } from '@/lib/worker-pool'
+import { boardStateToString } from '@/lib/utils'
 
-const WORKER_UNAVAILABLE_ERROR = 'Solver functionality is unavailable.'
 const MIN_POOL_SIZE = 3
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'extreme']
 
 /**
- * Manages the Sudoku solver Web Worker. It handles initializing the worker,
- * posting tasks to it (solving, generating, validating, pool filling),
- * and dispatching actions based on the worker's response.
+ * Manages the Sudoku solver using a multi-threaded Worker Pool.
+ * It schedules tasks (solve, generate, validate) and handles their results asynchronously.
  *
  * @param state - The current Sudoku state.
  * @param dispatch - The dispatch function from the Sudoku reducer.
  */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
-  const workerRef = useRef<Worker | null>(null)
+  const poolRef = useRef<WorkerPool | null>(null)
   const { isSolving, isGenerating, isValidating, generationDifficulty } = state.solver
   const { board, puzzlePool, poolRequestCount } = state
 
-  // Effect for managing the worker's lifecycle.
+  // Initialize Worker Pool
   useEffect(() => {
     try {
-      workerRef.current = new SolverWorker()
+      poolRef.current = new WorkerPool()
     } catch (error) {
-      console.error('Failed to initialize solver worker:', error)
-      toast.error(WORKER_UNAVAILABLE_ERROR)
+      console.error('Failed to initialize WorkerPool:', error)
     }
 
-    // Cleanup: terminate the worker on unmount.
     return () => {
-      workerRef.current?.terminate()
-      workerRef.current = null
+      poolRef.current?.terminate()
+      poolRef.current = null
     }
   }, [])
 
-  // Effect for handling messages from the worker.
+  // 1. Handle Solving (High Priority)
   useEffect(() => {
-    const worker = workerRef.current
-    if (!worker) return
+    if (!isSolving || !poolRef.current) return
 
-    const handleError = (error: string) => {
-      console.error('Solver worker error:', error)
-      switch (true) {
-        case isSolving:
-          dispatch(solveFailure())
-          break
-        case isGenerating:
-          dispatch(generatePuzzleFailure())
-          break
-        case isValidating:
-          dispatch(validatePuzzleFailure(error))
-          break
-        // Note: Errors during background pool generation are logged but don't show a UI error
-        // as they are not user-initiated blocking actions.
-      }
-      if (isSolving || isGenerating || isValidating) {
-        toast.error(`Operation failed: ${error}`)
-      }
-    }
-
-    const handleWorkerMessage = (
-      event: MessageEvent<{
-        type: 'solution' | 'puzzle_generated' | 'validation_result' | 'error'
-        result?: SolveResult
-        puzzleString?: string
-        solutionString?: string
-        isValid?: boolean
-        error?: string
-        difficulty?: string // echoed back for generation results
-        source?: 'user' | 'pool' // echoed back to distinguish request type
-      }>,
-    ) => {
-      const { type, result, puzzleString, solutionString, isValid, error, difficulty, source } =
-        event.data
-
-      if (type === 'solution' && result) {
+    const boardString = boardStateToString(board)
+    poolRef.current
+      .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
+      .then((result) => {
         dispatch(solveSuccess(result))
         toast.success('Sudoku solved successfully!')
-      } else if (type === 'puzzle_generated' && puzzleString && solutionString && difficulty) {
-        if (source === 'user') {
-          dispatch(generatePuzzleSuccess(puzzleString, solutionString))
-          toast.success('New puzzle generated!')
-        } else if (source === 'pool') {
-          // Quietly add to pool without interrupting user
-          dispatch(poolRefillSuccess(difficulty, puzzleString, solutionString))
-        }
-      } else if (type === 'validation_result') {
+      })
+      .catch((error) => {
+        console.error('Solve error:', error)
+        dispatch(solveFailure())
+        toast.error(`Operation failed: ${error.message}`)
+      })
+  }, [isSolving, board, dispatch])
+
+  // 2. Handle User Generation (High Priority - Fallback when pool empty)
+  useEffect(() => {
+    if (!isGenerating || !generationDifficulty || !poolRef.current) return
+
+    poolRef.current
+      .runTask<{ puzzleString: string; solutionString: string }>(
+        'generate',
+        { difficulty: generationDifficulty },
+        Priority.HIGH,
+      )
+      .then(({ puzzleString, solutionString }) => {
+        dispatch(generatePuzzleSuccess(puzzleString, solutionString))
+        toast.success('New puzzle generated!')
+      })
+      .catch((error) => {
+        console.error('Generation error:', error)
+        dispatch(generatePuzzleFailure())
+        toast.error(`Operation failed: ${error.message}`)
+      })
+  }, [isGenerating, generationDifficulty, dispatch])
+
+  // 3. Handle Validation (High Priority)
+  useEffect(() => {
+    if (!isValidating || !poolRef.current) return
+
+    const boardString = boardStateToString(board)
+    poolRef.current
+      .runTask<{ isValid: boolean; solutionString: string }>(
+        'validate',
+        { boardString },
+        Priority.HIGH,
+      )
+      .then(({ isValid, solutionString }) => {
         if (isValid && solutionString) {
           dispatch(validatePuzzleSuccess(solutionString))
           toast.success('Puzzle is valid and has a unique solution.')
         } else {
           dispatch(validatePuzzleFailure('Puzzle is invalid or does not have a unique solution.'))
         }
-      } else if (type === 'error' && error) {
-        handleError(error)
-      }
-    }
-
-    worker.addEventListener('message', handleWorkerMessage)
-    return () => {
-      worker.removeEventListener('message', handleWorkerMessage)
-    }
-  }, [dispatch, isSolving, isGenerating, isValidating])
-
-  // Effect to trigger explicit user actions (Solve, Generate, Validate)
-  useEffect(() => {
-    // If no active user action, skip
-    if (!isSolving && !isGenerating && !isValidating) return
-
-    // If worker failed to initialize, fail gracefully
-    if (!workerRef.current) {
-      if (isSolving) dispatch(solveFailure())
-      if (isGenerating) dispatch(generatePuzzleFailure())
-      if (isValidating) dispatch(validatePuzzleFailure(WORKER_UNAVAILABLE_ERROR))
-      return
-    }
-
-    if (isSolving) {
-      const boardString = board.map((cell) => cell.value ?? '.').join('')
-      workerRef.current.postMessage({ type: 'solve', boardString })
-    } else if (isGenerating && generationDifficulty) {
-      // Fallback for when pool is empty: explicit user generation request
-      workerRef.current.postMessage({
-        type: 'generate',
-        difficulty: generationDifficulty,
-        source: 'user',
       })
-    } else if (isValidating) {
-      const boardString = board.map((cell) => cell.value ?? '.').join('')
-      workerRef.current.postMessage({ type: 'validate', boardString })
-    }
-  }, [isSolving, isGenerating, isValidating, generationDifficulty, board, dispatch])
+      .catch((error) => {
+        console.error('Validation error:', error)
+        dispatch(validatePuzzleFailure(error.message))
+        toast.error(`Operation failed: ${error.message}`)
+      })
+  }, [isValidating, board, dispatch])
 
-  // Effect to manage background pool replenishment
+  // 4. Handle Background Pool Refill (Low Priority)
   useEffect(() => {
-    if (!workerRef.current) return
+    if (!poolRef.current) return
 
     DIFFICULTIES.forEach((difficulty) => {
       const pool = puzzlePool[difficulty] || []
       const pending = poolRequestCount[difficulty] || 0
 
       if (pool.length + pending < MIN_POOL_SIZE) {
-        // Dispatch action to increment pending count immediately
+        // Optimistically increment pending count
         dispatch(requestPoolRefill(difficulty))
-        // Post background task to worker
-        workerRef.current?.postMessage({
-          type: 'generate',
-          difficulty,
-          source: 'pool',
-        })
+
+        poolRef.current
+          ?.runTask<{ puzzleString: string; solutionString: string }>(
+            'generate',
+            { difficulty },
+            Priority.LOW,
+          )
+          .then(({ puzzleString, solutionString }) => {
+            dispatch(poolRefillSuccess(difficulty, puzzleString, solutionString))
+          })
+          .catch((error) => {
+            console.error(`Background refill failed for ${difficulty}:`, error)
+            dispatch(poolRefillFailure(difficulty))
+          })
       }
     })
   }, [puzzlePool, poolRequestCount, dispatch])

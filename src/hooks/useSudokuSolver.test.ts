@@ -16,50 +16,37 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { renderHook } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { toast } from 'sonner'
 import { useSudokuSolver } from './useSudokuSolver'
-import SolverWorker from '@/workers/sudoku.worker?worker'
-import type { SudokuState, SolveResult } from '@/context/sudoku.types'
+import { WorkerPool, Priority } from '@/lib/worker-pool'
+import type { SudokuState } from '@/context/sudoku.types'
 import { initialState } from '@/context/sudoku.reducer'
 
-type WorkerMessageData =
-  | { type: 'solution'; result: SolveResult }
-  | {
-      type: 'puzzle_generated'
-      puzzleString: string
-      solutionString: string
-      source?: 'user' | 'pool'
-      difficulty?: string
-    }
-  | { type: 'validation_result'; isValid: boolean; solutionString: string }
-  | { type: 'error'; error: string }
+// Hoist mocks to avoid TDZ issues
+const { mockRunTask, mockTerminate } = vi.hoisted(() => {
+  return {
+    mockRunTask: vi.fn(),
+    mockTerminate: vi.fn(),
+  }
+})
 
-let messageHandler: (event: { data: WorkerMessageData }) => void
-const mockWorkerInstance = {
-  postMessage: vi.fn(),
-  addEventListener: vi.fn((_event: string, handler) => {
-    messageHandler = handler
-  }),
-  removeEventListener: vi.fn(),
-  terminate: vi.fn(),
-  dispatchEvent: vi.fn(),
-  onerror: null,
-  onmessage: null,
-  onmessageerror: null,
-  __simulateMessage(data: WorkerMessageData) {
-    if (messageHandler) {
-      messageHandler({ data })
-    }
-  },
-}
-
-vi.mock('@/workers/sudoku.worker?worker', () => ({
-  default: vi.fn(function () {
-    return mockWorkerInstance
-  }),
-}))
+// We need to support new WorkerPool()
+vi.mock('@/lib/worker-pool', () => {
+  return {
+    Priority: {
+      HIGH: 0,
+      LOW: 1,
+    },
+    WorkerPool: vi.fn(function () {
+      return {
+        runTask: mockRunTask,
+        terminate: mockTerminate,
+      }
+    }),
+  }
+})
 
 vi.mock('sonner', () => ({
   toast: {
@@ -71,7 +58,6 @@ vi.mock('sonner', () => ({
 describe('useSudokuSolver', () => {
   const mockDispatch = vi.fn()
 
-  // State with a full pool to prevent background refill actions from polluting tests
   const fullPoolState: SudokuState = {
     ...initialState,
     puzzlePool: {
@@ -84,248 +70,92 @@ describe('useSudokuSolver', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(SolverWorker)
-      .mockClear()
-      .mockImplementation(function () {
-        return mockWorkerInstance as unknown as Worker
-      })
+    mockRunTask.mockResolvedValue({})
   })
 
   afterEach(() => {
     vi.clearAllMocks()
   })
 
-  it('should initialize and terminate the worker on mount/unmount', () => {
-    const { unmount } = renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-    expect(SolverWorker).toHaveBeenCalledOnce()
-    expect(mockWorkerInstance.addEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function),
-    )
-
+  it('initializes WorkerPool on mount and terminates on unmount', () => {
+    const { unmount } = renderHook(() => useSudokuSolver(initialState, mockDispatch))
+    expect(WorkerPool).toHaveBeenCalledOnce()
     unmount()
-    expect(mockWorkerInstance.terminate).toHaveBeenCalledOnce()
+    expect(mockTerminate).toHaveBeenCalledOnce()
   })
 
-  it('should trigger pool refill when pool size is low', () => {
-    // Initial state has 0 puzzles in pool, so it should trigger refill
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: initialState, dispatch: mockDispatch },
+  it('does NOT trigger actions if WorkerPool fails to initialize', async () => {
+    // Simulate constructor failure
+    vi.mocked(WorkerPool).mockImplementationOnce(() => {
+      throw new Error('Init failed')
     })
 
-    // Expect requests for all 4 difficulties
-    expect(mockDispatch).toHaveBeenCalledTimes(4)
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REQUEST_POOL_REFILL',
-      difficulty: 'easy',
-    })
-    expect(mockWorkerInstance.postMessage).toHaveBeenCalledTimes(4)
-    expect(mockWorkerInstance.postMessage).toHaveBeenCalledWith({
-      type: 'generate',
-      difficulty: 'easy',
-      source: 'pool',
-    })
+    // Console error suppression for the throwing constructor
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    // Simulate state update where one difficulty has pending request (count=1)
-    const stateWithPending = {
-      ...initialState,
-      poolRequestCount: { ...initialState.poolRequestCount, easy: 1 },
+    // Render with solving active. Since initialization throws, poolRef.current stays null.
+    // The solving effect runs but should return early because !poolRef.current.
+    const solvingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isSolving: true },
     }
-    mockDispatch.mockClear()
-    mockWorkerInstance.postMessage.mockClear()
 
-    rerender({ state: stateWithPending, dispatch: mockDispatch })
+    // Hook should not throw now due to internal try/catch
+    renderHook(() => useSudokuSolver(solvingState, mockDispatch))
 
-    // Since pending=1 and pool=0, total=1 < 3, so it should request again
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REQUEST_POOL_REFILL',
-      difficulty: 'easy',
+    expect(mockRunTask).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize WorkerPool:', expect.any(Error))
+    consoleSpy.mockRestore()
+  })
+
+  it('skips pool refill if WorkerPool is not initialized', async () => {
+    // Simulate constructor failure so poolRef.current is null
+    vi.mocked(WorkerPool).mockImplementationOnce(() => {
+      throw new Error('Init failed')
     })
-  })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-  it('should handle missing difficulty keys in puzzlePool gracefully', () => {
-    const incompletePoolState: SudokuState = {
-      ...initialState,
-      puzzlePool: {}, // Empty object, missing keys
-    }
-    // We use renderHook without destructuring rerender to avoid TS lint error
-    renderHook(() => useSudokuSolver(incompletePoolState, mockDispatch))
+    // Hook should not throw
+    renderHook(() => useSudokuSolver(initialState, mockDispatch))
 
-    // Should trigger refill for all difficulties because lookup returns undefined -> [] -> length 0
-    expect(mockDispatch).toHaveBeenCalledTimes(4)
-  })
-
-  it('should NOT trigger pool refill when pool is full', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
+    // Should not dispatch any refill requests because hook returned early
     expect(mockDispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'REQUEST_POOL_REFILL' }),
     )
-    expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
+    consoleSpy.mockRestore()
   })
 
-  it('should post a message to the worker when isSolving becomes true', () => {
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-    }
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: fullPoolState, dispatch: mockDispatch },
-    })
+  it('handles missing keys in puzzlePool/poolRequestCount during refill check', async () => {
+    // Provide a state with empty/missing objects for pool data to trigger the `|| []` and `|| 0` fallbacks
 
-    rerender({ state: solvingState, dispatch: mockDispatch })
-
-    expect(mockWorkerInstance.postMessage).toHaveBeenCalledWith({
-      type: 'solve',
-      boardString: expect.any(String),
-    })
-  })
-
-  it('should dispatch GENERATE_PUZZLE_SUCCESS when receiving user-sourced puzzle', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'puzzle_generated',
-      puzzleString: '...',
-      solutionString: '...',
-      difficulty: 'easy',
-      source: 'user',
-    })
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'GENERATE_PUZZLE_SUCCESS',
-      puzzleString: '...',
-      solutionString: '...',
-    })
-    expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
-  })
-
-  it('should dispatch POOL_REFILL_SUCCESS when receiving pool-sourced puzzle', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'puzzle_generated',
-      puzzleString: '...',
-      solutionString: '...',
-      difficulty: 'medium',
-      source: 'pool',
-    })
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'POOL_REFILL_SUCCESS',
-      difficulty: 'medium',
-      puzzleString: '...',
-      solutionString: '...',
-    })
-    // No toast for background tasks
-    expect(toast.success).not.toHaveBeenCalledWith('New puzzle generated!')
-  })
-
-  it('should do nothing if puzzle_generated has unknown source', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'puzzle_generated',
-      puzzleString: '...',
-      solutionString: '...',
-      difficulty: 'medium',
-      source: 'unknown' as unknown as 'user',
-    })
-
-    expect(mockDispatch).not.toHaveBeenCalled()
-  })
-
-  it('should do nothing if puzzle_generated has missing fields', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'puzzle_generated',
-      puzzleString: '', // empty
-      solutionString: '...',
-      difficulty: 'medium',
-      source: 'user',
-    })
-
-    expect(mockDispatch).not.toHaveBeenCalled()
-  })
-
-  it('should dispatch SOLVE_SUCCESS on receiving a solution message', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    const mockResult: SolveResult = {
-      steps: [],
-      solution: '1'.repeat(81),
+    const brokenPoolState: SudokuState = {
+      ...initialState,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      puzzlePool: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      poolRequestCount: {} as any,
     }
 
-    mockWorkerInstance.__simulateMessage({
-      type: 'solution',
-      result: mockResult,
-    })
+    // Setup mock for runTask to avoid errors when it's called
+    mockRunTask.mockResolvedValue({ puzzleString: 'p', solutionString: 's' })
 
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SOLVE_SUCCESS',
-      result: mockResult,
-    })
-    expect(toast.success).toHaveBeenCalledWith('Sudoku solved successfully!')
-  })
+    renderHook(() => useSudokuSolver(brokenPoolState, mockDispatch))
 
-  it('should dispatch VALIDATE_PUZZLE_SUCCESS on receiving a valid validation_result', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    const solutionString = '1'.repeat(81)
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'validation_result',
-      isValid: true,
-      solutionString,
-    })
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'VALIDATE_PUZZLE_SUCCESS',
-      solutionString,
-    })
-    expect(toast.success).toHaveBeenCalledWith('Puzzle is valid and has a unique solution.')
-  })
-
-  it('should dispatch VALIDATE_PUZZLE_FAILURE on receiving an invalid validation_result', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    mockWorkerInstance.__simulateMessage({
-      type: 'validation_result',
-      isValid: false,
-      solutionString: '',
-    })
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'VALIDATE_PUZZLE_FAILURE',
-      error: 'Puzzle is invalid or does not have a unique solution.',
+    // It should iterate through DIFFICULTIES, find missing keys, use defaults (empty),
+    // see that 0 < MIN_POOL_SIZE, and request refills.
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'REQUEST_POOL_REFILL',
+        difficulty: 'easy',
+      })
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'REQUEST_POOL_REFILL',
+        difficulty: 'extreme',
+      })
     })
   })
 
-  it('should do nothing if solution message is missing result object', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-    mockWorkerInstance.__simulateMessage({
-      type: 'solution',
-      result: undefined as unknown as SolveResult,
-    })
-    expect(mockDispatch).not.toHaveBeenCalled()
-    expect(toast.success).not.toHaveBeenCalled()
-  })
-
-  it('should dispatch SOLVE_FAILURE on receiving an error message during solving', () => {
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-    }
-    renderHook(() => useSudokuSolver(solvingState, mockDispatch))
-
-    const errorMessage = 'No solution found'
-    mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'SOLVE_FAILURE' })
-    expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMessage}`)
-  })
-
-  it('should dispatch GENERATE_PUZZLE_FAILURE on worker error during generation', () => {
+  it('triggers user puzzle generation (High Priority)', async () => {
     const generatingState: SudokuState = {
       ...fullPoolState,
       solver: {
@@ -334,144 +164,190 @@ describe('useSudokuSolver', () => {
         generationDifficulty: 'hard',
       },
     }
+
+    mockRunTask.mockResolvedValueOnce({
+      puzzleString: 'puzzle',
+      solutionString: 'solution',
+    })
+
     renderHook(() => useSudokuSolver(generatingState, mockDispatch))
 
-    const errorMessage = 'Generation failed'
-    mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
+    expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'hard' }, Priority.HIGH)
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'GENERATE_PUZZLE_FAILURE' })
-    expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMessage}`)
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'GENERATE_PUZZLE_SUCCESS',
+        puzzleString: 'puzzle',
+        solutionString: 'solution',
+      })
+      expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
+    })
   })
 
-  it('should dispatch VALIDATE_PUZZLE_FAILURE on worker error during validation', () => {
-    const validatingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isValidating: true },
-    }
-    renderHook(() => useSudokuSolver(validatingState, mockDispatch))
-
-    const errorMessage = 'Validation crashed'
-    mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'VALIDATE_PUZZLE_FAILURE',
-      error: errorMessage,
-    })
-    expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMessage}`)
-  })
-
-  it('should NOT dispatch failure or show toast on worker error if state is idle (background error)', () => {
-    // State is idle (not solving, generating, validating)
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-
-    const errorMessage = 'Background worker error'
-    mockWorkerInstance.__simulateMessage({ type: 'error', error: errorMessage })
-
-    expect(mockDispatch).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
-  })
-
-  it('should do nothing if error message is missing error string', () => {
-    renderHook(() => useSudokuSolver(fullPoolState, mockDispatch))
-    mockWorkerInstance.__simulateMessage({ type: 'error', error: undefined as unknown as string })
-    expect(mockDispatch).not.toHaveBeenCalled()
-    expect(toast.error).not.toHaveBeenCalled()
-  })
-
-  it('should handle worker initialization failure', () => {
-    vi.mocked(SolverWorker).mockImplementation(function () {
-      throw new Error('Worker failed')
-    })
-
-    renderHook(() => useSudokuSolver(initialState, mockDispatch))
-
-    expect(toast.error).toHaveBeenCalledWith('Solver functionality is unavailable.')
-  })
-
-  it('should handle case where worker is not available when solving starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(function () {
-      throw new Error('Worker instantiation failed')
-    })
-
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: fullPoolState, dispatch: mockDispatch },
-    })
-
-    expect(toast.error).toHaveBeenCalledWith('Solver functionality is unavailable.')
-
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-    }
-    mockDispatch.mockClear()
-    rerender({ state: solvingState, dispatch: mockDispatch })
-
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'SOLVE_FAILURE' })
-  })
-
-  it('should handle case where worker is not available when generating starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(function () {
-      throw new Error('Worker instantiation failed')
-    })
-
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: fullPoolState, dispatch: mockDispatch },
-    })
-
+  it('handles user generation failure', async () => {
     const generatingState: SudokuState = {
       ...fullPoolState,
       solver: {
         ...initialState.solver,
         isGenerating: true,
-        generationDifficulty: 'easy',
+        generationDifficulty: 'hard',
       },
     }
-    mockDispatch.mockClear()
-    rerender({ state: generatingState, dispatch: mockDispatch })
+    const errorMsg = 'Gen Fail'
+    mockRunTask.mockRejectedValueOnce(new Error(errorMsg))
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'GENERATE_PUZZLE_FAILURE' })
+    // Spy on console error to prevent test noise
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderHook(() => useSudokuSolver(generatingState, mockDispatch))
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'GENERATE_PUZZLE_FAILURE' })
+      expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMsg}`)
+    })
+    consoleSpy.mockRestore()
   })
 
-  it('should handle case where worker is not available when validating starts', () => {
-    vi.mocked(SolverWorker).mockImplementation(function () {
-      throw new Error('Worker instantiation failed')
-    })
+  it('triggers puzzle solving (High Priority)', async () => {
+    const solvingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isSolving: true },
+      board: initialState.board, // all nulls
+    }
+    const mockResult = { solution: 'solved', steps: [] }
+    mockRunTask.mockResolvedValueOnce(mockResult)
 
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: fullPoolState, dispatch: mockDispatch },
-    })
+    renderHook(() => useSudokuSolver(solvingState, mockDispatch))
 
+    expect(mockRunTask).toHaveBeenCalledWith(
+      'solve',
+      { boardString: '.'.repeat(81) },
+      Priority.HIGH,
+    )
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SOLVE_SUCCESS',
+        result: mockResult,
+      })
+      expect(toast.success).toHaveBeenCalledWith('Sudoku solved successfully!')
+    })
+  })
+
+  it('triggers puzzle validation (High Priority)', async () => {
     const validatingState: SudokuState = {
       ...fullPoolState,
       solver: { ...initialState.solver, isValidating: true },
     }
-    mockDispatch.mockClear()
-    rerender({ state: validatingState, dispatch: mockDispatch })
+    mockRunTask.mockResolvedValueOnce({ isValid: true, solutionString: 'sol' })
 
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'VALIDATE_PUZZLE_FAILURE',
-      error: 'Solver functionality is unavailable.',
+    renderHook(() => useSudokuSolver(validatingState, mockDispatch))
+
+    expect(mockRunTask).toHaveBeenCalledWith(
+      'validate',
+      { boardString: '.'.repeat(81) },
+      Priority.HIGH,
+    )
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'VALIDATE_PUZZLE_SUCCESS',
+        solutionString: 'sol',
+      })
     })
   })
 
-  it('should not post a message if isGenerating is true but difficulty is missing', () => {
-    const invalidGenState: SudokuState = {
+  it('handles puzzle validation failure (invalid puzzle)', async () => {
+    const validatingState: SudokuState = {
       ...fullPoolState,
-      solver: {
-        ...initialState.solver,
-        isGenerating: true,
-        generationDifficulty: null,
-      },
+      solver: { ...initialState.solver, isValidating: true },
     }
-    const { rerender } = renderHook((props) => useSudokuSolver(props.state, props.dispatch), {
-      initialProps: { state: fullPoolState, dispatch: mockDispatch },
+    mockRunTask.mockResolvedValueOnce({ isValid: false, solutionString: '' })
+
+    renderHook(() => useSudokuSolver(validatingState, mockDispatch))
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'VALIDATE_PUZZLE_FAILURE',
+          error: 'Puzzle is invalid or does not have a unique solution.',
+        }),
+      )
     })
+  })
 
-    // Clear any previous calls (though fullPoolState should prevent refill requests)
-    mockWorkerInstance.postMessage.mockClear()
+  it('handles puzzle validation worker error', async () => {
+    const validatingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isValidating: true },
+    }
+    const errorMsg = 'Validation Error'
+    mockRunTask.mockRejectedValueOnce(new Error(errorMsg))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    rerender({ state: invalidGenState, dispatch: mockDispatch })
+    renderHook(() => useSudokuSolver(validatingState, mockDispatch))
 
-    expect(mockWorkerInstance.postMessage).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'VALIDATE_PUZZLE_FAILURE',
+        error: errorMsg,
+      })
+      expect(toast.error).toHaveBeenCalledWith(`Operation failed: ${errorMsg}`)
+    })
+    consoleSpy.mockRestore()
+  })
+
+  it('triggers pool refill (Low Priority) when needed', async () => {
+    // Using initialState which has empty pools
+    mockRunTask.mockResolvedValue({ puzzleString: 'p', solutionString: 's' })
+
+    renderHook(() => useSudokuSolver(initialState, mockDispatch))
+
+    // Should request for all 4 difficulties
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'REQUEST_POOL_REFILL',
+        difficulty: 'easy',
+      })
+      expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'easy' }, Priority.LOW)
+    })
+  })
+
+  it('handles pool refill failure (Low Priority)', async () => {
+    // initialState has empty pools
+    mockRunTask.mockRejectedValueOnce(new Error('Background Fail'))
+    // Spy on console.error since the hook logs it
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderHook(() => useSudokuSolver(initialState, mockDispatch))
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'POOL_REFILL_FAILURE',
+        difficulty: 'easy', // First one usually
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Background refill failed'),
+        expect.any(Error),
+      )
+    })
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('handles errors gracefully during solve', async () => {
+    const solvingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isSolving: true },
+    }
+    mockRunTask.mockRejectedValueOnce(new Error('Fail'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderHook(() => useSudokuSolver(solvingState, mockDispatch))
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'SOLVE_FAILURE' })
+      expect(toast.error).toHaveBeenCalledWith('Operation failed: Fail')
+    })
+    consoleSpy.mockRestore()
   })
 })

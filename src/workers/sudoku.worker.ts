@@ -22,18 +22,21 @@ import init, { solve_sudoku, generate_sudoku, validate_puzzle } from 'wasudoku-w
 // Initialize the WASM module on worker startup.
 const wasmReady = init()
 
-type WorkerMessage =
-  | { type: 'solve'; boardString: string }
-  | { type: 'generate'; difficulty: string; source?: 'user' | 'pool' }
-  | { type: 'validate'; boardString: string }
+interface WorkerRequest {
+  id: number
+  type: 'solve' | 'generate' | 'validate'
+  boardString?: string
+  difficulty?: string
+}
 
 /**
  * Handles incoming messages, runs the solver, and posts the result back.
- * Exported for direct testing.
+ * The worker is stateless regarding request context; it simply correlates
+ * the response with the request ID.
  * @param event The message event from the main thread.
  */
-export async function handleMessage(event: MessageEvent<WorkerMessage>) {
-  // Enforce same-origin policy for security. `self` is the worker's global scope.
+export async function handleMessage(event: MessageEvent<WorkerRequest>) {
+  // Enforce same-origin policy for security.
   const isSameOrigin = self.location.origin === event.origin
   const isFileOrTestOrigin = event.origin === 'null' || event.origin === ''
 
@@ -42,38 +45,35 @@ export async function handleMessage(event: MessageEvent<WorkerMessage>) {
     return
   }
 
+  const { id, type, boardString, difficulty } = event.data
+
   try {
     await wasmReady
-    const { type } = event.data
+    let payload: unknown
 
-    if (type === 'solve') {
-      const result = solve_sudoku(event.data.boardString)
-      self.postMessage({ type: 'solution', result })
-    } else if (type === 'generate') {
-      const { difficulty, source } = event.data
+    if (type === 'solve' && boardString) {
+      payload = solve_sudoku(boardString)
+    } else if (type === 'generate' && difficulty) {
       const puzzleString = generate_sudoku(difficulty)
       const solveResult = solve_sudoku(puzzleString)
       const solutionString = solveResult.solution ?? ''
-      self.postMessage({
-        type: 'puzzle_generated',
-        puzzleString,
-        solutionString,
-        difficulty,
-        source,
-      })
-    } else if (type === 'validate') {
-      const isValid = validate_puzzle(event.data.boardString)
+      payload = { puzzleString, solutionString }
+    } else if (type === 'validate' && boardString) {
+      const isValid = validate_puzzle(boardString)
       let solutionString = ''
       if (isValid) {
-        const solveResult = solve_sudoku(event.data.boardString)
+        const solveResult = solve_sudoku(boardString)
         solutionString = solveResult.solution ?? ''
       }
-      self.postMessage({ type: 'validation_result', isValid, solutionString })
+      payload = { isValid, solutionString }
+    } else {
+      throw new Error(`Unknown or malformed request type: ${type}`)
     }
+
+    self.postMessage({ id, status: 'success', payload })
   } catch (error) {
-    // Capture any solver error and post it back for graceful handling in the UI.
     const errorMessage = error instanceof Error ? error.message : String(error)
-    self.postMessage({ type: 'error', error: errorMessage })
+    self.postMessage({ id, status: 'error', error: errorMessage })
   }
 }
 

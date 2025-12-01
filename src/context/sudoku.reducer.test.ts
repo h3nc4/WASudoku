@@ -924,6 +924,36 @@ describe('sudokuReducer', () => {
         expect(state.poolRequestCount.easy).toBe(0) // Should stay 0, not -1
       })
 
+      it('should handle POOL_REFILL_FAILURE by decrementing pending count', () => {
+        const state = sudokuReducer(
+          {
+            ...initialState,
+            poolRequestCount: { ...initialState.poolRequestCount, easy: 2 },
+          },
+          {
+            type: 'POOL_REFILL_FAILURE',
+            difficulty: 'easy',
+          },
+        )
+
+        expect(state.poolRequestCount.easy).toBe(1)
+      })
+
+      it('should handle POOL_REFILL_FAILURE gracefully when count is 0', () => {
+        const state = sudokuReducer(
+          {
+            ...initialState,
+            poolRequestCount: { ...initialState.poolRequestCount, easy: 0 },
+          },
+          {
+            type: 'POOL_REFILL_FAILURE',
+            difficulty: 'easy',
+          },
+        )
+
+        expect(state.poolRequestCount.easy).toBe(0)
+      })
+
       it('should handle REQUEST_POOL_REFILL', () => {
         const state = sudokuReducer(initialState, {
           type: 'REQUEST_POOL_REFILL',
@@ -1150,6 +1180,8 @@ describe('sudokuReducer', () => {
         const solvedBoard = createEmptyBoard().map((c, i) => ({
           ...c,
           value: (i % 9) + 1,
+          candidates: new Set<number>(),
+          centers: new Set<number>(),
         }))
 
         const visualizingStateWithBacktrack: SudokuState = {
@@ -1166,6 +1198,12 @@ describe('sudokuReducer', () => {
           index: 2,
         })
 
+        // Need to check specific properties as Set equality is strict reference by default
+        // or ensure `createEmptyBoard` behavior is consistent.
+        // `createEmptyBoard` creates new Sets.
+        // `solvedBoard` has new Sets.
+        // The reducer creates NEW board structure with new Sets.
+        // So we should check contents or structure.
         expect(stateAfterFinalStep.solver.visualizationBoard).toEqual(
           solvedBoard.map((c) => ({ ...c, candidates: new Set(), centers: new Set() })),
         )
@@ -1471,5 +1509,22 @@ describe('loadInitialState', () => {
     const state = loadInitialState()
     expect(state.initialBoard).toEqual(createEmptyBoard())
     expect(state.solver.gameMode).toBe('playing')
+  })
+
+  it('should reset poolRequestCount to 0 on load even if persisted', () => {
+    const persistedPool: PersistedPool = {
+      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
+      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 }, // Persisted dirty state
+    }
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
+      return null
+    })
+
+    const state = loadInitialState()
+    // Should be reset to 0
+    expect(state.poolRequestCount.easy).toBe(0)
+    expect(state.poolRequestCount.medium).toBe(0)
   })
 })

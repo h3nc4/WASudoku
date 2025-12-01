@@ -112,6 +112,34 @@ describe('Sudoku Action Creators', () => {
     expect(actions.generatePuzzleFailure()).toEqual(expectedAction)
   })
 
+  it('should create a REQUEST_POOL_REFILL action', () => {
+    const expectedAction: SudokuAction = {
+      type: 'REQUEST_POOL_REFILL',
+      difficulty: 'easy',
+    }
+    expect(actions.requestPoolRefill('easy')).toEqual(expectedAction)
+  })
+
+  it('should create a POOL_REFILL_SUCCESS action', () => {
+    const puzzleString = '.'.repeat(81)
+    const solutionString = '1'.repeat(81)
+    const expectedAction: SudokuAction = {
+      type: 'POOL_REFILL_SUCCESS',
+      difficulty: 'easy',
+      puzzleString,
+      solutionString,
+    }
+    expect(actions.poolRefillSuccess('easy', puzzleString, solutionString)).toEqual(expectedAction)
+  })
+
+  it('should create a POOL_REFILL_FAILURE action', () => {
+    const expectedAction: SudokuAction = {
+      type: 'POOL_REFILL_FAILURE',
+      difficulty: 'hard',
+    }
+    expect(actions.poolRefillFailure('hard')).toEqual(expectedAction)
+  })
+
   it('should create a VALIDATE_PUZZLE_START action', () => {
     const expectedAction: SudokuAction = { type: 'VALIDATE_PUZZLE_START' }
     expect(actions.validatePuzzleStart()).toEqual(expectedAction)

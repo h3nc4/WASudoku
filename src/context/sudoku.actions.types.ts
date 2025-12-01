@@ -113,6 +113,12 @@ export interface PoolRefillSuccessAction {
   solutionString: string
 }
 
+/** Action for when a background pool refill fails. */
+export interface PoolRefillFailureAction {
+  type: 'POOL_REFILL_FAILURE'
+  difficulty: string
+}
+
 /** Action to begin validating a custom puzzle. */
 export interface ValidatePuzzleStartAction {
   type: 'VALIDATE_PUZZLE_START'
@@ -192,6 +198,7 @@ export type SudokuAction =
   | GeneratePuzzleFailureAction
   | RequestPoolRefillAction
   | PoolRefillSuccessAction
+  | PoolRefillFailureAction
   | ValidatePuzzleStartAction
   | ValidatePuzzleSuccessAction
   | ValidatePuzzleFailureAction
