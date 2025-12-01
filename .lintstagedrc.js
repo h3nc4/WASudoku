@@ -25,7 +25,7 @@ export default {
 
   // WASM: Format individual files, then Lint the whole crate (ignoring file args)
   'src/wasudoku-wasm/**/*.rs': [
-    'cargo fmt --',
+    'cargo fmt --manifest-path src/wasudoku-wasm/Cargo.toml --',
     () => 'npm run lint:wasm', // Using a function ignores the passed filenames
   ],
 }
