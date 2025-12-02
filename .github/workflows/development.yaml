@@ -269,7 +269,7 @@ jobs:
       - name: Poll container url
         run: |
           for i in {1..10}; do
-            if wget -qO- http://localhost:8080/WASudoku/ | grep -q "WASudoku"; then
+            if wget -qO- http://localhost:8080/ | grep -q "WASudoku"; then
               echo "Container started successfully."
               exit 0
             else

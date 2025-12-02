@@ -1,6 +1,6 @@
 {
   "packageId": "com.h3nc4.twa",
-  "host": "h3nc4.com",
+  "host": "wasudoku.h3nc4.com",
   "name": "WASudoku",
   "launcherName": "WASudoku",
   "display": "fullscreen",
@@ -12,9 +12,9 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#141414",
   "enableNotifications": true,
-  "startUrl": "/WASudoku/",
-  "iconUrl": "https://h3nc4.com/WASudoku/icon-512.png",
-  "maskableIconUrl": "https://h3nc4.com/WASudoku/icon-512.png",
+  "startUrl": "/",
+  "iconUrl": "https://wasudoku.h3nc4.com/icon-512.png",
+  "maskableIconUrl": "https://wasudoku.h3nc4.com/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "/app/android.keystore",
@@ -24,7 +24,7 @@
   "appVersionCode": 1,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://h3nc4.com/WASudoku/manifest.json",
+  "webManifestUrl": "https://wasudoku.h3nc4.com/manifest.json",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,7 +33,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://h3nc4.com/WASudoku/",
+  "fullScopeUrl": "https://wasudoku.h3nc4.com/",
   "minSdkVersion": 21,
   "orientation": "default",
   "fingerprints": [],
