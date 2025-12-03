@@ -156,7 +156,6 @@ RUN apt-get install --no-install-recommends -y -qq \
   bash-completion \
   ca-certificates \
   curl \
-  docker-cli \
   git \
   gnupg \
   iputils-ping \
@@ -173,6 +172,17 @@ RUN apt-get install --no-install-recommends -y -qq \
   tree \
   wget \
   yq
+
+# Add Docker outside of Docker packages
+RUN apt-get install --no-install-recommends -y -qq \
+  docker-cli \
+  docker-buildx
+
+# Install compression tools
+RUN apt-get install --no-install-recommends -y -qq \
+  brotli \
+  gzip \
+  xz-utils
 
 # Install build tools
 RUN apt-get install --no-install-recommends -y -qq \

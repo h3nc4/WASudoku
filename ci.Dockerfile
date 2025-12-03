@@ -39,10 +39,13 @@ RUN apt-get update -qq
 
 RUN apt-get install --no-install-recommends -y -qq \
   build-essential \
+  brotli \
   ca-certificates \
+  gzip \
   pkg-config \
   libssl-dev \
   shellcheck \
+  xz-utils \
   zlib1g-dev
 
 ################################################################################

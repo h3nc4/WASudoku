@@ -20,9 +20,15 @@
 # CI image tag
 ARG CI_IMAGE_TAG="latest"
 
-# NGINX version
+# NGINX and deps versions
 ARG NGINX_VERSION="1.29.3"
 ARG NGINX_SHA256="9befcced12ee09c2f4e1385d7e8e21c91f1a5a63b196f78f897c2d044b8c9312"
+ARG PCRE2_VERSION="10.47"
+ARG PCRE2_SHA256="c08ae2388ef333e8403e670ad70c0a11f1eed021fd88308d7e02f596fcd9dc16"
+ARG NGX_BROTLI_COMMIT="a71f9312"
+ARG NGX_BROTLI_SHA256="1d21be34f3b7b6d05a8142945e59b3a47665edcdfe0f3ee3d3dbef121f90c08c"
+ARG BROTLI_VERSION="1.2.0"
+ARG BROTLI_SHA256="816c96e8e8f193b40151dad7e8ff37b1221d019dbcb9c35cd3fadbfe6477dfec"
 
 ################################################################################
 # Build stage
@@ -34,10 +40,6 @@ WORKDIR /app
 COPY "package.json" "package-lock.json" ./
 RUN npm ci
 
-# Build WASM module
-COPY "src/wasudoku-wasm" "./src/wasudoku-wasm"
-RUN npm run wasm:build:prod
-
 # Copy source code
 COPY "README.md" "LICENSE" *.js *.json *.ts *.html ./
 COPY src/ src/
@@ -46,31 +48,54 @@ COPY public/ public/
 # Build app for production
 RUN npm run build
 
-# Create root filesystem
+# Create root filesystem and compress assets
 RUN mkdir -p /rootfs && \
   mv /app/dist /rootfs/static
 
-# Pre-compress static assets and remove originals
-RUN find "/rootfs/static" -type f \( -name '*.js' -o -name '*.css' -o -name '*.wasm' -o -name '*.json' -o -name '*.svg' \) \
-  -exec sh -c 'gzip -9 "$1"' _ {} \; && \
-  gzip -9 -k "/rootfs/static/index.html"
+RUN find /rootfs/static -type f \
+  -exec gzip -9 -k "{}" \; \
+  -exec brotli --best -k "{}" \;
 
 ################################################################################
 # Nginx builder stage
 FROM alpine:3.22 AS nginx-builder
 ARG NGINX_VERSION
 ARG NGINX_SHA256
+ARG PCRE2_VERSION
+ARG PCRE2_SHA256
+ARG NGX_BROTLI_COMMIT
+ARG NGX_BROTLI_SHA256
+ARG BROTLI_VERSION
+ARG BROTLI_SHA256
 
 # Package installation
-# Check if openssl-dev can be removed and build-base broken into less packages
-RUN apk add --no-cache gcc make libc-dev upx
+RUN apk add --no-cache cmake git gcc make libc-dev linux-headers
 
 # Download and sources
 ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
+ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" .
 
-# Verify and extract sources
-RUN echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
-  tar -xzf "nginx-${NGINX_VERSION}.tar.gz"
+# Download NGINX Modules
+ADD "https://github.com/google/ngx_brotli/archive/${NGX_BROTLI_COMMIT}.tar.gz" "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz"
+ADD "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" "brotli-${BROTLI_VERSION}.tar.gz"
+
+# Verify checksums and extract sources
+RUN echo "${NGX_BROTLI_SHA256}  ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" | sha256sum -c - && \
+  echo "${BROTLI_SHA256}  brotli-${BROTLI_VERSION}.tar.gz" | sha256sum -c - && \
+  echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
+  echo "${PCRE2_SHA256}  pcre2-${PCRE2_VERSION}.tar.gz" | sha256sum -c - && \
+  tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
+  mkdir "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
+  tar -xf "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
+  tar -xf "brotli-${BROTLI_VERSION}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli" && \
+  tar -xzf "pcre2-${PCRE2_VERSION}.tar.gz"
+
+RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && cd "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
+  cmake -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_C_FLAGS="-O3 -fPIC" \
+  -DCMAKE_INSTALL_PREFIX=installed .. && \
+  cmake --build . --config Release --target brotlienc
 
 # Build Nginx
 WORKDIR "/nginx-${NGINX_VERSION}"
@@ -80,26 +105,36 @@ RUN ./configure \
   --conf-path="/nginx.conf" \
   --error-log-path="/dev/stderr" \
   --http-log-path="/dev/stdout" \
-  --without-pcre \
-  --without-http_autoindex_module \
-  --without-http_rewrite_module \
-  --without-http_gzip_module \
+  --with-pcre="../pcre2-${PCRE2_VERSION}" \
+  --add-module="../ngx_brotli-${NGX_BROTLI_COMMIT}" \
   --with-http_gzip_static_module \
+  --with-http_v2_module \
+  --with-http_realip_module \
+  --with-http_stub_status_module \
+  --with-threads \
+  --with-file-aio \
+  --without-http_gzip_module \
+  --without-http_autoindex_module \
   --without-http_proxy_module \
   --without-http_fastcgi_module \
   --without-http_uwsgi_module \
   --without-http_scgi_module \
+  --without-http_grpc_module \
   --without-http_memcached_module \
   --without-http_empty_gif_module \
   --without-http_browser_module \
   --without-http_userid_module \
-  --with-cc-opt="-Os -fdata-sections -ffunction-sections -fomit-frame-pointer -flto" \
+  --without-http_ssi_module \
+  --without-http_mirror_module \
+  --without-http_split_clients_module \
+  --without-http_geo_module \
+  --without-http_map_module \
+  --with-cc-opt="-O3 -fdata-sections -ffunction-sections -fomit-frame-pointer -flto" \
   --with-ld-opt="-static -Wl,--gc-sections -fuse-linker-plugin" && \
   make -j"$(nproc)"
 
 # Minify nginx binary
-RUN strip --strip-all "objs/nginx" && \
-  upx --ultra-brute "objs/nginx"
+RUN strip --strip-all "objs/nginx"
 
 # Create root filesystem
 RUN mkdir -p "/rootfs/run" && \
