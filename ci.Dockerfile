@@ -27,7 +27,7 @@ ARG CARGO_HOME="/opt/rust/.cargo"
 
 ########################################
 # Node.js versions
-ARG NODE_VERSION="24.11.0"
+ARG NODE_VERSION="24.11.1"
 ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ################################################################################
