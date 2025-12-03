@@ -10,7 +10,7 @@ jobs:
     name: Check Tag Location
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           fetch-depth: 0
       - name: Verify tag is on main branch
@@ -28,7 +28,7 @@ jobs:
           - name: wasudoku-dev
             dockerfile: ./dev.Dockerfile
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       - name: Find version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#dc-v}" >>"${GITHUB_ENV}"
       - uses: docker/setup-buildx-action@v3
@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: Find version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#dc-v}" >>"${GITHUB_ENV}"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
