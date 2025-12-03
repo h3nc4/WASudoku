@@ -1,0 +1,101 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am"]
+  },
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["^@radix-ui", "^radix-ui"],
+      "groupName": "radix-ui"
+    },
+    {
+      "matchPackagePatterns": ["^react", "^@types/react"],
+      "groupName": "react"
+    },
+    {
+      "matchPackagePatterns": ["^vite", "^vitest", "^@vitejs", "^@vitest", "^playwright"],
+      "groupName": "vite-ecosystem"
+    },
+    {
+      "matchPackagePatterns": ["^eslint", "^typescript-eslint"],
+      "groupName": "eslint"
+    },
+    {
+      "matchPackagePatterns": ["^tailwindcss", "^@tailwindcss", "^prettier-plugin-tailwindcss"],
+      "groupName": "tailwind"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackagePatterns": ["^wasm-bindgen"],
+      "groupName": "wasm-bindgen"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackagePatterns": ["^serde"],
+      "groupName": "serde"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Update NGINX version in Dockerfile",
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG NGINX_VERSION=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "nginx",
+      "depNameTemplate": "nginx"
+    },
+    {
+      "description": "Update PCRE2 version in Dockerfile",
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG PCRE2_VERSION=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "PCRE2Project/pcre2"
+    },
+    {
+      "description": "Update Google Brotli version in Dockerfile",
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG BROTLI_VERSION=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "google/brotli"
+    },
+    {
+      "description": "Update ngx_brotli commit hash in Dockerfile",
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG NGX_BROTLI_COMMIT=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "https://github.com/google/ngx_brotli",
+      "versioningTemplate": "git"
+    },
+    {
+      "description": "Update Rust version in CI/Dev Dockerfiles",
+      "customType": "regex",
+      "fileMatch": ["^ci\\.Dockerfile$", "^dev\\.Dockerfile$"],
+      "matchStrings": ["ARG RUST_VERSION=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "rust"
+    },
+    {
+      "description": "Update Node version in CI/Dev Dockerfiles",
+      "customType": "regex",
+      "fileMatch": ["^ci\\.Dockerfile$", "^dev\\.Dockerfile$"],
+      "matchStrings": ["ARG NODE_VERSION=\"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "node-version",
+      "depNameTemplate": "node"
+    },
+    {
+      "description": "Update Bubblewrap docker image in build script",
+      "customType": "regex",
+      "fileMatch": ["^scripts/build-apk\\.sh$"],
+      "matchStrings": ["ghcr\\.io/googlechromelabs/bubblewrap:(?<currentValue>.*?) "],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "ghcr.io/googlechromelabs/bubblewrap"
+    }
+  ]
+}
