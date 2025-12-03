@@ -58,7 +58,7 @@ RUN find /rootfs/static -type f \
 
 ################################################################################
 # Nginx builder stage
-FROM alpine:3.22 AS nginx-builder
+FROM alpine:3.23@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375 AS nginx-builder
 ARG NGINX_VERSION
 ARG NGINX_SHA256
 ARG PCRE2_VERSION
