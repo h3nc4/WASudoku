@@ -18,13 +18,7 @@
     },
     {
       "groupName": "vite-ecosystem",
-      "matchPackageNames": [
-        "/^vite/",
-        "/^vitest/",
-        "/^@vitejs/",
-        "/^@vitest/",
-        "/^playwright/"
-      ]
+      "matchPackageNames": ["/^vite/", "/^vitest/", "/^@vitejs/", "/^@vitest/", "/^playwright/"]
     },
     {
       "groupName": "eslint",
@@ -32,11 +26,7 @@
     },
     {
       "groupName": "tailwind",
-      "matchPackageNames": [
-        "/^tailwindcss/",
-        "/^@tailwindcss/",
-        "/^prettier-plugin-tailwindcss/"
-      ]
+      "matchPackageNames": ["/^tailwindcss/", "/^@tailwindcss/", "/^prettier-plugin-tailwindcss/"]
     },
     {
       "matchManagers": ["cargo"],
@@ -103,9 +93,7 @@
       "description": "Update Bubblewrap docker image in build script",
       "customType": "regex",
       "managerFilePatterns": ["/^scripts/build-apk\\.sh$/"],
-      "matchStrings": [
-        "ghcr\\.io/googlechromelabs/bubblewrap:(?<currentValue>.*?) "
-      ],
+      "matchStrings": ["ghcr\\.io/googlechromelabs/bubblewrap:(?<currentValue>.*?) "],
       "datasourceTemplate": "docker",
       "depNameTemplate": "ghcr.io/googlechromelabs/bubblewrap"
     }
