@@ -37,6 +37,17 @@
       "matchManagers": ["cargo"],
       "groupName": "serde",
       "matchPackageNames": ["/^serde/"]
+    },
+    {
+      "description": "Disable unwanted pinning",
+      "matchPackageNames": [
+        "rust",
+        "rust-lang/rust",
+        "h3nc4/wasudoku-ci",
+        "h3nc4/wasudoku-dev",
+        "ghcr.io/googlechromelabs/bubblewrap"
+      ],
+      "pinDigests": false
     }
   ],
   "customManagers": [
