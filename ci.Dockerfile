@@ -32,7 +32,7 @@ ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ################################################################################
 # Shared debian image
-FROM debian:trixie-slim AS debian-base
+FROM debian:trixie-slim@sha256:18764e98673c3baf1a6f8d960b5b5a1ec69092049522abac4e24a7726425b016 AS debian-base
 
 # Update apt lists
 RUN apt-get update -qq
@@ -50,7 +50,7 @@ RUN apt-get install --no-install-recommends -y -qq \
 
 ################################################################################
 # Shared builder image
-FROM debian:trixie-slim AS builder-base
+FROM debian:trixie-slim@sha256:18764e98673c3baf1a6f8d960b5b5a1ec69092049522abac4e24a7726425b016 AS builder-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg \
