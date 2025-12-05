@@ -43,6 +43,7 @@
       "matchPackageNames": [
         "rust",
         "rust-lang/rust",
+        "nginx",
         "h3nc4/wasudoku-ci",
         "h3nc4/wasudoku-dev",
         "ghcr.io/googlechromelabs/bubblewrap"
@@ -56,8 +57,9 @@
       "customType": "regex",
       "managerFilePatterns": ["/^Dockerfile$/"],
       "matchStrings": ["ARG NGINX_VERSION=\"(?<currentValue>.*?)\""],
-      "datasourceTemplate": "nginx",
-      "depNameTemplate": "nginx"
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "nginx/nginx",
+      "extractVersionTemplate": "^release-(?<version>.*)$"
     },
     {
       "description": "Update PCRE2 version in Dockerfile",
