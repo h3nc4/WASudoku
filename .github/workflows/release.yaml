@@ -53,9 +53,12 @@ jobs:
           name: xz-build
           path: WASudoku.tar.xz
           retention-days: 1
-      - uses: actions/upload-pages-artifact@v3
+      - name: Create Pages artifact tar
+        run: tar --format=ustar --no-same-owner -cf artifact.tar -C dist .
+      - uses: actions/upload-artifact@v5
         with:
-          path: ./dist
+          name: github-pages
+          path: artifact.tar
 
   deploy-pages:
     name: Deploy to GitHub Pages
