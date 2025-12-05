@@ -78,8 +78,8 @@
       "customType": "regex",
       "managerFilePatterns": ["/^ci\\.Dockerfile$/", "/^dev\\.Dockerfile$/"],
       "matchStrings": ["ARG RUST_VERSION=\"(?<currentValue>.*?)\""],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "rust"
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "rust-lang/rust"
     },
     {
       "description": "Update Node version in CI/Dev Dockerfiles",
