@@ -23,14 +23,13 @@ sonar_container_name="sonarqube"
 sonar_image="sonarqube:25.9.0.112764-community"
 sonar_scan_image="sonarsource/sonar-scanner-cli:11"
 sonar_url="http://localhost:9000"
-project_key="$(grep 'sonar.projectKey' ./sonar-project.properties | cut -d'=' -f2)"
 
 # Adjust paths in coverage reports
 if [ -f "coverage-wasm.xml" ]; then
   sed -i "s|<source>/wasudoku|<source>.|" coverage-wasm.xml
 fi
 
-# Start pulling scanner image in background
+# Pull scanner image in background
 docker pull "${sonar_scan_image}" >/dev/null 2>&1 &
 pull_pid=$!
 
@@ -48,32 +47,39 @@ if [ -z "${is_running}" ]; then
       -v sonarqube_logs:/opt/sonarqube/logs \
       -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
       "${sonar_image}" >/dev/null
+    configured="false"
   fi
 
   echo "Waiting for SonarQube to start..."
   while ! wget -qO- "${sonar_url}/api/system/status" 2>/dev/null | grep -q 'UP'; do
     sleep 1
   done
-  # Configure SonarQube to allow anonymous access
-  if ! curl -s -u admin:admin "${sonar_url}/api/settings/values?keys=sonar.forceAuthentication" | grep -q '"value":"false"'; then
+
+  if [ "${configured}" = "false" ]; then
+    echo "Configuring SonarQube..."
+
+    # Configure SonarQube to allow anonymous access
     curl -su admin:admin -X POST "${sonar_url}/api/settings/set?key=sonar.forceAuthentication&value=false"
     curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=provisioning&groupName=anyone"
     curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=scan&groupName=anyone"
+
+    # Create quality gate
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create?name=WASudokuGate"
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=violations&op=GT&error=0"
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=security_hotspots_reviewed&op=LT&error=100"
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=coverage&op=LT&error=100"
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=duplicated_lines_density&op=GT&error=0"
+    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/set_as_default?name=WASudokuGate"
   fi
 fi
 
 echo "Running SonarQube analysis..."
 wait "${pull_pid}"
+
 docker run \
   --rm \
   --network="host" \
   -v "${WASUDOKU_HOST_ROOT:-${PWD}}/:/usr/src" \
   "${sonar_scan_image}" \
-  -Dsonar.host.url="${sonar_url}"
-
-sleep 15
-if ! curl -s "${sonar_url}/api/issues/search?componentKeys=${project_key}&resolved=false&ps=1" | grep -q '{"total":0,'; then
-  echo "ERROR: SonarQube analysis failed. Issues found." >&2
-  echo "Check the SonarQube dashboard at ${sonar_url} for more details." >&2
-  exit 1
-fi
+  -Dsonar.host.url="${sonar_url}" \
+  -Dsonar.qualitygate.wait=true
