@@ -48,6 +48,7 @@ if [ -z "${is_running}" ]; then
       -v sonarqube_logs:/opt/sonarqube/logs \
       -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
       "${sonar_image}" >/dev/null
+    configured="false"
   fi
 
   echo "Waiting for SonarQube to start..."
@@ -55,10 +56,12 @@ if [ -z "${is_running}" ]; then
     sleep 1
   done
   # Configure SonarQube to allow anonymous access
-  if ! curl -s -u admin:admin "${sonar_url}/api/settings/values?keys=sonar.forceAuthentication" | grep -q '"value":"false"'; then
+  if [ "${configured}" = "false" ]; then
     curl -su admin:admin -X POST "${sonar_url}/api/settings/set?key=sonar.forceAuthentication&value=false"
     curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=provisioning&groupName=anyone"
     curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=scan&groupName=anyone"
+
+    # Add new stuff here
   fi
 fi
 
@@ -69,6 +72,7 @@ docker run \
   --network="host" \
   -v "${WASUDOKU_HOST_ROOT:-${PWD}}/:/usr/src" \
   "${sonar_scan_image}" \
+  -Dsonar.qualitygate.wait=true \
   -Dsonar.host.url="${sonar_url}"
 
 sleep 15
