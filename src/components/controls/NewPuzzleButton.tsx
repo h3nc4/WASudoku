@@ -40,6 +40,7 @@ export function NewPuzzleButton() {
   const { generatePuzzle, startCustomPuzzle } = useSudokuActions()
 
   const [isShowingGeneratingState, setIsShowingGeneratingState] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   const isButtonDisabled = solver.isGenerating || solver.isSolving || solver.isValidating
 
@@ -76,13 +77,14 @@ export function NewPuzzleButton() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="secondary"
           className="flex-1"
           disabled={isButtonDisabled}
-          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setIsOpen(true)}
+          onPointerDown={(e) => e.preventDefault()}
         >
           <Wand2 className="mr-2 size-4" />
           New Puzzle

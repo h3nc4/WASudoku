@@ -131,7 +131,7 @@ describe('NewPuzzleButton component', () => {
     render(<NewPuzzleButton />)
     const triggerButton = screen.getByRole('button', { name: 'New Puzzle' })
 
-    const event = createEvent.mouseDown(triggerButton)
+    const event = createEvent.pointerDown(triggerButton)
     event.preventDefault = vi.fn()
 
     fireEvent(triggerButton, event)
