@@ -53,7 +53,7 @@ function App() {
 
   return (
     <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <header className="container mx-auto flex items-center justify-between p-4">
+      <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
         <h1 className="text-2xl font-bold md:text-3xl">WASudoku</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={exportBoard} title="Export Board">

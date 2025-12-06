@@ -99,6 +99,7 @@ describe('App component', () => {
   it('renders the main layout and all control components', () => {
     render(<App />)
     expect(screen.getByRole('heading', { name: /wasudoku/i })).toBeInTheDocument()
+    expect(screen.getByRole('banner')).toHaveClass('relative z-30')
     expect(screen.getByTestId('sudoku-grid')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'NumberPad' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeInTheDocument()
