@@ -96,10 +96,10 @@
       "depNameTemplate": "node"
     },
     {
-      "description": "Update Bubblewrap docker image in build script",
+      "description": "Update Bubblewrap version in build script",
       "customType": "regex",
       "managerFilePatterns": ["/^scripts/build-apk\\.sh$/"],
-      "matchStrings": ["ghcr\\.io/googlechromelabs/bubblewrap:(?<currentValue>.*?) "],
+      "matchStrings": ["bubblewrap_version=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "docker",
       "depNameTemplate": "ghcr.io/googlechromelabs/bubblewrap"
     }
