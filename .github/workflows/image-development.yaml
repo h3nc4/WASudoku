@@ -1,0 +1,32 @@
+name: Image Build Check
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+      - 'release/*'
+    paths:
+      - 'ci.Dockerfile'
+      - 'dev.Dockerfile'
+      - 'scripts/wasm-deps.sh'
+      - '.github/workflows/image-development.yaml'
+
+jobs:
+  check-images:
+    name: Validate Image Build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        file: ['ci.Dockerfile', 'dev.Dockerfile']
+    steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - name: Run docker/setup-buildx-action
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+      - name: Build image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: .
+          file: ./${{ matrix.file }}
+          push: false

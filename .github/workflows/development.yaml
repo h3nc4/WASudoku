@@ -238,17 +238,22 @@ jobs:
           path: WASudoku-dev.tar.xz
           retention-days: 7
 
-  build-container:
-    name: Build Runtime Container
-    if: github.ref == 'refs/heads/main'
+  build-test-container:
+    name: Build and Test Runtime Container
     needs: [wasm, ui, prepare]
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare metadata
+        id: meta
+        run: |
+          echo "PUSH=${{ github.ref == 'refs/heads/main' }}" >>$GITHUB_OUTPUT
+          echo "IMAGE=${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest" >>${GITHUB_OUTPUT}
       - name: Run actions/checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       - name: Run docker/setup-buildx-action
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
       - name: Run docker/login-action
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
@@ -256,31 +261,21 @@ jobs:
       - name: Get build date
         id: build_date
         run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >>"${GITHUB_OUTPUT}"
-      - name: Run docker/build-push-action
+      - name: Build Container
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest
+          push: ${{ steps.meta.outputs.PUSH }}
+          load: true
+          tags: ${{ steps.meta.outputs.IMAGE }}
           build-args: |
             CI_IMAGE_TAG=${{ needs.prepare.outputs.tag }}
             COMMIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ steps.build_date.outputs.date }}
-
-  test-container:
-    name: Test Runtime Container
-    if: github.ref == 'refs/heads/main'
-    needs: build-container
-    runs-on: ubuntu-latest
-    steps:
-      - name: Add image name to env
-        run: echo "IMAGE=${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest" >>${GITHUB_ENV}
-      - name: Pull image
-        run: docker pull ${IMAGE}
       - name: Run container
         run: |
-          CONTAINER_ID=$(docker run -d -p 8080:80 ${IMAGE})
+          CONTAINER_ID=$(docker run -d -p 8080:80 ${{ steps.meta.outputs.IMAGE }})
           echo "CONTAINER_ID=$CONTAINER_ID" >>${GITHUB_ENV}
       - name: Poll container url
         run: |
