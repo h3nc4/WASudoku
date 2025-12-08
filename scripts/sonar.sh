@@ -24,6 +24,10 @@ sonar_image="sonarqube:25.9.0.112764-community"
 sonar_scan_image="sonarsource/sonar-scanner-cli:11"
 sonar_url="http://localhost:9000"
 
+cfg_sonar() {
+  curl --fail -su admin:admin -X POST "${sonar_url}/api/$1" >/dev/null
+}
+
 # Adjust paths in coverage reports
 if [ -f "coverage-wasm.xml" ]; then
   sed -i "s|<source>/wasudoku|<source>.|" coverage-wasm.xml
@@ -59,17 +63,17 @@ if [ -z "${is_running}" ]; then
     echo "Configuring SonarQube..."
 
     # Configure SonarQube to allow anonymous access
-    curl -su admin:admin -X POST "${sonar_url}/api/settings/set?key=sonar.forceAuthentication&value=false"
-    curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=provisioning&groupName=anyone"
-    curl -su admin:admin -X POST "${sonar_url}/api/permissions/add_group?permission=scan&groupName=anyone"
+    cfg_sonar "settings/set?key=sonar.forceAuthentication&value=false"
+    cfg_sonar "permissions/add_group?permission=provisioning&groupName=anyone"
+    cfg_sonar "permissions/add_group?permission=scan&groupName=anyone"
 
     # Create quality gate
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create?name=WASudokuGate"
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=violations&op=GT&error=0"
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=security_hotspots_reviewed&op=LT&error=100"
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=coverage&op=LT&error=100"
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/create_condition?gateName=WASudokuGate&metric=duplicated_lines_density&op=GT&error=0"
-    curl -su admin:admin -X POST "${sonar_url}/api/qualitygates/set_as_default?name=WASudokuGate"
+    cfg_sonar "qualitygates/create?name=WASudokuGate"
+    cfg_sonar "qualitygates/create_condition?gateName=WASudokuGate&metric=violations&op=GT&error=0"
+    cfg_sonar "qualitygates/create_condition?gateName=WASudokuGate&metric=security_hotspots_reviewed&op=LT&error=100"
+    cfg_sonar "qualitygates/create_condition?gateName=WASudokuGate&metric=coverage&op=LT&error=100"
+    cfg_sonar "qualitygates/create_condition?gateName=WASudokuGate&metric=duplicated_lines_density&op=GT&error=0"
+    cfg_sonar "qualitygates/set_as_default?name=WASudokuGate"
   fi
 fi
 
