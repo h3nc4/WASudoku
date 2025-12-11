@@ -19,7 +19,7 @@
 
 ########################################
 # Rust versions
-ARG RUST_VERSION="1.91.1"
+ARG RUST_VERSION="1.92.0"
 ARG RUST_DISTRO="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"
 ARG RUST_DISTRO_WASM="rust-std-${RUST_VERSION}-wasm32-unknown-unknown"
 ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
