@@ -47,13 +47,13 @@ jobs:
           tar -czvf WASudoku.tar.gz -C dist .
           XZ_OPT=-9e tar -cJf WASudoku.tar.xz -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: gz-build
           path: WASudoku.tar.gz
           retention-days: 1
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: xz-build
           path: WASudoku.tar.xz
@@ -61,7 +61,7 @@ jobs:
       - name: Create Pages artifact tar
         run: tar --format=ustar --no-same-owner -cf artifact.tar -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: github-pages
           path: artifact.tar
@@ -110,7 +110,7 @@ jobs:
             -c 'printf "%s\n" "${VERSION}" | bubblewrap update && yes | bubblewrap build'
           mv app-release-signed.apk WASudoku.apk
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: apk
           path: WASudoku.apk
@@ -156,15 +156,15 @@ jobs:
       contents: write
     steps:
       - name: Run actions/download-artifact
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: gz-build
       - name: Run actions/download-artifact
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: xz-build
       - name: Run actions/download-artifact
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: apk
       - name: Run softprops/action-gh-release
