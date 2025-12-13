@@ -39,12 +39,33 @@
       "matchPackageNames": ["/^serde/"]
     },
     {
-      "description": "Disable unwanted pinning",
+      "description": "Disable unwanted pinning for Bubblewrap",
       "matchPackageNames": ["ghcr.io/googlechromelabs/bubblewrap"],
       "pinDigests": false
+    },
+    {
+      "description": "Auto-merge all minor, patch, pin, and digest updates",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "platformAutomerge": true
     }
   ],
   "customManagers": [
+    {
+      "description": "Update Docker images in sonar script",
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts/sonar\\.sh$/"],
+      "matchStrings": ["_image=\"(?<depName>.*?):(?<currentValue>.*?)\""],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Update Bubblewrap version in release workflow",
+      "customType": "regex",
+      "managerFilePatterns": ["^\\.github/workflows/release\\.yaml$"],
+      "matchStrings": ["ghcr\\.io/googlechromelabs/bubblewrap:(?<currentValue>.*?) "],
+      "depNameTemplate": "ghcr.io/googlechromelabs/bubblewrap",
+      "datasourceTemplate": "docker"
+    },
     {
       "description": "Update NGINX version in Dockerfile",
       "customType": "regex",
@@ -107,7 +128,7 @@
       "description": "Update Cargo packages in wasm-deps script",
       "customType": "regex",
       "managerFilePatterns": ["/^scripts/wasm-deps\\.sh$/"],
-      "matchStrings": ["(?<depName>[a-z0-9-]+) (?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "matchStrings": ["(?<depName>[a-z0-9-_]+) (?<currentValue>[^\\s]+)"],
       "datasourceTemplate": "crate"
     }
   ]
