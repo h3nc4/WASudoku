@@ -39,9 +39,15 @@
       "matchPackageNames": ["/^serde/"]
     },
     {
-      "description": "Disable unwanted pinning",
+      "description": "Disable unwanted pinning for Bubblewrap",
       "matchPackageNames": ["ghcr.io/googlechromelabs/bubblewrap"],
       "pinDigests": false
+    },
+    {
+      "description": "Auto-merge all minor, patch, pin, and digest updates",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "platformAutomerge": true
     }
   ],
   "customManagers": [
@@ -107,7 +113,7 @@
       "description": "Update Cargo packages in wasm-deps script",
       "customType": "regex",
       "managerFilePatterns": ["/^scripts/wasm-deps\\.sh$/"],
-      "matchStrings": ["(?<depName>[a-z0-9-]+) (?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "matchStrings": ["(?<depName>[a-z0-9-_]+) (?<currentValue>[^\\s]+)"],
       "datasourceTemplate": "crate"
     }
   ]
