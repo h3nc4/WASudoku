@@ -71,31 +71,34 @@ ARG BROTLI_SHA256
 # Package installation
 RUN apk add --no-cache cmake git gcc make libc-dev linux-headers
 
-# Download and sources
-ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
-ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" .
-
-# Download NGINX Modules
+# Download brotli modules
 ADD "https://github.com/google/ngx_brotli/archive/${NGX_BROTLI_COMMIT}.tar.gz" "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz"
 ADD "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" "brotli-${BROTLI_VERSION}.tar.gz"
 
-# Verify checksums and extract sources
+# Verify checksums and extract sources for brotli modules
 RUN echo "${NGX_BROTLI_SHA256}  ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" | sha256sum -c - && \
   echo "${BROTLI_SHA256}  brotli-${BROTLI_VERSION}.tar.gz" | sha256sum -c - && \
-  echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
-  echo "${PCRE2_SHA256}  pcre2-${PCRE2_VERSION}.tar.gz" | sha256sum -c - && \
-  tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
   mkdir "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
   tar -xf "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
-  tar -xf "brotli-${BROTLI_VERSION}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli" && \
-  tar -xzf "pcre2-${PCRE2_VERSION}.tar.gz"
+  tar -xf "brotli-${BROTLI_VERSION}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli"
 
+# Build brotli static library
 RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && cd "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
   cmake -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=OFF \
   -DCMAKE_C_FLAGS="-O3 -fPIC" \
   -DCMAKE_INSTALL_PREFIX=installed .. && \
   cmake --build . --config Release --target brotlienc
+
+# Download NGINX and PCRE2 sources
+ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
+ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" .
+
+# Verify checksums and extract sources for NGINX and PCRE2
+RUN echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
+  echo "${PCRE2_SHA256}  pcre2-${PCRE2_VERSION}.tar.gz" | sha256sum -c - && \
+  tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
+  tar -xzf "pcre2-${PCRE2_VERSION}.tar.gz"
 
 # Build Nginx
 WORKDIR "/nginx-${NGINX_VERSION}"
