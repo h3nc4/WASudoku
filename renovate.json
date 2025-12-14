@@ -39,6 +39,11 @@
       "matchPackageNames": ["/^serde/"]
     },
     {
+      "description": "Group SonarQube server and scanner updates",
+      "groupName": "sonarqube",
+      "matchPackageNames": ["sonarqube", "sonarsource/sonar-scanner-cli"]
+    },
+    {
       "description": "Disable unwanted pinning for Bubblewrap",
       "matchPackageNames": ["ghcr.io/googlechromelabs/bubblewrap"],
       "pinDigests": false
