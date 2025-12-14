@@ -20,7 +20,7 @@ set -e
 cd "$(dirname "$0")/../"
 
 sonar_container_name="sonarqube"
-sonar_image="sonarqube:25.9.0.112764-community"
+sonar_image="sonarqube:25.12.0.117093-community"
 sonar_scan_image="sonarsource/sonar-scanner-cli:11"
 sonar_url="http://localhost:9000"
 
