@@ -72,7 +72,7 @@ describe('sudokuReducer', () => {
           solver: {
             ...initialState.solver,
             gameMode: 'playing',
-            solution: [1, ...Array(80).fill(0)], // Solution expects 1 at index 0
+            solution: [1, ...new Array(80).fill(0)], // Solution expects 1 at index 0
           },
         }
         const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 0, value: 5 } // Entering 5 is wrong
@@ -87,7 +87,7 @@ describe('sudokuReducer', () => {
           solver: {
             ...initialState.solver,
             gameMode: 'playing',
-            solution: [1, ...Array(80).fill(0)],
+            solution: [1, ...new Array(80).fill(0)],
           },
         }
         const action: SudokuAction = { type: 'SET_CELL_VALUE', index: 0, value: 1 } // Correct
@@ -112,9 +112,7 @@ describe('sudokuReducer', () => {
       })
 
       it('should detect when puzzle is completely solved by user', () => {
-        const solution = Array(81)
-          .fill(0)
-          .map((_, i) => (i % 9) + 1)
+        const solution = new Array(81).fill(0).map((_, i) => (i % 9) + 1)
         // Setup board with all but last cell filled correctly
         const nearlySolvedBoard = createEmptyBoard().map((cell, i) =>
           i < 80 ? { ...cell, value: solution[i] } : cell,
@@ -425,7 +423,7 @@ describe('sudokuReducer', () => {
         // Mock calculateCandidates to return nulls even for empty cells.
         // This forces the `if (candidates)` check to fail and fall through to `return cell`.
         // It also subsequently triggers the `areBoardsEqual` check to return `state`.
-        vi.mocked(calculateCandidates).mockReturnValueOnce(Array(81).fill(null))
+        vi.mocked(calculateCandidates).mockReturnValueOnce(new Array(81).fill(null))
 
         const newState = sudokuReducer(state, { type: 'AUTO_FILL_CANDIDATES' })
 
@@ -1437,7 +1435,7 @@ describe('loadInitialState', () => {
       centers: { __dataType: 'Set', value: [] },
     }
 
-    const rawBoard = [rawCell, ...Array(80).fill(emptyCell)]
+    const rawBoard = [rawCell, ...new Array(80).fill(emptyCell)]
 
     const savedGame: PersistedGameState = {
       history: { stack: [rawBoard], index: 0 },

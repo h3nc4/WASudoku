@@ -132,7 +132,7 @@ export function SudokuGrid() {
       }
 
       if (key >= '1' && key <= '9') {
-        const value = parseInt(key, 10)
+        const value = Number.parseInt(key, 10)
         actions.inputValue(value)
         actions.setHighlightedValue(value)
       } else if (key === 'Backspace') {

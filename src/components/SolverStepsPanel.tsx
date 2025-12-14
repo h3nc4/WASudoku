@@ -153,7 +153,7 @@ export function SolverStepsPanel() {
     // Only dispatch when an item is opened, not when closed (value is empty string).
     if (value) {
       // Dispatch `stepIndex + 1` because `viewSolverStep(N)` applies N steps.
-      handleStepSelect(parseInt(value, 10) + 1)
+      handleStepSelect(Number.parseInt(value, 10) + 1)
     }
   }
 

@@ -61,10 +61,10 @@ describe('useSudokuSolver', () => {
   const fullPoolState: SudokuState = {
     ...initialState,
     puzzlePool: {
-      easy: Array(3).fill({ puzzleString: '', solutionString: '' }),
-      medium: Array(3).fill({ puzzleString: '', solutionString: '' }),
-      hard: Array(3).fill({ puzzleString: '', solutionString: '' }),
-      extreme: Array(3).fill({ puzzleString: '', solutionString: '' }),
+      easy: new Array(3).fill({ puzzleString: '', solutionString: '' }),
+      medium: new Array(3).fill({ puzzleString: '', solutionString: '' }),
+      hard: new Array(3).fill({ puzzleString: '', solutionString: '' }),
+      extreme: new Array(3).fill({ puzzleString: '', solutionString: '' }),
     },
   }
 

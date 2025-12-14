@@ -220,7 +220,7 @@ export function areBoardsEqual(boardA: BoardState, boardB: BoardState): boolean 
  * @returns An array where each element is a Set of candidates for that cell, or null if the cell is filled.
  */
 export function calculateCandidates(board: BoardState): Array<Set<number> | null> {
-  const candidates: Array<Set<number> | null> = Array(81)
+  const candidates: Array<Set<number> | null> = new Array(81)
     .fill(null)
     .map(() => new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]))
 
@@ -255,7 +255,7 @@ export function boardStateToString(board: BoardState): string {
  */
 export function boardStateFromString(boardString: string): BoardState {
   return boardString.split('').map((char) => {
-    const value = char === '.' || char === '0' ? null : parseInt(char, 10)
+    const value = char === '.' || char === '0' ? null : Number.parseInt(char, 10)
     return {
       value,
       isGiven: value !== null,

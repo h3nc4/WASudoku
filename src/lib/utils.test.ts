@@ -37,7 +37,7 @@ const createEmptyCell = (): CellState => ({
   candidates: new Set(),
   centers: new Set(),
 })
-const createEmptyBoard = (): BoardState => Array(81).fill(0).map(createEmptyCell)
+const createEmptyBoard = (): BoardState => new Array(81).fill(0).map(createEmptyCell)
 
 describe('Sudoku Utilities', () => {
   describe('getRelatedCellIndices', () => {

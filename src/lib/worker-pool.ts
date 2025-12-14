@@ -138,7 +138,7 @@ export class WorkerPool {
     workerWrapper.instance.postMessage({
       id: task.id,
       type: task.type,
-      ...((task.payload as object) || {}),
+      ...(task.payload as object),
     })
   }
 

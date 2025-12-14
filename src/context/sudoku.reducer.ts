@@ -62,14 +62,12 @@ export const STORAGE_KEYS = {
 }
 
 export const createEmptyBoard = (): BoardState =>
-  Array(BOARD_SIZE)
-    .fill(null)
-    .map(() => ({
-      value: null,
-      isGiven: false,
-      candidates: new Set<number>(),
-      centers: new Set<number>(),
-    }))
+  new Array(BOARD_SIZE).fill(null).map(() => ({
+    value: null,
+    isGiven: false,
+    candidates: new Set<number>(),
+    centers: new Set<number>(),
+  }))
 
 function getDerivedBoardState(board: BoardState) {
   const conflicts = validateBoard(board)
@@ -157,7 +155,7 @@ function loadFromStorage<T>(
   key: string,
   reviverFn?: (this: unknown, key: string, value: unknown) => unknown,
 ): T | null {
-  const item = window.localStorage.getItem(key)
+  const item = globalThis.localStorage.getItem(key)
   return item ? (JSON.parse(item, reviverFn) as T) : null
 }
 
@@ -475,7 +473,7 @@ const initializeGameFromPuzzle = (
 ): SudokuState => {
   const newBoard = boardStateFromString(puzzleString)
   const solutionNumbers = solutionString.split('').map((c) => {
-    return c === '.' ? 0 : parseInt(c, 10)
+    return c === '.' ? 0 : Number.parseInt(c, 10)
   })
 
   return {
@@ -628,13 +626,13 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
     }
   }
   const solvedBoard: BoardState = solution.split('').map((char, index) => ({
-    value: char === '.' ? null : parseInt(char, 10),
+    value: char === '.' ? null : Number.parseInt(char, 10),
     isGiven: state.initialBoard[index].isGiven,
     candidates: new Set<number>(),
     centers: new Set<number>(),
   }))
 
-  const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : parseInt(c, 10)))
+  const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : Number.parseInt(c, 10)))
 
   const boardAfterLogic = state.initialBoard.map((cell) => ({ ...cell }))
   for (const step of steps) {
@@ -799,7 +797,7 @@ const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): S
   ui: {
     ...state.ui,
     activeCellIndex: action.index,
-    highlightedValue: action.index !== null ? state.board[action.index].value : null,
+    highlightedValue: action.index === null ? null : state.board[action.index].value,
     lastError: null,
   },
 })
@@ -813,7 +811,7 @@ const handleValidatePuzzleSuccess = (
     isGiven: cell.value !== null,
   }))
   const solutionNumbers = action.solutionString.split('').map((c) => {
-    return c === '.' ? 0 : parseInt(c, 10)
+    return c === '.' ? 0 : Number.parseInt(c, 10)
   })
 
   return {

@@ -47,7 +47,7 @@ function replacer(_key: string, value: any) {
 function saveToStorage<T>(key: string, data: T) {
   try {
     const json = JSON.stringify(data, replacer)
-    window.localStorage.setItem(key, json)
+    globalThis.localStorage.setItem(key, json)
   } catch (error) {
     console.error(`Failed to save ${key} to local storage:`, error)
   }

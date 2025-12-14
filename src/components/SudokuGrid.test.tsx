@@ -385,7 +385,7 @@ describe('SudokuGrid component', () => {
   describe('when in visualizing mode', () => {
     it('passes correct candidates and eliminations to SudokuCell', () => {
       const mockElimination = { index: 1, value: 5 }
-      const mockCandidates: (Set<number> | null)[] = Array(81).fill(null)
+      const mockCandidates: (Set<number> | null)[] = new Array(81).fill(null)
       mockCandidates[0] = new Set([2, 4])
       mockCandidates[1] = new Set([5, 7])
 
@@ -566,7 +566,7 @@ describe('SudokuGrid component', () => {
     it('marks a cell as isError if value mismatches solution', () => {
       const wrongValue = 5
       const correctValue = 9
-      const solution = Array(81).fill(correctValue)
+      const solution = new Array(81).fill(correctValue)
       const boardWithWrongValue = initialState.board.map((cell, index) =>
         index === 0 ? { ...cell, value: wrongValue, isGiven: false } : cell,
       )
@@ -589,7 +589,7 @@ describe('SudokuGrid component', () => {
 
     it('does not mark a cell as isError if value matches solution', () => {
       const correctValue = 9
-      const solution = Array(81).fill(correctValue)
+      const solution = new Array(81).fill(correctValue)
       const boardWithCorrectValue = initialState.board.map((cell, index) =>
         index === 0 ? { ...cell, value: correctValue, isGiven: false } : cell,
       )
@@ -613,7 +613,7 @@ describe('SudokuGrid component', () => {
     it('does not mark given cells as errors', () => {
       // Even if given somehow mismatches solution (shouldn't happen in valid state),
       // we usually trust givens. But logic says !isGiven.
-      const solution = Array(81).fill(9)
+      const solution = new Array(81).fill(9)
       const boardWithGiven = initialState.board.map((cell, index) =>
         index === 0 ? { ...cell, value: 5, isGiven: true } : cell,
       )
