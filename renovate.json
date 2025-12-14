@@ -44,6 +44,11 @@
       "pinDigests": false
     },
     {
+      "description": "Disable unwanted pinning for SonarQube images",
+      "matchPackageNames": ["sonarqube", "sonarsource/sonar-scanner-cli"],
+      "pinDigests": false
+    },
+    {
       "description": "Auto-merge all minor, patch, pin, and digest updates",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
@@ -51,6 +56,13 @@
     }
   ],
   "customManagers": [
+    {
+      "description": "Update Docker images in sonar script",
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts/sonar\\.sh$/"],
+      "matchStrings": ["_image=\"(?<depName>.*?):(?<currentValue>.*?)\""],
+      "datasourceTemplate": "docker"
+    },
     {
       "description": "Update NGINX version in Dockerfile",
       "customType": "regex",
