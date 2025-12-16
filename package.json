@@ -27,7 +27,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.1",
+    "@eslint/js": "9.39.2",
     "@playwright/test": "1.57.0",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-dropdown-menu": "2.1.16",
