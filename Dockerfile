@@ -22,9 +22,7 @@ ARG CI_IMAGE_TAG="latest@sha256:f37630b5e69ebeb6b09615ba851fa1aa40a58dbf121c8892
 
 # NGINX and deps versions
 ARG NGINX_VERSION="1.29.3"
-ARG NGINX_SHA256="9befcced12ee09c2f4e1385d7e8e21c91f1a5a63b196f78f897c2d044b8c9312"
 ARG PCRE2_VERSION="10.47"
-ARG PCRE2_SHA256="c08ae2388ef333e8403e670ad70c0a11f1eed021fd88308d7e02f596fcd9dc16"
 ARG NGX_BROTLI_COMMIT="a71f9312"
 ARG NGX_BROTLI_SHA256="1d21be34f3b7b6d05a8142945e59b3a47665edcdfe0f3ee3d3dbef121f90c08c"
 ARG BROTLI_VERSION="1.2.0"
@@ -60,16 +58,14 @@ RUN find /rootfs/static -type f \
 # Nginx builder stage
 FROM alpine:3.23@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375 AS nginx-builder
 ARG NGINX_VERSION
-ARG NGINX_SHA256
 ARG PCRE2_VERSION
-ARG PCRE2_SHA256
 ARG NGX_BROTLI_COMMIT
 ARG NGX_BROTLI_SHA256
 ARG BROTLI_VERSION
 ARG BROTLI_SHA256
 
 # Package installation
-RUN apk add --no-cache cmake git gcc make libc-dev linux-headers
+RUN apk add --no-cache cmake gcc git gnupg libc-dev linux-headers make
 
 # Download brotli modules
 ADD "https://github.com/google/ngx_brotli/archive/${NGX_BROTLI_COMMIT}.tar.gz" "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz"
@@ -91,14 +87,28 @@ RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
   -DCMAKE_INSTALL_PREFIX=installed .. && \
   cmake --build . --config Release --target brotlienc
 
-# Download NGINX and PCRE2 sources
+# Download NGINX and PCRE2 sources and signatures
 ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x43387825DDB1BB97EC36BA5D007C8D7C15D87369" "nginx-arut.key"
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xD6786CE303D9A9022998DC6CC8464D549AF75C0A" "nginx-pluknet.key"
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7338973069ED3F443F4D37DFA64FD5B17ADB39A8" "nginx-sb.key"
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x13C82A63B603576156E30A4EA0EA981B66B0D967" "nginx-thresh.key"
+ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz.asc" .
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xA95536204A3BB489715231282A98E77EB6F24CA8" "pcre2-nicholas-wilson.key"
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBACF71F10404D5761C09D392021DE40BFB63B406" "pcre2-philip-hazel.key"
 ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" .
+ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz.sig" .
 
-# Verify checksums and extract sources for NGINX and PCRE2
-RUN echo "${NGINX_SHA256}  nginx-${NGINX_VERSION}.tar.gz" | sha256sum -c - && \
-  echo "${PCRE2_SHA256}  pcre2-${PCRE2_VERSION}.tar.gz" | sha256sum -c - && \
-  tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
+# Verify GPG signatures and extract
+RUN gpg --batch --yes --import <"nginx-arut.key" && \
+  gpg --batch --yes --import <"nginx-pluknet.key" && \
+  gpg --batch --yes --import <"nginx-sb.key" && \
+  gpg --batch --yes --import <"nginx-thresh.key" && \
+  gpg --batch --yes --import <"pcre2-nicholas-wilson.key" && \
+  gpg --batch --yes --import <"pcre2-philip-hazel.key" && \
+  gpg --batch --yes --verify "nginx-${NGINX_VERSION}.tar.gz.asc" "nginx-${NGINX_VERSION}.tar.gz" && \
+  gpg --batch --yes --verify "pcre2-${PCRE2_VERSION}.tar.gz.sig" "pcre2-${PCRE2_VERSION}.tar.gz"
+RUN tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
   tar -xzf "pcre2-${PCRE2_VERSION}.tar.gz"
 
 # Build Nginx

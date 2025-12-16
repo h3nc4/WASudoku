@@ -61,12 +61,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Shared Rust image
 FROM builder-base AS rust-base
 
-ADD https://static.rust-lang.org/rust-key.gpg.ascii /tmp/rust-key.gpg.ascii
+ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE" "/tmp/rust-key.gpg"
 
-RUN mkdir -p /usr/share/keyrings && \
-  gpg --batch --yes --no-default-keyring \
-  --keyring /usr/share/keyrings/rust-keyring.gpg \
-  --import /tmp/rust-key.gpg.ascii
+RUN gpg --batch --yes --import <"/tmp/rust-key.gpg"
 
 ########################################
 # Install toolchain
@@ -77,7 +74,8 @@ ARG RUST_DISTRO
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz" /tmp/
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz.asc" /tmp/
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO}.tar.xz.asc" "/tmp/${RUST_DISTRO}.tar.xz" && \
+RUN gpg --batch --yes --verify \
+  "/tmp/${RUST_DISTRO}.tar.xz.asc" "/tmp/${RUST_DISTRO}.tar.xz" && \
   mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer"
 RUN tar -xf "/tmp/${RUST_DISTRO}.tar.xz" -C "/tmp/rust-installer" --strip-components=1 && \
   cd "/tmp/rust-installer" && ./install.sh --prefix="/rootfs/opt/rust"
@@ -91,7 +89,8 @@ ARG RUST_DISTRO_WASM
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz" /tmp/
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz.asc" /tmp/
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO_WASM}.tar.xz.asc" "/tmp/${RUST_DISTRO_WASM}.tar.xz" && \
+RUN gpg --batch --yes --verify \
+  "/tmp/${RUST_DISTRO_WASM}.tar.xz.asc" "/tmp/${RUST_DISTRO_WASM}.tar.xz" && \
   mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer-wasm"
 RUN tar -xf "/tmp/${RUST_DISTRO_WASM}.tar.xz" -C "/tmp/rust-installer-wasm" --strip-components=1 && \
   cd "/tmp/rust-installer-wasm" && ./install.sh --prefix="/rootfs/opt/rust"
