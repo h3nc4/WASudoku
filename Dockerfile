@@ -83,7 +83,8 @@ RUN echo "${NGX_BROTLI_SHA256}  ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" | sha256
   tar -xf "brotli-${BROTLI_VERSION}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli"
 
 # Build brotli static library
-RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && cd "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
+RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
+  cd "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
   cmake -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=OFF \
   -DCMAKE_C_FLAGS="-O3 -fPIC" \

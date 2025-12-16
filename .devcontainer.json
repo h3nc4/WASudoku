@@ -4,6 +4,7 @@
   "runArgs": ["--name=wasudoku-devcontainer", "--network=host"],
   "remoteUser": "wasudoku",
   "workspaceFolder": "/workspaces/wasudoku",
+  "overrideCommand": false,
   "mounts": [
     "source=${localWorkspaceFolder}/,target=/workspaces/wasudoku,type=bind",
     "source=${env:HOME},target=/home/wasudoku,type=bind",
@@ -13,6 +14,7 @@
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
   "containerEnv": {
+    "DEVCONTAINER": "1",
     "TERM": "${env:TERM}",
     "TMUX": "${env:TMUX}",
     "WASUDOKU_HOST_ROOT": "${localWorkspaceFolder}"
@@ -21,7 +23,6 @@
     "PATH": "/workspaces/wasudoku/node_modules/.bin:${containerEnv:PATH}"
   },
   "userEnvProbe": "interactiveShell",
-  "postCreateCommand": "doas groupmod -o -g $(stat -c '%g' /var/run/docker.sock) docker && ./scripts/wasm-deps.sh -d && npm i && doas mandb",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -35,7 +36,8 @@
         "rust-lang.rust-analyzer",
         "vadimcn.vscode-lldb",
         "esbenp.prettier-vscode",
-        "github.vscode-github-actions"
+        "github.vscode-github-actions",
+        "SonarSource.sonarlint-vscode"
       ],
       "settings": {
         "editor.tabSize": 2,
@@ -61,7 +63,11 @@
         "[jsonc]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
-        "shellcheck.customArgs": ["-o", "all"]
+        "shellcheck.customArgs": ["-o", "all"],
+        "sonarlint.connectedMode.project": {
+          "connectionId": "http-localhost-9000-",
+          "projectKey": "wasudoku"
+        }
       }
     }
   }

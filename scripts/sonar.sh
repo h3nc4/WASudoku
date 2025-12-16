@@ -15,9 +15,14 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+
 set -e
 
 cd "$(dirname "$0")/../"
+
+if [ "$1" = "-i" ]; then
+  skip_scan="1"
+fi
 
 sonar_container_name="sonarqube"
 sonar_image="sonarqube:25.12.0.117093-community"
@@ -28,14 +33,11 @@ cfg_sonar() {
   curl --fail -su admin:admin -X POST "${sonar_url}/api/$1" >/dev/null
 }
 
-# Adjust paths in coverage reports
-if [ -f "coverage-wasm.xml" ]; then
-  sed -i "s|<source>/wasudoku|<source>.|" coverage-wasm.xml
-fi
-
 # Pull scanner image in background
-docker pull "${sonar_scan_image}" >/dev/null 2>&1 &
-pull_pid=$!
+if [ -z "${skip_scan}" ]; then
+  docker pull "${sonar_scan_image}" >/dev/null 2>&1 &
+  pull_pid=$!
+fi
 
 is_running="$(docker ps -q -f "name=${sonar_container_name}")"
 if [ -z "${is_running}" ]; then
@@ -51,7 +53,7 @@ if [ -z "${is_running}" ]; then
       -v sonarqube_logs:/opt/sonarqube/logs \
       -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
       "${sonar_image}" >/dev/null
-    configured="false"
+    unconfigured="1"
   fi
 
   echo "Waiting for SonarQube to start..."
@@ -59,7 +61,7 @@ if [ -z "${is_running}" ]; then
     sleep 1
   done
 
-  if [ "${configured}" = "false" ]; then
+  if [ -n "${unconfigured}" ]; then
     echo "Configuring SonarQube..."
 
     # Configure SonarQube to allow anonymous access
@@ -77,9 +79,19 @@ if [ -z "${is_running}" ]; then
   fi
 fi
 
-echo "Running SonarQube analysis..."
-wait "${pull_pid}"
+echo "SonarQube is running at ${sonar_url}"
+if [ -n "${skip_scan}" ]; then
+  exit 0
+fi
 
+echo "Running SonarQube analysis..."
+
+# Adjust paths in coverage reports
+if [ -f "coverage-wasm.xml" ]; then
+  sed -i "s|<source>/wasudoku|<source>.|" coverage-wasm.xml
+fi
+
+wait "${pull_pid}"
 docker run \
   --rm \
   --network="host" \

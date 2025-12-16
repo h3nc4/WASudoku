@@ -65,7 +65,9 @@ ARG RUST_DISTRO
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz" /tmp/
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO}.tar.xz.asc" /tmp/
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO}.tar.xz.asc" "/tmp/${RUST_DISTRO}.tar.xz" && \
+RUN gpg --batch --yes --no-default-keyring \
+  --keyring /usr/share/keyrings/rust-keyring.gpg \
+  --verify "/tmp/${RUST_DISTRO}.tar.xz.asc" "/tmp/${RUST_DISTRO}.tar.xz" && \
   mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer"
 RUN tar -xf "/tmp/${RUST_DISTRO}.tar.xz" -C "/tmp/rust-installer" --strip-components=1 && \
   cd "/tmp/rust-installer" && ./install.sh --prefix="/rootfs/opt/rust"
@@ -79,7 +81,9 @@ ARG RUST_DISTRO_WASM
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz" /tmp/
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_WASM}.tar.xz.asc" /tmp/
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO_WASM}.tar.xz.asc" "/tmp/${RUST_DISTRO_WASM}.tar.xz" && \
+RUN gpg --batch --yes --no-default-keyring \
+  --keyring /usr/share/keyrings/rust-keyring.gpg \
+  --verify "/tmp/${RUST_DISTRO_WASM}.tar.xz.asc" "/tmp/${RUST_DISTRO_WASM}.tar.xz" && \
   mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer-wasm"
 RUN tar -xf "/tmp/${RUST_DISTRO_WASM}.tar.xz" -C "/tmp/rust-installer-wasm" --strip-components=1 && \
   cd "/tmp/rust-installer-wasm" && ./install.sh --prefix="/rootfs/opt/rust"
@@ -93,7 +97,9 @@ ARG RUST_DISTRO_SRC
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_SRC}.tar.xz" /tmp/
 ADD "https://static.rust-lang.org/dist/${RUST_DISTRO_SRC}.tar.xz.asc" /tmp/
 
-RUN gpg --batch --yes --no-default-keyring --keyring /usr/share/keyrings/rust-keyring.gpg --verify "/tmp/${RUST_DISTRO_SRC}.tar.xz.asc" "/tmp/${RUST_DISTRO_SRC}.tar.xz" && \
+RUN gpg --batch --yes --no-default-keyring \
+  --keyring /usr/share/keyrings/rust-keyring.gpg \
+  --verify "/tmp/${RUST_DISTRO_SRC}.tar.xz.asc" "/tmp/${RUST_DISTRO_SRC}.tar.xz" && \
   mkdir -p "/rootfs/opt/rust" "/tmp/rust-installer-src"
 RUN tar -xf "/tmp/${RUST_DISTRO_SRC}.tar.xz" -C "/tmp/rust-installer-src" --strip-components=1 && \
   cd "/tmp/rust-installer-src" && ./install.sh --prefix="/rootfs/opt/rust"
@@ -158,6 +164,7 @@ RUN apt-get install --no-install-recommends -y -qq \
   curl \
   git \
   gnupg \
+  gosu \
   iputils-ping \
   iproute2 \
   jq \
@@ -169,6 +176,7 @@ RUN apt-get install --no-install-recommends -y -qq \
   openssh-client \
   procps \
   shellcheck \
+  tini \
   tree \
   wget \
   yq
@@ -208,6 +216,10 @@ RUN printf "permit nopass nolog keepenv %s as root\n" "${USER}" >/etc/doas.conf 
   printf "%s\nset -e\n%s\n" "#!/bin/sh" "doas \$@" >/usr/local/bin/sudo && \
   chmod a+rx /usr/local/bin/sudo
 
+COPY scripts/switch-user.sh /usr/local/bin/switch-user.sh
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/switch-user.sh /usr/local/bin/entrypoint.sh
+
 ########################################
 # Copy features from other stages
 COPY --from=node-stage /rootfs/ /
@@ -220,7 +232,7 @@ RUN npm install -g npm@latest
 ########################################
 # Clean cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN rm -rf /var/cache/* /var/log/* /tmp/*
+RUN rm -rf /var/cache/* /var/log/* /tmp/* /root/.npm
 
 ################################################################################
 # Final squash image.
@@ -239,3 +251,5 @@ ENV USER="${USER}" \
 COPY --from=main / /
 
 USER "${USER}"
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/bin/sleep", "infinity"]
