@@ -1,6 +1,6 @@
 {
   "name": "WASudoku",
-  "image": "h3nc4/wasudoku-dev:2.2.0",
+  "image": "h3nc4/wasudoku-dev:2.2.1",
   "runArgs": ["--name=wasudoku-devcontainer", "--network=host"],
   "remoteUser": "wasudoku",
   "workspaceFolder": "/workspaces/wasudoku",
