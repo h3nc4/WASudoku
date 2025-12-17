@@ -22,6 +22,38 @@ import viteConfig from './vite.config'
 import { playwright } from '@vitest/browser-playwright'
 import { devices } from '@playwright/test'
 
+type BrowserType = 'chromium' | 'firefox' | 'webkit'
+
+const basicBrowsers: Array<{ name: string; browser: BrowserType }> = [
+  { name: 'chromium', browser: 'chromium' },
+  { name: 'firefox', browser: 'firefox' },
+  { name: 'webkit', browser: 'webkit' },
+]
+
+const mobileBrowsers = [
+  { name: 'mobile-chrome', browser: 'chromium' as const, device: 'Pixel 5' },
+  { name: 'mobile-safari', browser: 'webkit' as const, device: 'iPhone 12' },
+  { name: 'pixel-7', browser: 'chromium' as const, device: 'Pixel 7' },
+  { name: 'iphone-15', browser: 'webkit' as const, device: 'iPhone 15' },
+  { name: 'ipad-pro', browser: 'webkit' as const, device: 'iPad Pro 11' },
+].map(({ name, browser, device }) => ({
+  name,
+  browser,
+  viewport: {
+    width: devices[device].viewport.width,
+    height: devices[device].viewport.height,
+  },
+}))
+
+const channelBrowsers = [
+  { name: 'google-chrome', channel: 'chrome' },
+  { name: 'msedge', channel: 'msedge' },
+].map(({ name, channel }) => ({
+  name,
+  browser: 'chromium' as const,
+  provider: playwright({ launchOptions: { channel } }),
+}))
+
 export default mergeConfig(
   viteConfig,
   defineConfig({
@@ -30,74 +62,7 @@ export default mergeConfig(
         enabled: true,
         provider: playwright({}),
         headless: true,
-        instances: [
-          {
-            name: 'chromium',
-            browser: 'chromium',
-          },
-          {
-            name: 'firefox',
-            browser: 'firefox',
-          },
-          {
-            name: 'webkit',
-            browser: 'webkit',
-          },
-          {
-            name: 'mobile-chrome',
-            browser: 'chromium',
-            viewport: {
-              width: devices['Pixel 5'].viewport.width,
-              height: devices['Pixel 5'].viewport.height,
-            },
-          },
-          {
-            name: 'mobile-safari',
-            browser: 'webkit',
-            viewport: {
-              width: devices['iPhone 12'].viewport.width,
-              height: devices['iPhone 12'].viewport.height,
-            },
-          },
-          {
-            name: 'pixel-7',
-            browser: 'chromium',
-            viewport: {
-              width: devices['Pixel 7'].viewport.width,
-              height: devices['Pixel 7'].viewport.height,
-            },
-          },
-          {
-            name: 'iphone-15',
-            browser: 'webkit',
-            viewport: {
-              width: devices['iPhone 15'].viewport.width,
-              height: devices['iPhone 15'].viewport.height,
-            },
-          },
-          {
-            name: 'ipad-pro',
-            browser: 'webkit',
-            viewport: {
-              width: devices['iPad Pro 11'].viewport.width,
-              height: devices['iPad Pro 11'].viewport.height,
-            },
-          },
-          {
-            name: 'google-chrome',
-            browser: 'chromium',
-            provider: playwright({
-              launchOptions: { channel: 'chrome' },
-            }),
-          },
-          {
-            name: 'msedge',
-            browser: 'chromium',
-            provider: playwright({
-              launchOptions: { channel: 'msedge' },
-            }),
-          },
-        ],
+        instances: [...basicBrowsers, ...mobileBrowsers, ...channelBrowsers],
       },
     },
   }),
