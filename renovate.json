@@ -5,6 +5,7 @@
   "prHourlyLimit": 0,
   "lockFileMaintenance": {
     "enabled": true,
+    "automerge": true,
     "schedule": ["before 4am"]
   },
   "packageRules": [
