@@ -16,17 +16,19 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import React from 'react'
-import { render, fireEvent, act, screen, createEvent } from '@testing-library/react'
+import { act, createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SudokuGrid } from './SudokuGrid'
-import { useSudokuState, useSudokuDispatch } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { initialState } from '@/context/sudoku.reducer'
-import * as sudokuActions from '@/context/sudoku.actions'
-import type { SudokuState, CellState, SolvingStep } from '@/context/sudoku.types'
+import * as React from 'react'
 import { toast } from 'sonner'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
+import * as sudokuActions from '@/context/sudoku.actions'
+import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
+import { initialState } from '@/context/sudoku.reducer'
+import type { CellState, SolvingStep, SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { SudokuGrid } from './SudokuGrid'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
@@ -48,17 +50,21 @@ interface MockSudokuCellProps {
 const mockSudokuCellRender = vi.fn()
 
 vi.mock('./SudokuCell', () => ({
-  default: React.forwardRef<HTMLInputElement, MockSudokuCellProps>((props, ref) => {
-    mockSudokuCellRender(props)
-    return (
-      <input
-        ref={ref}
-        aria-label={`cell-${props.index}`}
-        onFocus={() => props.onFocus(props.index)}
-        tabIndex={-1}
-      />
-    )
-  }),
+  default: (() => {
+    const MockCell = React.forwardRef<HTMLInputElement, MockSudokuCellProps>((props, ref) => {
+      mockSudokuCellRender(props)
+      return (
+        <input
+          ref={ref}
+          aria-label={`cell-${props.index}`}
+          onFocus={() => props.onFocus(props.index)}
+          tabIndex={-1}
+        />
+      )
+    })
+    MockCell.displayName = 'MockSudokuCell'
+    return MockCell
+  })(),
 }))
 
 const mockUseSudokuState = useSudokuState as Mock
@@ -111,7 +117,7 @@ describe('SudokuGrid component', () => {
       },
     })
     const { container } = render(<SudokuGrid />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('calls setActiveCell when a cell is focused in playing mode', () => {

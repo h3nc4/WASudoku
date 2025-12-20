@@ -18,12 +18,13 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import App from './App'
 import { useSudokuState } from './context/sudoku.hooks'
-import { useSudokuActions } from './hooks/useSudokuActions'
 import { initialState } from './context/sudoku.reducer'
 import type { SudokuState } from './context/sudoku.types'
+import { useSudokuActions } from './hooks/useSudokuActions'
 
 vi.mock('./context/sudoku.hooks')
 vi.mock('./hooks/useSudokuActions')

@@ -18,12 +18,13 @@
 
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+
 import { PencilMarks } from './PencilMarks'
 
 describe('PencilMarks component', () => {
   it('renders nothing when both sets are empty', () => {
     const { container } = render(<PencilMarks candidates={new Set()} centers={new Set()} />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders candidate marks correctly', () => {
@@ -45,18 +46,14 @@ describe('PencilMarks component', () => {
   })
 
   it('renders small font for many center marks', () => {
-    const { container } = render(
-      <PencilMarks candidates={new Set()} centers={new Set([1, 2, 3, 4, 5])} />,
-    )
-    const span = container.querySelector('span')
+    render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3, 4, 5])} />)
+    const span = screen.getByText('1')
     expect(span).toHaveClass('text-xs')
   })
 
   it('renders normal font for few center marks', () => {
-    const { container } = render(
-      <PencilMarks candidates={new Set()} centers={new Set([1, 2, 3])} />,
-    )
-    const span = container.querySelector('span')
+    render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3])} />)
+    const span = screen.getByText('1')
     expect(span).toHaveClass('text-sm')
   })
 

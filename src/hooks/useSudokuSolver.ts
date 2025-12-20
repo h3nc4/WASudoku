@@ -16,23 +16,24 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect, useRef, type Dispatch } from 'react'
+import { type Dispatch, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import type { SudokuAction } from '@/context/sudoku.actions.types'
-import type { SudokuState, SolveResult } from '@/context/sudoku.types'
+
 import {
-  solveSuccess,
-  solveFailure,
-  generatePuzzleSuccess,
   generatePuzzleFailure,
-  validatePuzzleSuccess,
-  validatePuzzleFailure,
-  requestPoolRefill,
-  poolRefillSuccess,
+  generatePuzzleSuccess,
   poolRefillFailure,
+  poolRefillSuccess,
+  requestPoolRefill,
+  solveFailure,
+  solveSuccess,
+  validatePuzzleFailure,
+  validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
-import { WorkerPool, Priority } from '@/lib/worker-pool'
+import type { SudokuAction } from '@/context/sudoku.actions.types'
+import type { SolveResult, SudokuState } from '@/context/sudoku.types'
 import { boardStateToString } from '@/lib/utils'
+import { Priority, WorkerPool } from '@/lib/worker-pool'
 
 const MIN_POOL_SIZE = 3
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']

@@ -16,10 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { memo, forwardRef } from 'react'
+import { forwardRef, memo } from 'react'
+
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import type { CellState } from '@/context/sudoku.types'
+import { cn } from '@/lib/utils'
+
 import { PencilMarks } from './PencilMarks'
 
 interface SudokuCellProps {

@@ -18,8 +18,8 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import type { InputMode } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /**
  * A toggle group for switching between Normal, Candidate, and Center input modes.

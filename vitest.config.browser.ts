@@ -17,10 +17,11 @@
  */
 
 /// <reference types="vitest" />
-import { mergeConfig, defineConfig } from 'vitest/config'
-import viteConfig from './vite.config'
-import { playwright } from '@vitest/browser-playwright'
 import { devices } from '@playwright/test'
+import { playwright } from '@vitest/browser-playwright'
+import { defineConfig, mergeConfig } from 'vitest/config'
+
+import viteConfig from './vite.config'
 
 type BrowserType = 'chromium' | 'firefox' | 'webkit'
 

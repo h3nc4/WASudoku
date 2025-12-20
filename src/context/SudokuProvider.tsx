@@ -16,16 +16,18 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import React, { useReducer } from 'react'
-import { sudokuReducer, loadInitialState } from './sudoku.reducer'
+import { type ReactNode, useReducer } from 'react'
+
+import { useGameTimer } from '@/hooks/useGameTimer'
+import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
 import { useSudokuPersistence } from '@/hooks/useSudokuPersistence'
 import { useSudokuSolver } from '@/hooks/useSudokuSolver'
-import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
-import { useGameTimer } from '@/hooks/useGameTimer'
+
 import { SudokuDispatchContext, SudokuStateContext } from './sudoku.context'
+import { loadInitialState, sudokuReducer } from './sudoku.reducer'
 
 type SudokuProviderProps = {
-  readonly children: React.ReactNode
+  readonly children: ReactNode
 }
 
 /**

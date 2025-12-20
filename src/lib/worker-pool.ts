@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import SolverWorker from '@/workers/sudoku.worker?worker'
+import SolverWorker from '@/workers/sudoku.worker?worker' // eslint-disable-line import-x/default
 
 // Replaced 'enum' with 'const' object to satisfy 'erasableSyntaxOnly' TS config
 export const Priority = {

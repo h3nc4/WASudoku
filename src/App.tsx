@@ -16,25 +16,27 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useCallback } from 'react'
 import { Eraser, Share2 } from 'lucide-react'
+import { useCallback } from 'react'
 import { SiGithub } from 'react-icons/si'
-import { Button } from '@/components/ui/button'
+
 import { ModeToggle } from '@/components/mode-toggle'
-import { SudokuGrid } from '@/components/SudokuGrid'
 import { NumberPad } from '@/components/NumberPad'
-import { useSudokuState } from './context/sudoku.hooks'
-import { SolveButton } from './components/controls/SolveButton'
-import { ClearButton } from './components/controls/ClearButton'
-import { UndoRedo } from './components/controls/UndoRedo'
-import { InputModeToggle } from './components/controls/InputModeToggle'
-import { SolverStepsPanel } from './components/SolverStepsPanel'
-import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
-import { useSudokuActions } from './hooks/useSudokuActions'
-import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
-import { SelectionScreen } from './components/SelectionScreen'
+import { SudokuGrid } from '@/components/SudokuGrid'
+import { Button } from '@/components/ui/button'
+
 import { AutoFillButton } from './components/controls/AutoFillButton'
+import { ClearButton } from './components/controls/ClearButton'
+import { InputModeToggle } from './components/controls/InputModeToggle'
+import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
+import { SolveButton } from './components/controls/SolveButton'
+import { UndoRedo } from './components/controls/UndoRedo'
 import { GameStatus } from './components/GameStatus'
+import { SelectionScreen } from './components/SelectionScreen'
+import { SolverStepsPanel } from './components/SolverStepsPanel'
+import { useSudokuState } from './context/sudoku.hooks'
+import { useSudokuActions } from './hooks/useSudokuActions'
+import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { cn } from './lib/utils'
 
 function App() {

@@ -17,15 +17,16 @@
  */
 
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SudokuProvider } from './SudokuProvider'
-import { useSudokuState, useSudokuDispatch } from './sudoku.hooks'
+import { useGameTimer } from '@/hooks/useGameTimer'
+import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
 import { useSudokuPersistence } from '@/hooks/useSudokuPersistence'
 import { useSudokuSolver } from '@/hooks/useSudokuSolver'
-import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
-import { useGameTimer } from '@/hooks/useGameTimer'
+
+import { useSudokuDispatch, useSudokuState } from './sudoku.hooks'
 import { initialState } from './sudoku.reducer'
+import { SudokuProvider } from './SudokuProvider'
 
 vi.mock('@/hooks/useSudokuPersistence')
 vi.mock('@/hooks/useSudokuSolver')

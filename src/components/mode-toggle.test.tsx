@@ -20,6 +20,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useTheme } from 'next-themes'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { ModeToggle } from './mode-toggle'
 
 // Mock the 'next-themes' hook

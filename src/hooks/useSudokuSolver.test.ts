@@ -17,12 +17,14 @@
  */
 
 import { renderHook, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { toast } from 'sonner'
-import { useSudokuSolver } from './useSudokuSolver'
-import { WorkerPool, Priority } from '@/lib/worker-pool'
-import type { SudokuState } from '@/context/sudoku.types'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { initialState } from '@/context/sudoku.reducer'
+import type { SudokuState } from '@/context/sudoku.types'
+import { Priority, WorkerPool } from '@/lib/worker-pool'
+
+import { useSudokuSolver } from './useSudokuSolver'
 
 // Hoist mocks to avoid TDZ issues
 const { mockRunTask, mockTerminate } = vi.hoisted(() => {
@@ -148,10 +150,10 @@ describe('useSudokuSolver', () => {
         type: 'REQUEST_POOL_REFILL',
         difficulty: 'easy',
       })
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'extreme',
-      })
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'REQUEST_POOL_REFILL',
+      difficulty: 'extreme',
     })
   })
 

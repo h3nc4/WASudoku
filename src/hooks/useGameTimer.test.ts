@@ -16,12 +16,14 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { renderHook, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useGameTimer } from './useGameTimer'
-import { initialState } from '@/context/sudoku.reducer'
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { tickTimer } from '@/context/sudoku.actions'
+import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+
+import { useGameTimer } from './useGameTimer'
 
 describe('useGameTimer', () => {
   const mockDispatch = vi.fn()

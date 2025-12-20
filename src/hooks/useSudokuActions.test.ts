@@ -16,15 +16,17 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { renderHook, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, type Mock } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
-import { useSudokuActions } from './useSudokuActions'
-import { useSudokuState, useSudokuDispatch } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import * as actionCreators from '@/context/sudoku.actions'
+import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
+import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
 import { isMoveValid } from '@/lib/utils'
+
+import { useSudokuActions } from './useSudokuActions'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/lib/utils', async (importOriginal) => {

@@ -16,13 +16,15 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen, fireEvent, createEvent } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { InputModeToggle } from './InputModeToggle'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { initialState } from '@/context/sudoku.reducer'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { InputModeToggle } from './InputModeToggle'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')

@@ -17,17 +17,18 @@
  */
 
 import { useCallback } from 'react'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
+import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import type { SolvingStep } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { formatCell } from '@/lib/utils'
 
 /**

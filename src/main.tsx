@@ -16,12 +16,15 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import './index.css'
+
+import { ThemeProvider } from 'next-themes'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ThemeProvider } from 'next-themes'
-import App from './App.tsx'
-import './index.css'
+
 import { Toaster } from '@/components/ui/sonner.tsx'
+
+import App from './App.tsx'
 import { SudokuProvider } from './context/SudokuProvider.tsx'
 
 createRoot(document.getElementById('root')!).render(

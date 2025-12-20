@@ -16,8 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect } from 'react'
-import { Wand2, Loader2, Edit3 } from 'lucide-react'
+import { Edit3, Loader2, Wand2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

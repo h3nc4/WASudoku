@@ -17,7 +17,7 @@
  */
 
 /* v8 ignore next */
-import init, { solve_sudoku, generate_sudoku, validate_puzzle } from 'wasudoku-wasm'
+import init, { generate_sudoku, solve_sudoku, validate_puzzle } from 'wasudoku-wasm'
 
 // Initialize the WASM module on worker startup.
 const wasmReady = init()

@@ -16,13 +16,14 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useMemo } from 'react'
 import { Eraser } from 'lucide-react'
+import { useMemo } from 'react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { toast } from 'sonner'
-import { cn, areBoardsEqual } from '@/lib/utils'
+import { areBoardsEqual, cn } from '@/lib/utils'
 
 interface ClearButtonProps {
   readonly className?: string

@@ -18,12 +18,14 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SolverStepsPanel } from './SolverStepsPanel'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState, SolvingStep } from '@/context/sudoku.types'
+import type { SolvingStep, SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { SolverStepsPanel } from './SolverStepsPanel'
 
 // Mocks
 vi.mock('@/context/sudoku.hooks')
@@ -197,7 +199,7 @@ describe('SolverStepsPanel component', () => {
       solver: { ...defaultState.solver, steps: [] },
     })
     const { container } = render(<SolverStepsPanel />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders the panel with initial, final, and all step buttons', { timeout: 10000 }, () => {

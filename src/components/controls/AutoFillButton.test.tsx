@@ -18,12 +18,14 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { AutoFillButton } from './AutoFillButton'
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { initialState } from '@/context/sudoku.reducer'
 import { toast } from 'sonner'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
+import { useSudokuState } from '@/context/sudoku.hooks'
+import { initialState } from '@/context/sudoku.reducer'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { AutoFillButton } from './AutoFillButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')

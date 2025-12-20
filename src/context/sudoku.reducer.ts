@@ -16,41 +16,42 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import {
+  areBoardsEqual,
+  boardStateFromString,
+  calculateCandidates,
+  getRelatedCellIndices,
+  isMoveValid,
+  validateBoard,
+} from '@/lib/utils'
+
 import type {
-  SudokuAction,
-  SetCellValueAction,
-  TogglePencilMarkAction,
   EraseCellAction,
-  SolveSuccessAction,
-  ViewSolverStepAction,
-  SetActiveCellAction,
-  ImportBoardAction,
-  GeneratePuzzleSuccessAction,
   GeneratePuzzleStartAction,
+  GeneratePuzzleSuccessAction,
+  ImportBoardAction,
+  PoolRefillFailureAction,
+  PoolRefillSuccessAction,
+  RequestPoolRefillAction,
+  SetActiveCellAction,
+  SetCellValueAction,
+  SolveSuccessAction,
+  SudokuAction,
+  TogglePencilMarkAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleSuccessAction,
-  RequestPoolRefillAction,
-  PoolRefillSuccessAction,
-  PoolRefillFailureAction,
+  ViewSolverStepAction,
 } from './sudoku.actions.types'
 import type {
   BoardState,
-  SudokuState,
   HistoryState,
-  SolvingStep,
-  PuzzleData,
   PersistedGameState,
   PersistedMetrics,
   PersistedPool,
+  PuzzleData,
+  SolvingStep,
+  SudokuState,
 } from './sudoku.types'
-import {
-  getRelatedCellIndices,
-  validateBoard,
-  calculateCandidates,
-  boardStateFromString,
-  areBoardsEqual,
-  isMoveValid,
-} from '@/lib/utils'
 
 const BOARD_SIZE = 81
 const MAX_HISTORY_ENTRIES = 100

@@ -18,10 +18,11 @@
 
 import { useMemo } from 'react'
 import { toast } from 'sonner'
-import { useSudokuState, useSudokuDispatch } from '@/context/sudoku.hooks'
+
 import * as actions from '@/context/sudoku.actions'
-import { isMoveValid, boardStateToString } from '@/lib/utils'
+import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import type { InputMode } from '@/context/sudoku.types'
+import { boardStateToString, isMoveValid } from '@/lib/utils'
 
 /**
  * Provides a stable, memoized API for dispatching all Sudoku actions.

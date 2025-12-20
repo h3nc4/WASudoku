@@ -16,14 +16,16 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen, act } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SolveButton } from './SolveButton'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { SolveButton } from './SolveButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
@@ -69,7 +71,7 @@ describe('SolveButton component', () => {
         },
       })
       render(<SolveButton />)
-      expect(screen.getByRole('button', { name: 'Solve Puzzle' })).not.toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Solve Puzzle' })).toBeEnabled()
     })
 
     it('is disabled and shows conflict title when there are conflicts', () => {

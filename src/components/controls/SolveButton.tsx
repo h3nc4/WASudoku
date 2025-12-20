@@ -16,8 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { BrainCircuit, X, Play } from 'lucide-react'
+import { BrainCircuit, Play, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'

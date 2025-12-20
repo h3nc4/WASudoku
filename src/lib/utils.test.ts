@@ -17,7 +17,9 @@
  */
 
 import { describe, expect, it } from 'vitest'
+
 import type { BoardState, CellState } from '@/context/sudoku.types'
+
 import {
   areBoardsEqual,
   boardStateFromString,

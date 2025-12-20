@@ -20,25 +20,93 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
+import { configs as tseslintConfigs } from 'typescript-eslint'
+import reactPlugin from 'eslint-plugin-react'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
+import simpleImportSort from 'eslint-plugin-simple-import-sort'
+import { flatConfigs as importXConfigs } from 'eslint-plugin-import-x'
+import testingLibrary from 'eslint-plugin-testing-library'
+import jestDom from 'eslint-plugin-jest-dom'
+import { configs as sonarjsConfigs } from 'eslint-plugin-sonarjs'
+import promise from 'eslint-plugin-promise'
+import unusedImports from 'eslint-plugin-unused-imports'
 
 export default [
-  { ignores: ['dist', 'src/wasudoku-wasm/pkg'] },
+  { ignores: ['dist', 'src/wasudoku-wasm/pkg', 'coverage', 'coverage-wasm.xml'] },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslintConfigs.recommended,
+  reactPlugin.configs.flat.recommended,
+  reactPlugin.configs.flat['jsx-runtime'],
+  jsxA11y.flatConfigs.recommended,
+  importXConfigs.recommended,
+  importXConfigs.typescript,
+  promise.configs['flat/recommended'],
+  sonarjsConfigs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+      'import-x/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
+          project: './tsconfig.json',
+        },
+      },
+      'import-x/core-modules': ['wasudoku-wasm'],
     },
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      'simple-import-sort': simpleImportSort,
+      'unused-imports': unusedImports,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react/prop-types': 'off',
+      'react/no-unknown-property': ['error', { ignore: ['class'] }],
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/no-duplicates': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': [
+        'warn',
+        {
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+        },
+      ],
+      'promise/always-return': 'off',
+      'promise/catch-or-return': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+    plugins: {
+      'testing-library': testingLibrary,
+      'jest-dom': jestDom,
+    },
+    rules: {
+      ...testingLibrary.configs['flat/react'].rules,
+      ...jestDom.configs['flat/recommended'].rules,
+      'testing-library/no-node-access': 'off',
     },
   },
 ]

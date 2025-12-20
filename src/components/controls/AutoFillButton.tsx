@@ -17,10 +17,11 @@
  */
 
 import { Pencil } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { toast } from 'sonner'
 
 /**
  * A button to automatically calculate and fill candidates for all empty cells.

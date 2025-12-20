@@ -16,7 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
 import * as actions from './sudoku.actions'
 import type { SudokuAction } from './sudoku.actions.types'
 import type { SolveResult } from './sudoku.types'

@@ -16,8 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { WorkerPool, Priority, type TaskType } from './worker-pool'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { Priority, type TaskType, WorkerPool } from './worker-pool'
 
 // Hoist mocks
 const { MockWorker, mockPostMessage, mockTerminate, mockAddEventListener } = vi.hoisted(() => {

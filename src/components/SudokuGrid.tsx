@@ -16,14 +16,24 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import React, { useMemo, useEffect, useCallback, createRef } from 'react'
+import {
+  type ClipboardEvent,
+  createRef,
+  type FocusEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react'
 import { toast } from 'sonner'
-import SudokuCell from './SudokuCell'
-import { getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
-import { useSudokuState, useSudokuDispatch } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+
 import { importBoard } from '@/context/sudoku.actions'
+import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import type { CellState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
+
+import SudokuCell from './SudokuCell'
 
 /**
  * Renders the 9x9 Sudoku grid container and manages all keyboard interactions.
@@ -98,7 +108,7 @@ export function SudokuGrid() {
   )
 
   const handlePaste = useCallback(
-    async (event: React.ClipboardEvent) => {
+    async (event: ClipboardEvent) => {
       if (solver.gameMode !== 'customInput') return
       event.preventDefault()
       try {
@@ -119,7 +129,7 @@ export function SudokuGrid() {
 
   // Centralized keyboard handler for the entire grid.
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: KeyboardEvent<HTMLDivElement>) => {
       if (isReadOnly) return
 
       const key = e.key
@@ -154,7 +164,7 @@ export function SudokuGrid() {
 
   // Effect to handle focus leaving the grid entirely.
   const handleGridBlur = useCallback(
-    (e: React.FocusEvent<HTMLDivElement>) => {
+    (e: FocusEvent<HTMLDivElement>) => {
       // If the element receiving focus is not a cell within this grid, deselect.
       if (!e.currentTarget.contains(e.relatedTarget as Node)) {
         actions.setActiveCell(null)

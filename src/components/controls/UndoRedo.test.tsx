@@ -18,12 +18,14 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { UndoRedo } from './UndoRedo'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { UndoRedo } from './UndoRedo'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
@@ -59,7 +61,7 @@ describe('UndoRedo component', () => {
       },
     })
     render(<UndoRedo />)
-    expect(screen.getByRole('button', { name: 'Undo' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
   })
 
@@ -73,7 +75,7 @@ describe('UndoRedo component', () => {
     })
     render(<UndoRedo />)
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Redo' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeEnabled()
   })
 
   it('disables both buttons when in visualizing mode, even if history exists', () => {

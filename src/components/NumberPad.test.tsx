@@ -18,12 +18,14 @@
 
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, type Mock, beforeEach } from 'vitest'
-import { NumberPad } from './NumberPad'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { initialState, createEmptyBoard } from '@/context/sudoku.reducer'
+import { createEmptyBoard, initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { NumberPad } from './NumberPad'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
@@ -80,7 +82,7 @@ describe('NumberPad component', () => {
     render(<NumberPad />)
 
     expect(screen.getByRole('button', { name: 'Enter number 3' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Enter number 4' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Enter number 4' })).toBeEnabled()
   })
 
   it('disables all number buttons when in visualizing mode', () => {

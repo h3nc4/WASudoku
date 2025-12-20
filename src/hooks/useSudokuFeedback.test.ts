@@ -17,11 +17,13 @@
  */
 
 import { renderHook } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { toast } from 'sonner'
-import { useSudokuFeedback } from './useSudokuFeedback'
-import type { SudokuState } from '@/context/sudoku.types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { initialState } from '@/context/sudoku.reducer'
+import type { SudokuState } from '@/context/sudoku.types'
+
+import { useSudokuFeedback } from './useSudokuFeedback'
 
 vi.mock('sonner', () => ({
   toast: {

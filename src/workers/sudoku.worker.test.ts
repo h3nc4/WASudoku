@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 // Mock the wasudoku-wasm module. This will be hoisted.
 vi.mock('wasudoku-wasm', async (importOriginal) => {
@@ -212,7 +212,7 @@ describe('Sudoku Worker Logic', () => {
   })
 
   it('should ignore foreign origin', async () => {
-    await simulateMessage({ id: 1, type: 'solve' }, 'http://evil.com')
+    await simulateMessage({ id: 1, type: 'solve' }, 'https://evil.com')
     expect(mockPostMessage).not.toHaveBeenCalled()
   })
 })

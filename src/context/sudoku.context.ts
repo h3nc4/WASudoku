@@ -17,8 +17,9 @@
  */
 
 import { createContext, type Dispatch } from 'react'
-import type { SudokuState } from './sudoku.types'
+
 import type { SudokuAction } from './sudoku.actions.types'
+import type { SudokuState } from './sudoku.types'
 
 /** Context to provide the Sudoku game state to consumer components. */
 export const SudokuStateContext = createContext<SudokuState | undefined>(undefined)

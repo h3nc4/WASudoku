@@ -17,13 +17,14 @@
  */
 
 import { useEffect } from 'react'
+
+import { STORAGE_KEYS } from '@/context/sudoku.reducer'
 import type {
-  SudokuState,
+  BoardState,
   PersistedGameState,
   PersistedPool,
-  BoardState,
+  SudokuState,
 } from '@/context/sudoku.types'
-import { STORAGE_KEYS } from '@/context/sudoku.reducer'
 
 /**
  * Custom JSON replacer to handle serializing `Set` objects.

@@ -17,11 +17,13 @@
  */
 
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { GameStatus } from './GameStatus'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+
+import { GameStatus } from './GameStatus'
 
 vi.mock('@/context/sudoku.hooks')
 
@@ -45,7 +47,7 @@ describe('GameStatus component', () => {
       solver: { ...initialState.solver, gameMode: 'selecting' },
     })
     const { container } = render(<GameStatus />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders timer formatted correctly', () => {

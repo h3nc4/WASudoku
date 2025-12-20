@@ -16,12 +16,13 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import React from 'react'
 import { render, renderHook } from '@testing-library/react'
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
-import { SudokuProvider } from './SudokuProvider'
-import { useSudokuState, useSudokuDispatch } from './sudoku.hooks'
+import * as React from 'react'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { useSudokuDispatch, useSudokuState } from './sudoku.hooks'
 import { initialState } from './sudoku.reducer'
+import { SudokuProvider } from './SudokuProvider'
 
 // Mock the side-effect hooks used by SudokuProvider to ensure state remains pure
 // and tests are deterministic across environments (JSDOM vs Browser).

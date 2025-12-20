@@ -17,9 +17,11 @@
  */
 
 import { Edit3 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
-import { NewPuzzleButton } from './controls/NewPuzzleButton'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { NewPuzzleButton } from './controls/NewPuzzleButton'
 
 /**
  * An overlay screen shown on application start, allowing the user to

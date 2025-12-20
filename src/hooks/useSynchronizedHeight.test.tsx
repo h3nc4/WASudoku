@@ -16,8 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { useSynchronizedHeight } from './useSynchronizedHeight'
 
 let mockResizeObserverCallback: ResizeObserverCallback | null = null
@@ -56,17 +57,18 @@ describe('useSynchronizedHeight', () => {
   }
 
   it('should not apply height or observe if isEnabled is false', () => {
-    const { getByTestId } = render(<TestComponent isEnabled={false} />)
-    const target = getByTestId('target')
+    render(<TestComponent isEnabled={false} />)
+    const target = screen.getByTestId('target')
 
+    // eslint-disable-next-line jest-dom/prefer-to-have-style
     expect(target.style.height).toBe('')
     expect(mockObserve).not.toHaveBeenCalled()
   })
 
-  it('should synchronize height when isEnabled is true and refs are attached', () => {
-    const { getByTestId, rerender } = render(<TestComponent isEnabled={false} />)
-    const source = getByTestId('source')
-    const target = getByTestId('target')
+  it('should synchronize height when isEnabled is true', () => {
+    const { rerender } = render(<TestComponent isEnabled={false} />)
+    const source = screen.getByTestId('source')
+    const target = screen.getByTestId('target')
 
     Object.defineProperty(source, 'offsetHeight', {
       configurable: true,
@@ -75,21 +77,21 @@ describe('useSynchronizedHeight', () => {
 
     rerender(<TestComponent isEnabled={true} />)
 
-    expect(target.style.height).toBe('500px')
+    expect(target).toHaveStyle({ height: '500px' })
     expect(mockObserve).toHaveBeenCalledWith(source)
   })
 
   it('should update height when ResizeObserver is triggered', () => {
-    const { getByTestId, rerender } = render(<TestComponent isEnabled={false} />)
-    const source = getByTestId('source')
-    const target = getByTestId('target')
+    const { rerender } = render(<TestComponent isEnabled={false} />)
+    const source = screen.getByTestId('source')
+    const target = screen.getByTestId('target')
 
     Object.defineProperty(source, 'offsetHeight', {
       configurable: true,
       value: 500,
     })
     rerender(<TestComponent isEnabled={true} />)
-    expect(target.style.height).toBe('500px')
+    expect(target).toHaveStyle({ height: '500px' })
 
     Object.defineProperty(source, 'offsetHeight', {
       configurable: true,
@@ -100,7 +102,7 @@ describe('useSynchronizedHeight', () => {
       mockResizeObserverCallback?.([], {} as ResizeObserver)
     })
 
-    expect(target.style.height).toBe('600px')
+    expect(target).toHaveStyle({ height: '600px' })
   })
 
   it('should disconnect the observer on unmount', () => {
@@ -112,19 +114,20 @@ describe('useSynchronizedHeight', () => {
   })
 
   it('should reset the height when the hook is disabled', () => {
-    const { getByTestId, rerender } = render(<TestComponent isEnabled={false} />)
-    const source = getByTestId('source')
-    const target = getByTestId('target')
+    const { rerender } = render(<TestComponent isEnabled={false} />)
+    const source = screen.getByTestId('source')
+    const target = screen.getByTestId('target')
 
     Object.defineProperty(source, 'offsetHeight', {
       configurable: true,
       value: 500,
     })
     rerender(<TestComponent isEnabled={true} />)
-    expect(target.style.height).toBe('500px')
+    expect(target).toHaveStyle({ height: '500px' })
 
     rerender(<TestComponent isEnabled={false} />)
 
+    // eslint-disable-next-line jest-dom/prefer-to-have-style
     expect(target.style.height).toBe('')
     expect(mockDisconnect).toHaveBeenCalledOnce()
   })

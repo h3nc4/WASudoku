@@ -18,9 +18,11 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SelectionScreen } from './SelectionScreen'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+
 import { useSudokuActions } from '@/hooks/useSudokuActions'
+
+import { SelectionScreen } from './SelectionScreen'
 
 vi.mock('@/hooks/useSudokuActions')
 vi.mock('./controls/NewPuzzleButton', () => ({

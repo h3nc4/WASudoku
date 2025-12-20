@@ -17,10 +17,12 @@
  */
 
 import { renderHook } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
-import { useSudokuPersistence } from './useSudokuPersistence'
-import type { SudokuState } from '@/context/sudoku.types'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { initialState, STORAGE_KEYS } from '@/context/sudoku.reducer'
+import type { SudokuState } from '@/context/sudoku.types'
+
+import { useSudokuPersistence } from './useSudokuPersistence'
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}

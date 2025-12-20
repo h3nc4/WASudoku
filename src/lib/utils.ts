@@ -18,6 +18,7 @@
 
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+
 import type { BoardState } from '@/context/sudoku.types'
 
 export function cn(...inputs: ClassValue[]) {

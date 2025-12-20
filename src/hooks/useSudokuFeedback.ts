@@ -16,11 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect, type Dispatch } from 'react'
+import { type Dispatch, useEffect } from 'react'
 import { toast } from 'sonner'
+
+import { clearError } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
 import type { SudokuState } from '@/context/sudoku.types'
-import { clearError } from '@/context/sudoku.actions'
 
 /**
  * Manages user-facing feedback, such as toasts for errors. It listens for changes

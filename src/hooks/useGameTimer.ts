@@ -16,10 +16,11 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect, type Dispatch } from 'react'
-import type { SudokuState } from '@/context/sudoku.types'
-import type { SudokuAction } from '@/context/sudoku.actions.types'
+import { type Dispatch, useEffect } from 'react'
+
 import { tickTimer } from '@/context/sudoku.actions'
+import type { SudokuAction } from '@/context/sudoku.actions.types'
+import type { SudokuState } from '@/context/sudoku.types'
 
 /**
  * Manages the game timer interval. It ticks only when the game is in 'playing' mode
