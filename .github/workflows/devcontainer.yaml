@@ -71,7 +71,7 @@ jobs:
         run: |
           echo "${{ env.VERSION }}" >.github/VERSION
       - name: Commit and push
-        uses: planetscale/ghcommit-action@v0.2.20
+        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
         with:
           commit_message: 'Bump dev container and CI images to v${{ env.VERSION }} [skip ci]'
           repo: ${{ github.repository }}
