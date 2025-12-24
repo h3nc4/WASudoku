@@ -180,6 +180,17 @@ export interface TickTimerAction {
   type: 'TICK_TIMER'
 }
 
+/** Action to set conflict highlight for a transient duration. */
+export interface SetTransientConflictsAction {
+  type: 'SET_TRANSIENT_CONFLICTS'
+  indices: Set<number>
+}
+
+/** Action to clear transient conflict highlights. */
+export interface ClearTransientConflictsAction {
+  type: 'CLEAR_TRANSIENT_CONFLICTS'
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -210,3 +221,5 @@ export type SudokuAction =
   | ViewSolverStepAction
   | ExitVisualizationAction
   | TickTimerAction
+  | SetTransientConflictsAction
+  | ClearTransientConflictsAction

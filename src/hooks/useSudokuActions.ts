@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 import * as actions from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import type { InputMode } from '@/context/sudoku.types'
-import { boardStateToString, isMoveValid } from '@/lib/utils'
+import { boardStateToString, getConflictingPeers, isMoveValid } from '@/lib/utils'
 
 /**
  * Provides a stable, memoized API for dispatching all Sudoku actions.
@@ -36,8 +36,34 @@ export function useSudokuActions() {
   const dispatch = useSudokuDispatch()
 
   // The returned object has a stable identity, preventing unnecessary re-renders.
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const handleNormalInput = (index: number, value: number) => {
+      dispatch(actions.setCellValue(index, value))
+      if (isMoveValid(state.board, index, value) && index < 80) {
+        dispatch(actions.setActiveCell(index + 1))
+      }
+    }
+
+    const handlePencilMarkInput = (index: number, value: number, mode: 'candidate' | 'center') => {
+      const cell = state.board[index]
+      const hasMark = mode === 'candidate' ? cell.candidates.has(value) : cell.centers.has(value)
+
+      if (hasMark) {
+        // Toggling off is always allowed
+        dispatch(actions.togglePencilMark(index, value, mode))
+      } else {
+        // Toggling on requires validation against peers
+        const conflicts = getConflictingPeers(state.board, index, value)
+        if (conflicts.size === 0) {
+          dispatch(actions.togglePencilMark(index, value, mode))
+        } else {
+          // Invalid move: highlight conflicts instead of toggling
+          dispatch(actions.setTransientConflicts(conflicts))
+        }
+      }
+    }
+
+    return {
       /** Sets the active cell and updates the highlighted value. */
       setActiveCell: (index: number | null) => {
         dispatch(actions.setActiveCell(index))
@@ -45,23 +71,18 @@ export function useSudokuActions() {
 
       /** Inputs a value, respecting the current input mode. */
       inputValue: (value: number) => {
-        if (state.ui.activeCellIndex === null) return
+        const { activeCellIndex, inputMode } = state.ui
+        if (activeCellIndex === null) return
 
         // Prevent modification of "given" cells in playing mode.
-        if (state.solver.gameMode === 'playing' && state.board[state.ui.activeCellIndex].isGiven) {
+        if (state.solver.gameMode === 'playing' && state.board[activeCellIndex].isGiven) {
           return
         }
 
-        if (state.ui.inputMode === 'normal') {
-          dispatch(actions.setCellValue(state.ui.activeCellIndex, value))
-          if (
-            isMoveValid(state.board, state.ui.activeCellIndex, value) &&
-            state.ui.activeCellIndex < 80
-          ) {
-            dispatch(actions.setActiveCell(state.ui.activeCellIndex + 1))
-          }
+        if (inputMode === 'normal') {
+          handleNormalInput(activeCellIndex, value)
         } else {
-          dispatch(actions.togglePencilMark(state.ui.activeCellIndex, value, state.ui.inputMode))
+          handlePencilMarkInput(activeCellIndex, value, inputMode)
         }
       },
 
@@ -142,7 +163,6 @@ export function useSudokuActions() {
       setHighlightedValue: (value: number | null) => dispatch(actions.setHighlightedValue(value)),
       /** Jumps to a specific step in the solver visualization. */
       viewSolverStep: (index: number) => dispatch(actions.viewSolverStep(index)),
-    }),
-    [state, dispatch],
-  )
+    }
+  }, [state, dispatch])
 }

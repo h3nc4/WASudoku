@@ -94,6 +94,7 @@ export const initialState: SudokuState = {
     highlightedValue: null,
     inputMode: 'normal',
     lastError: null,
+    transientConflicts: null,
   },
   solver: {
     isSolving: false,
@@ -376,7 +377,7 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
         index: 0,
       },
       solver: { ...state.solver, isSolved: false, solveFailed: false },
-      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null, transientConflicts: null },
       game: { timer: 0, mistakes: 0 },
     }
   }
@@ -396,7 +397,7 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
       },
       // Clear solution as well since we are resetting
       solver: { ...state.solver, solution: null },
-      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null },
+      ui: { ...state.ui, activeCellIndex: null, highlightedValue: null, transientConflicts: null },
       game: { timer: 0, mistakes: 0 },
     }
   }
@@ -790,6 +791,7 @@ const handleExitVisualization = (state: SudokuState): SudokuState => ({
   ui: {
     ...state.ui,
     highlightedValue: null,
+    transientConflicts: null,
   },
 })
 
@@ -950,6 +952,12 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       break
     case 'TICK_TIMER':
       newState = { ...state, game: { ...state.game, timer: state.game.timer + 1 } }
+      break
+    case 'SET_TRANSIENT_CONFLICTS':
+      newState = { ...state, ui: { ...state.ui, transientConflicts: action.indices } }
+      break
+    case 'CLEAR_TRANSIENT_CONFLICTS':
+      newState = { ...state, ui: { ...state.ui, transientConflicts: null } }
       break
     default:
       newState = state

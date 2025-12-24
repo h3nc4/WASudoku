@@ -127,6 +127,48 @@ export function validateBoard(board: BoardState): Set<number> {
 }
 
 /**
+ * Finds all peer cells (row, column, box) that currently contain the specified value.
+ * Used to identify specific conflicts when validating a move.
+ *
+ * @param board The Sudoku board array.
+ * @param index The index of the cell where the value is being attempted.
+ * @param value The number being placed.
+ * @returns A Set of indices of peer cells that conflict with the value.
+ */
+export function getConflictingPeers(board: BoardState, index: number, value: number): Set<number> {
+  const conflicts = new Set<number>()
+  const row = Math.floor(index / 9)
+  const col = index % 9
+  const startRow = Math.floor(row / 3) * 3
+  const startCol = Math.floor(col / 3) * 3
+
+  const check = (idx: number) => {
+    if (idx !== index && board[idx].value === value) {
+      conflicts.add(idx)
+    }
+  }
+
+  // Check row
+  for (let i = 0; i < 9; i++) {
+    check(row * 9 + i)
+  }
+
+  // Check column
+  for (let i = 0; i < 9; i++) {
+    check(i * 9 + col)
+  }
+
+  // Check 3x3 box
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      check((startRow + i) * 9 + (startCol + j))
+    }
+  }
+
+  return conflicts
+}
+
+/**
  * Checks if placing a number in a specific cell would create an immediate conflict.
  * This is a lighter-weight check than `validateBoard` as it only checks the peers of a single cell
  * against the board state *before* the new value is committed.
@@ -136,38 +178,8 @@ export function validateBoard(board: BoardState): Set<number> {
  * @returns `true` if the move is valid (no immediate conflict), `false` otherwise.
  */
 export function isMoveValid(board: BoardState, index: number, value: number): boolean {
-  const row = Math.floor(index / 9)
-  const col = index % 9
-
-  // Check row for conflict
-  for (let i = 0; i < 9; i++) {
-    const peerIndex = row * 9 + i
-    if (peerIndex !== index && board[peerIndex].value === value) {
-      return false
-    }
-  }
-
-  // Check column for conflict
-  for (let i = 0; i < 9; i++) {
-    const peerIndex = i * 9 + col
-    if (peerIndex !== index && board[peerIndex].value === value) {
-      return false
-    }
-  }
-
-  // Check 3x3 box for conflict
-  const startRow = Math.floor(row / 3) * 3
-  const startCol = Math.floor(col / 3) * 3
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      const peerIndex = (startRow + i) * 9 + (startCol + j)
-      if (peerIndex !== index && board[peerIndex].value === value) {
-        return false
-      }
-    }
-  }
-
-  return true
+  const conflicts = getConflictingPeers(board, index, value)
+  return conflicts.size === 0
 }
 
 /**

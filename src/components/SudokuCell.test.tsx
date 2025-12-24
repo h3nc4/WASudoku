@@ -43,6 +43,7 @@ describe('SudokuCell component', () => {
     isCause: false,
     isPlaced: false,
     onFocus: mockOnFocus,
+    isTransientConflict: false,
   }
 
   beforeEach(() => {
@@ -107,6 +108,21 @@ describe('SudokuCell component', () => {
 
       expect(textbox).toHaveClass('!text-destructive')
       expect(background).toHaveClass('!bg-destructive/20')
+    })
+
+    it('applies transient highlight style when isTransientConflict is true', () => {
+      render(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      const textbox = screen.getByRole('textbox')
+      const background = screen.getByTestId('cell-background')
+
+      expect(textbox).toHaveClass('!text-destructive')
+      expect(background).toHaveClass('!bg-destructive/30')
     })
 
     it('applies correct classes for given numbers', () => {

@@ -235,6 +235,7 @@ export function SudokuGrid() {
             isPlaced={placedIndices.has(index)}
             onFocus={handleCellFocus}
             eliminatedCandidates={eliminatedCandidates}
+            isTransientConflict={ui.transientConflicts?.has(index) ?? false}
           />
         )
       })}

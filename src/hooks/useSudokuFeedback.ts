@@ -19,7 +19,7 @@
 import { type Dispatch, useEffect } from 'react'
 import { toast } from 'sonner'
 
-import { clearError } from '@/context/sudoku.actions'
+import { clearError, clearTransientConflicts } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
 import type { SudokuState } from '@/context/sudoku.types'
 
@@ -31,12 +31,23 @@ import type { SudokuState } from '@/context/sudoku.types'
  * @param dispatch - The dispatch function from the Sudoku reducer.
  */
 export function useSudokuFeedback(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
-  const { lastError } = state.ui
+  const { lastError, transientConflicts } = state.ui
 
+  // Handle general error messages via toasts
   useEffect(() => {
     if (lastError) {
       toast.error(lastError)
       dispatch(clearError())
     }
   }, [lastError, dispatch])
+
+  // Handle auto-clearing of transient conflict highlights
+  useEffect(() => {
+    if (transientConflicts) {
+      const timer = setTimeout(() => {
+        dispatch(clearTransientConflicts())
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [transientConflicts, dispatch])
 }

@@ -24,7 +24,7 @@ import * as actionCreators from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
-import { isMoveValid } from '@/lib/utils'
+import { getConflictingPeers, isMoveValid } from '@/lib/utils'
 
 import { useSudokuActions } from './useSudokuActions'
 
@@ -34,6 +34,7 @@ vi.mock('@/lib/utils', async (importOriginal) => {
   return {
     ...actual,
     isMoveValid: vi.fn(),
+    getConflictingPeers: vi.fn(),
   }
 })
 vi.mock('sonner', () => ({
@@ -46,6 +47,7 @@ vi.mock('sonner', () => ({
 const mockUseSudokuState = useSudokuState as Mock
 const mockUseSudokuDispatch = useSudokuDispatch as Mock
 const mockIsMoveValid = vi.mocked(isMoveValid)
+const mockGetConflictingPeers = vi.mocked(getConflictingPeers)
 
 describe('useSudokuActions', () => {
   const mockDispatch = vi.fn()
@@ -86,6 +88,7 @@ describe('useSudokuActions', () => {
     mockUseSudokuState.mockReturnValue(defaultState)
     mockUseSudokuDispatch.mockReturnValue(mockDispatch)
     mockIsMoveValid.mockReturnValue(true) // Default to valid moves
+    mockGetConflictingPeers.mockReturnValue(new Set()) // Default no conflicts
   })
 
   // Helper to get the current actions from the hook
@@ -112,7 +115,7 @@ describe('useSudokuActions', () => {
       expect(mockDispatch).not.toHaveBeenCalledWith(actionCreators.setActiveCell(1))
     })
 
-    it('dispatches togglePencilMark in candidate mode', () => {
+    it('dispatches togglePencilMark in candidate mode if move is valid', () => {
       mockUseSudokuState.mockReturnValue({
         ...defaultState,
         ui: { ...defaultState.ui, inputMode: 'candidate' },
@@ -121,6 +124,57 @@ describe('useSudokuActions', () => {
       act(() => actions.inputValue(3))
 
       expect(mockDispatch).toHaveBeenCalledWith(actionCreators.togglePencilMark(0, 3, 'candidate'))
+    })
+
+    it('dispatches togglePencilMark in center mode', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, inputMode: 'center' },
+      })
+      const actions = getActions()
+      act(() => actions.inputValue(4))
+
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.togglePencilMark(0, 4, 'center'))
+    })
+
+    it('dispatches setTransientConflicts in candidate mode if move is invalid (conflict)', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, inputMode: 'candidate' },
+      })
+      const conflicts = new Set([1, 8])
+      mockGetConflictingPeers.mockReturnValue(conflicts)
+
+      const actions = getActions()
+      act(() => actions.inputValue(3))
+
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.setTransientConflicts(conflicts))
+      expect(mockDispatch).not.toHaveBeenCalledWith(
+        actionCreators.togglePencilMark(0, 3, 'candidate'),
+      )
+    })
+
+    it('always dispatches togglePencilMark if removing an existing mark, even if conflicting', () => {
+      // Simulate that cell 0 already has candidate 3
+      const boardWithCandidate = defaultState.board.map((c, i) =>
+        i === 0 ? { ...c, candidates: new Set([3]) } : c,
+      )
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: boardWithCandidate,
+        ui: { ...defaultState.ui, inputMode: 'candidate' },
+      })
+
+      // Even if there are conflicts (simulated), removing should still work
+      const conflicts = new Set([1, 8])
+      mockGetConflictingPeers.mockReturnValue(conflicts)
+
+      const actions = getActions()
+      act(() => actions.inputValue(3))
+
+      // Should toggle (remove) and NOT set transient conflicts
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.togglePencilMark(0, 3, 'candidate'))
+      expect(mockDispatch).not.toHaveBeenCalledWith(actionCreators.setTransientConflicts(conflicts))
     })
 
     it('does not dispatch anything if no cell is active', () => {

@@ -68,6 +68,8 @@ export interface UiState {
   readonly highlightedValue: number | null
   readonly inputMode: InputMode
   readonly lastError: string | null
+  /** Set of cell indices that are momentarily conflicting with a user action. */
+  readonly transientConflicts: ReadonlySet<number> | null
 }
 
 export interface SolverState {

@@ -20,6 +20,7 @@ import type {
   AutoFillCandidatesAction,
   ClearBoardAction,
   ClearErrorAction,
+  ClearTransientConflictsAction,
   EraseCellAction,
   ExitVisualizationAction,
   GeneratePuzzleFailureAction,
@@ -34,6 +35,7 @@ import type {
   SetCellValueAction,
   SetHighlightedValueAction,
   SetInputModeAction,
+  SetTransientConflictsAction,
   SolveFailureAction,
   SolveStartAction,
   SolveSuccessAction,
@@ -219,4 +221,15 @@ export const exitVisualization = (): ExitVisualizationAction => ({
 /** Creates an action to advance the game timer by one second. */
 export const tickTimer = (): TickTimerAction => ({
   type: 'TICK_TIMER',
+})
+
+/** Creates an action to set the indices that are momentarily conflicting. */
+export const setTransientConflicts = (indices: Set<number>): SetTransientConflictsAction => ({
+  type: 'SET_TRANSIENT_CONFLICTS',
+  indices,
+})
+
+/** Creates an action to clear any transient conflict highlights. */
+export const clearTransientConflicts = (): ClearTransientConflictsAction => ({
+  type: 'CLEAR_TRANSIENT_CONFLICTS',
 })

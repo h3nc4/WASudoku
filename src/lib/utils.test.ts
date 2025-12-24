@@ -26,6 +26,7 @@ import {
   boardStateToString,
   calculateCandidates,
   formatCell,
+  getConflictingPeers,
   getRelatedCellIndices,
   isBoardStringValid,
   isMoveValid,
@@ -83,6 +84,33 @@ describe('Sudoku Utilities', () => {
       })
       const conflicts = validateBoard(board)
       expect(conflicts).toEqual(new Set([0, 8]))
+    })
+  })
+
+  describe('getConflictingPeers', () => {
+    const baseBoard = createEmptyBoard()
+    const board: BoardState = baseBoard.map((cell: CellState, index: number) => {
+      // Setup some values
+      const values: { [key: number]: number } = {
+        0: 5, // R1C1
+        8: 5, // R1C9 (Row Peer of 0)
+        9: 6, // R2C1
+      }
+      return values[index] ? { ...cell, value: values[index] } : cell
+    })
+
+    it('should return conflicting indices for a move', () => {
+      // Placing 5 at index 1 (R1C2). Peers with 5: index 0 and index 8.
+      const conflicts = getConflictingPeers(board, 1, 5)
+      expect(conflicts.has(0)).toBe(true)
+      expect(conflicts.has(8)).toBe(true)
+      expect(conflicts.size).toBe(2)
+    })
+
+    it('should return empty set for valid move', () => {
+      // Placing 7 at index 1. No peers have 7.
+      const conflicts = getConflictingPeers(board, 1, 7)
+      expect(conflicts.size).toBe(0)
     })
   })
 

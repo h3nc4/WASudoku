@@ -1295,6 +1295,24 @@ describe('sudokuReducer', () => {
       const newerState = sudokuReducer(newState, { type: 'TICK_TIMER' })
       expect(newerState.game.timer).toBe(2)
     })
+
+    it('should set transient conflicts', () => {
+      const conflicts = new Set([1, 2, 3])
+      const newState = sudokuReducer(initialState, {
+        type: 'SET_TRANSIENT_CONFLICTS',
+        indices: conflicts,
+      })
+      expect(newState.ui.transientConflicts).toBe(conflicts)
+    })
+
+    it('should clear transient conflicts', () => {
+      const stateWithConflicts: SudokuState = {
+        ...initialState,
+        ui: { ...initialState.ui, transientConflicts: new Set([1]) },
+      }
+      const newState = sudokuReducer(stateWithConflicts, { type: 'CLEAR_TRANSIENT_CONFLICTS' })
+      expect(newState.ui.transientConflicts).toBeNull()
+    })
   })
 
   describe('Derived State and Side Effects', () => {

@@ -53,6 +53,8 @@ interface SudokuCellProps {
   readonly onFocus: (index: number) => void
   /** For visualization, a set of candidates eliminated in the current step. */
   readonly eliminatedCandidates?: ReadonlySet<number>
+  /** Whether this cell is part of a momentary conflict highlight. */
+  readonly isTransientConflict?: boolean
 }
 
 /**
@@ -68,6 +70,7 @@ const getBackgroundStyles = ({
   isPlaced,
   isNumberHighlighted,
   isHighlighted,
+  isTransientConflict,
 }: Pick<
   SudokuCellProps,
   | 'isConflict'
@@ -78,7 +81,9 @@ const getBackgroundStyles = ({
   | 'isPlaced'
   | 'isNumberHighlighted'
   | 'isHighlighted'
+  | 'isTransientConflict'
 >) => {
+  if (isTransientConflict) return '!bg-destructive/30 transition-colors duration-200'
   if (isConflict || isError) return '!bg-destructive/20'
   if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
   if (isSolving) return 'cursor-not-allowed bg-muted/50'
@@ -102,9 +107,17 @@ const getInputTextStyles = ({
   isSolved,
   isNumberHighlighted,
   isPlaced,
+  isTransientConflict,
 }: Pick<
   SudokuCellProps,
-  'cell' | 'isConflict' | 'isError' | 'isGiven' | 'isSolved' | 'isNumberHighlighted' | 'isPlaced'
+  | 'cell'
+  | 'isConflict'
+  | 'isError'
+  | 'isGiven'
+  | 'isSolved'
+  | 'isNumberHighlighted'
+  | 'isPlaced'
+  | 'isTransientConflict'
 > & {
   hasPencilMarks: boolean
 }) => {
@@ -118,7 +131,7 @@ const getInputTextStyles = ({
     'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven && !isPlaced,
     'text-blue-600 dark:text-blue-400': isUserInput,
     'text-sky-600 dark:text-sky-400': isSolverResult,
-    '!text-destructive': isConflict || isError,
+    '!text-destructive': isConflict || isError || isTransientConflict,
   })
 }
 

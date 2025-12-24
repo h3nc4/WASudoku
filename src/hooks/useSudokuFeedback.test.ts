@@ -16,9 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
@@ -35,7 +35,12 @@ describe('useSudokuFeedback', () => {
   const mockDispatch = vi.fn()
 
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('does not show a toast or dispatch when there is no error', () => {
@@ -69,5 +74,23 @@ describe('useSudokuFeedback', () => {
 
     expect(toast.error).toHaveBeenCalledOnce()
     expect(mockDispatch).toHaveBeenCalledOnce()
+  })
+
+  it('dispatches clearTransientConflicts after 1 second when transientConflicts is present', () => {
+    const conflicts = new Set([1, 2])
+    const state: SudokuState = {
+      ...initialState,
+      ui: { ...initialState.ui, transientConflicts: conflicts },
+    }
+
+    renderHook(() => useSudokuFeedback(state, mockDispatch))
+
+    expect(mockDispatch).not.toHaveBeenCalled()
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+
+    expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
   })
 })

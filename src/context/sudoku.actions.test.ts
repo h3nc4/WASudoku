@@ -199,4 +199,15 @@ describe('Sudoku Action Creators', () => {
     const expectedAction: SudokuAction = { type: 'EXIT_VISUALIZATION' }
     expect(actions.exitVisualization()).toEqual(expectedAction)
   })
+
+  it('should create a SET_TRANSIENT_CONFLICTS action', () => {
+    const indices = new Set([1, 2, 3])
+    const expectedAction: SudokuAction = { type: 'SET_TRANSIENT_CONFLICTS', indices }
+    expect(actions.setTransientConflicts(indices)).toEqual(expectedAction)
+  })
+
+  it('should create a CLEAR_TRANSIENT_CONFLICTS action', () => {
+    const expectedAction: SudokuAction = { type: 'CLEAR_TRANSIENT_CONFLICTS' }
+    expect(actions.clearTransientConflicts()).toEqual(expectedAction)
+  })
 })
