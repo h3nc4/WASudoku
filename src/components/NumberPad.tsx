@@ -70,9 +70,9 @@ export const NumberPad = memo(function NumberPad() {
             onMouseDown={(e) => e.preventDefault()}
           >
             <div className="relative flex size-full items-center justify-center">
-              <span className="text-lg font-medium">{num}</span>
+              <span className="pb-1.5 text-xl font-medium md:text-2xl">{num}</span>
               {!isComplete && (
-                <span className="text-muted-foreground absolute right-1.5 bottom-1 text-[0.6rem]">
+                <span className="text-muted-foreground absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[0.65rem] leading-none">
                   {remaining}
                 </span>
               )}

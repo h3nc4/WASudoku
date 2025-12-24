@@ -54,10 +54,10 @@ describe('NumberPad component', () => {
     for (let i = 1; i <= 9; i++) {
       const button = screen.getByRole('button', { name: `Enter number ${i}` })
       const mainNumber = within(button).getByText(String(i), {
-        selector: 'span.text-lg',
+        selector: 'span.text-xl',
       })
       expect(mainNumber).toBeInTheDocument()
-      expect(mainNumber).toHaveClass('text-lg')
+      expect(mainNumber).toHaveClass('text-xl')
     }
   })
 
