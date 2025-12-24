@@ -70,16 +70,12 @@ jobs:
       - name: Update CI image version file
         run: |
           echo "${{ env.VERSION }}" >.github/VERSION
-      - name: Configure Git for commit
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-      - name: Commit and push version updates
-        run: |
-          git add .devcontainer.json .github/VERSION
-          if ! git diff --staged --quiet; then
-            git commit -m "Bump dev container and CI images to v${{ env.VERSION }} [skip ci]"
-            git push
-          else
-            echo "Image versions are already up-to-date."
-          fi
+      - name: Commit and push
+        uses: planetscale/ghcommit-action@v0.2.20
+        with:
+          commit_message: 'Bump dev container and CI images to v${{ env.VERSION }} [skip ci]'
+          repo: ${{ github.repository }}
+          branch: main
+          file_pattern: '.devcontainer.json .github/VERSION'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
