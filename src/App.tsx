@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025  Henrique Almeida
+ * Copyright (C) 2025-2026  Henrique Almeida
  * This file is part of WASudoku.
  *
  * WASudoku is free software: you can redistribute it and/or modify
@@ -131,7 +131,7 @@ function App() {
           rel="noopener noreferrer"
           className="hover:no-underline"
         >
-          <p>🄯 2025 Henrique Almeida.</p>
+          <p>🄯 2025-2026 Henrique Almeida.</p>
           <p>Because knowledge should be free.</p>
         </a>
       </footer>

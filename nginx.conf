@@ -1,4 +1,4 @@
-# Copyright (C) 2025  Henrique Almeida
+# Copyright (C) 2025-2026  Henrique Almeida
 # This file is part of WASudoku.
 #
 # WASudoku is free software: you can redistribute it and/or modify
