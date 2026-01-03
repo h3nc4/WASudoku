@@ -2,6 +2,14 @@
 
 WASudoku is a Sudoku solver that runs locally in your browser using WebAssembly.
 
+## Live
+
+You can try WASudoku at: [https://wasudoku.h3nc4.com](https://wasudoku.h3nc4.com) _via Cloudflare_
+
+Or at [https://gh.wasudoku.h3nc4.com](https://gh.wasudoku.h3nc4.com) _via GitHub Pages_
+
+Also available as a hidden service at: `sudokudbsaynjxc64znvb5c4xfyere557qx7nvzxqsc6e3rvrtgfd4yd.onion`
+
 ## Features
 
 ### Core Engine
