@@ -8,7 +8,7 @@ You can try WASudoku at: [https://wasudoku.h3nc4.com](https://wasudoku.h3nc4.com
 
 Or at [https://gh.wasudoku.h3nc4.com](https://gh.wasudoku.h3nc4.com) _via GitHub Pages_
 
-Also available as a hidden service at: `sudokudbsaynjxc64znvb5c4xfyere557qx7nvzxqsc6e3rvrtgfd4yd.onion`
+Also available as a hidden service at: `sudoku.h3nc4cd73utflolf2uxgws3j6rmgzotlwndukabzgzawpzk5fejws5id.onion`
 
 ## Features
 
