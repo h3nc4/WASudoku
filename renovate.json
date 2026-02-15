@@ -32,7 +32,12 @@
     },
     {
       "groupName": "eslint",
-      "matchPackageNames": ["/^eslint/", "/^typescript-eslint/"]
+      "matchPackageNames": [
+        "/^eslint/",
+        "/^@eslint/",
+        "/^typescript-eslint/",
+        "/^@typescript-eslint/"
+      ]
     },
     {
       "groupName": "tailwind",
