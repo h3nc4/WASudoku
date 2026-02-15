@@ -21,7 +21,14 @@
     },
     {
       "groupName": "vite-ecosystem",
-      "matchPackageNames": ["/^vite/", "/^vitest/", "/^@vitejs/", "/^@vitest/", "/^playwright/"]
+      "matchPackageNames": [
+        "/^vite/",
+        "/^vitest/",
+        "/^@vitejs/",
+        "/^@vitest/",
+        "/^playwright/",
+        "/^@playwright/"
+      ]
     },
     {
       "groupName": "eslint",
