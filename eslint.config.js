@@ -27,7 +27,6 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import { flatConfigs as importXConfigs } from 'eslint-plugin-import-x'
 import testingLibrary from 'eslint-plugin-testing-library'
 import jestDom from 'eslint-plugin-jest-dom'
-import { configs as sonarjsConfigs } from 'eslint-plugin-sonarjs'
 import promise from 'eslint-plugin-promise'
 import unusedImports from 'eslint-plugin-unused-imports'
 
@@ -41,7 +40,6 @@ export default [
   importXConfigs.recommended,
   importXConfigs.typescript,
   promise.configs['flat/recommended'],
-  sonarjsConfigs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
