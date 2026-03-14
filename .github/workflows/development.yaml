@@ -78,7 +78,7 @@ jobs:
       - name: Run tests
         run: npm run test:wasm
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: wasm-coverage
           path: coverage-wasm.xml
@@ -112,7 +112,7 @@ jobs:
       - name: Run tests
         run: npm run test:ui
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ui-coverage
           path: coverage-ui.lcov
@@ -198,11 +198,11 @@ jobs:
         with:
           fetch-depth: 0 # Fetch history for SonarQube
       - name: Run actions/download-artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: wasm-coverage
       - name: Run actions/download-artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ui-coverage
       - name: Run SonarQube analysis
@@ -232,7 +232,7 @@ jobs:
       - name: Package artifact
         run: XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: dev-build
           path: WASudoku-dev.tar.xz
