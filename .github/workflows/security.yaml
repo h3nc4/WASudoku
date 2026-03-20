@@ -30,7 +30,7 @@ jobs:
       - name: Run actions/checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Run github/codeql-action/init
-        uses: github/codeql-action/init@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/init@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           languages: ${{ matrix.language }}
       - name: Run actions/cache
@@ -64,6 +64,6 @@ jobs:
           npm run wasm:build:prod
           npm run typecheck
       - name: Run github/codeql-action/analyze
-        uses: github/codeql-action/analyze@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/analyze@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           category: '/language:${{matrix.language}}'
