@@ -26,7 +26,7 @@ ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
 
 ########################################
 # Node.js versions
-ARG NODE_VERSION="24.14.0"
+ARG NODE_VERSION="24.14.1"
 ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ########################################
