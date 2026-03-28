@@ -629,14 +629,14 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
   }
   const solvedBoard: BoardState = solution.split('').map((char, index) => ({
     value: char === '.' ? null : Number.parseInt(char, 10),
-    isGiven: state.initialBoard[index].isGiven,
+    isGiven: state.board[index].isGiven,
     candidates: new Set<number>(),
     centers: new Set<number>(),
   }))
 
   const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : Number.parseInt(c, 10)))
 
-  const boardAfterLogic = state.initialBoard.map((cell) => ({ ...cell }))
+  const boardAfterLogic = state.board.map((cell) => ({ ...cell }))
   for (const step of steps) {
     for (const p of step.placements) {
       boardAfterLogic[p.index].value = p.value
@@ -655,7 +655,6 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
 
   return {
     ...state,
-    board: solvedBoard,
     solver: {
       ...state.solver,
       isSolving: false,
@@ -673,11 +672,11 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
  * Reconstructs the board state by applying solver steps up to a given index.
  */
 const reconstructBoard = (
-  initialBoard: BoardState,
+  startingBoard: BoardState,
   steps: readonly SolvingStep[],
   upTo: number,
 ): BoardState => {
-  const board = initialBoard.map((c) => ({
+  const board = startingBoard.map((c) => ({
     ...c,
     candidates: new Set<number>(),
     centers: new Set<number>(),
@@ -696,12 +695,12 @@ const reconstructBoard = (
  * prior to the current step, and then applying historical eliminations.
  */
 const reconstructCandidates = (
-  initialBoard: BoardState,
+  startingBoard: BoardState,
   steps: readonly SolvingStep[],
   upTo: number,
 ) => {
   // Reconstruct board state *before* the specific step to calculate raw candidates
-  const board = reconstructBoard(initialBoard, steps, upTo)
+  const board = reconstructBoard(startingBoard, steps, upTo)
   const candidates = calculateCandidates(board)
 
   // Re-apply specific eliminations from history up to this point
@@ -735,24 +734,23 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
   let visualizationBoard: BoardState
 
   if (action.index === state.solver.steps.length) {
-    // Show the fully solved board (which is stored in state.board during visualization)
-    // but sanitized of pencil marks for display consistency
-    visualizationBoard = state.board.map((c) => ({
+    // Show the fully solved board.
+    visualizationBoard = state.board.map((c, index) => ({
       ...c,
+      value:
+        state.solver.solution && state.solver.solution[index] !== 0
+          ? state.solver.solution[index]
+          : c.value,
       candidates: new Set<number>(),
       centers: new Set<number>(),
     }))
   } else {
-    visualizationBoard = reconstructBoard(state.initialBoard, state.solver.steps, action.index)
+    visualizationBoard = reconstructBoard(state.board, state.solver.steps, action.index)
   }
 
   // Calculate candidates and eliminations based on the state *before* the current step is applied
   const previousStepIndex = Math.max(0, action.index - 1)
-  const candidates = reconstructCandidates(
-    state.initialBoard,
-    state.solver.steps,
-    previousStepIndex,
-  )
+  const candidates = reconstructCandidates(state.board, state.solver.steps, previousStepIndex)
 
   const eliminations = action.index > 0 ? state.solver.steps[action.index - 1].eliminations : []
 
@@ -776,7 +774,6 @@ const handleViewSolverStep = (state: SudokuState, action: ViewSolverStepAction):
 
 const handleExitVisualization = (state: SudokuState): SudokuState => ({
   ...state,
-  board: state.initialBoard,
   solver: {
     ...state.solver,
     gameMode: 'playing',

@@ -693,7 +693,7 @@ describe('sudokuReducer', () => {
       const state: SudokuState = {
         ...initialState,
         solver: { ...initialState.solver, isSolving: true },
-        initialBoard: createEmptyBoard().map((c, i) =>
+        board: createEmptyBoard().map((c, i) =>
           i === 0 ? c : { ...c, value: (i % 9) + 1, isGiven: true },
         ),
       }
@@ -708,8 +708,8 @@ describe('sudokuReducer', () => {
       expect(newState.solver.steps[0]).toEqual(mockResult.steps[0])
       expect(newState.solver.currentStepIndex).toBe(newState.solver.steps.length)
       expect(newState.solver.visualizationBoard?.[0].value).toBe(1)
-      expect(newState.board[0].value).toBe(1)
-      expect(newState.board[1].isGiven).toBe(true)
+      expect(newState.board[0].value).toBe(null) // Unchanged
+      expect(newState.board[1].isGiven).toBe(true) // Matches what we set
     })
 
     it('should handle SOLVE_SUCCESS and add a backtracking step if needed', () => {
@@ -1064,24 +1064,25 @@ describe('sudokuReducer', () => {
         cause: [],
       },
     ]
-    const initialBoard = createEmptyBoard().map((c, i) =>
-      i === 80 ? { ...c, value: 9, isGiven: true } : c,
-    )
-    const solvedBoardForTest = createEmptyBoard().map((c, i) => {
-      if (i === 0) return { ...c, value: 1 }
-      if (i === 2) return { ...c, value: 3 }
+    const userBoard = createEmptyBoard().map((c, i) => {
       if (i === 80) return { ...c, value: 9, isGiven: true }
       return c
     })
 
+    const solutionArray = new Array(81).fill(0)
+    solutionArray[0] = 1
+    solutionArray[2] = 3
+    solutionArray[80] = 9
+
     const visualizingState: SudokuState = {
       ...initialState,
-      initialBoard,
-      board: solvedBoardForTest,
+      initialBoard: userBoard,
+      board: userBoard,
       solver: {
         ...initialState.solver,
         gameMode: 'visualizing',
         steps,
+        solution: solutionArray,
       },
     }
 
@@ -1117,6 +1118,7 @@ describe('sudokuReducer', () => {
       ]
       const state: SudokuState = {
         ...initialState,
+        board: createEmptyBoard(),
         solver: {
           ...initialState.solver,
           gameMode: 'visualizing',
@@ -1174,19 +1176,13 @@ describe('sudokuReducer', () => {
         eliminations: [],
         cause: [],
       }
-      const solvedBoard = createEmptyBoard().map((c, i) => ({
-        ...c,
-        value: (i % 9) + 1,
-        candidates: new Set<number>(),
-        centers: new Set<number>(),
-      }))
 
       const visualizingStateWithBacktrack: SudokuState = {
         ...visualizingState,
-        board: solvedBoard,
         solver: {
           ...visualizingState.solver,
           steps: [logicalStep, backtrackingStep],
+          solution: solutionArray,
         },
       }
 
@@ -1195,15 +1191,10 @@ describe('sudokuReducer', () => {
         index: 2,
       })
 
-      // Need to check specific properties as Set equality is strict reference by default
-      // or ensure `createEmptyBoard` behavior is consistent.
-      // `createEmptyBoard` creates new Sets.
-      // `solvedBoard` has new Sets.
-      // The reducer creates NEW board structure with new Sets.
-      // So we should check contents or structure.
-      expect(stateAfterFinalStep.solver.visualizationBoard).toEqual(
-        solvedBoard.map((c) => ({ ...c, candidates: new Set(), centers: new Set() })),
-      )
+      expect(stateAfterFinalStep.solver.visualizationBoard?.[0].value).toBe(1)
+      expect(stateAfterFinalStep.solver.visualizationBoard?.[2].value).toBe(3)
+      expect(stateAfterFinalStep.solver.visualizationBoard?.[80].value).toBe(9)
+      expect(stateAfterFinalStep.solver.visualizationBoard?.[1].value).toBe(null)
     })
 
     it('should do nothing if not in visualizing mode', () => {
@@ -1225,7 +1216,7 @@ describe('sudokuReducer', () => {
       }
       const state = sudokuReducer(solvedState, { type: 'EXIT_VISUALIZATION' })
       expect(state.solver.gameMode).toBe('playing')
-      expect(state.board).toEqual(initialBoard)
+      expect(state.board).toEqual(userBoard)
       expect(state.solver.isSolved).toBe(false)
       expect(state.solver.steps).toEqual([])
     })
