@@ -78,7 +78,7 @@ jobs:
       - name: Run tests
         run: npm run test:wasm
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wasm-coverage
           path: coverage-wasm.xml
@@ -112,7 +112,7 @@ jobs:
       - name: Run tests
         run: npm run test:ui
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ui-coverage
           path: coverage-ui.lcov
@@ -232,7 +232,7 @@ jobs:
       - name: Package artifact
         run: XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dev-build
           path: WASudoku-dev.tar.xz
