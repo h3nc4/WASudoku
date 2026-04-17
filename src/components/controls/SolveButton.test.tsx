@@ -18,7 +18,7 @@
 
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
@@ -39,6 +39,9 @@ describe('SolveButton component', () => {
   const mockExitVisualization = vi.fn()
   const mockValidatePuzzle = vi.fn()
 
+  let getItemSpy: ReturnType<typeof vi.spyOn>
+  let setItemSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseSudokuState.mockReturnValue(initialState)
@@ -47,6 +50,14 @@ describe('SolveButton component', () => {
       exitVisualization: mockExitVisualization,
       validatePuzzle: mockValidatePuzzle,
     })
+
+    getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+    setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    getItemSpy.mockRestore()
+    setItemSpy.mockRestore()
   })
 
   describe('in "playing" mode', () => {
@@ -129,6 +140,78 @@ describe('SolveButton component', () => {
 
       await user.click(screen.getByRole('button', { name: 'Solve Puzzle' }))
       expect(mockSolve).toHaveBeenCalled()
+    })
+
+    it('renders guiding tooltip for first-time users when valid', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: {
+          ...initialState.derived,
+          isBoardEmpty: false,
+          conflicts: new Set(),
+        },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
+      render(<SolveButton />)
+      expect(screen.getByText(/Click to see the magic happen!/i)).toBeInTheDocument()
+    })
+
+    it('hides guiding tooltip after clicking solve and sets localStorage', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: {
+          ...initialState.derived,
+          isBoardEmpty: false,
+          conflicts: new Set(),
+        },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
+      render(<SolveButton />)
+
+      expect(screen.getByText(/Click to see the magic happen!/i)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Solve Puzzle' }))
+
+      expect(mockSolve).toHaveBeenCalled()
+      expect(setItemSpy).toHaveBeenCalledWith('wasudoku_has_seen_solve', 'true')
+      expect(screen.queryByText(/Click to see the magic happen!/i)).not.toBeInTheDocument()
+    })
+
+    it('does not render guiding tooltip if user has already clicked solve', () => {
+      getItemSpy.mockReturnValue('true')
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: {
+          ...initialState.derived,
+          isBoardEmpty: false,
+          conflicts: new Set(),
+        },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
+      render(<SolveButton />)
+      expect(screen.queryByText(/Click to see the magic happen!/i)).not.toBeInTheDocument()
+    })
+
+    it('does not update localStorage if user has already clicked solve previously', async () => {
+      getItemSpy.mockReturnValue('true')
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: {
+          ...initialState.derived,
+          isBoardEmpty: false,
+          conflicts: new Set(),
+        },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
+      const user = userEvent.setup()
+      render(<SolveButton />)
+
+      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
+      await user.click(button)
+
+      expect(mockSolve).toHaveBeenCalled()
+      expect(setItemSpy).not.toHaveBeenCalled()
     })
 
     it('shows and hides "Solving..." state correctly based on isSolving prop', () => {

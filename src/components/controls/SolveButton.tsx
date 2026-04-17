@@ -25,13 +25,18 @@ import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /**
  * A button that triggers the Sudoku solver or exits visualization mode.
- * It derives its state and tooltip from the global context.
+ * It derives its state and tooltip from the global context and guides
+ * new users to try the feature.
  */
 export function SolveButton() {
   const { solver, derived } = useSudokuState()
   const { solve, exitVisualization, validatePuzzle } = useSudokuActions()
 
   const [isShowingSolvingState, setIsShowingSolvingState] = useState(false)
+  const [hasClickedSolve, setHasClickedSolve] = useState(
+    () =>
+      globalThis.window !== undefined && localStorage.getItem('wasudoku_has_seen_solve') === 'true',
+  )
 
   const isSolveDisabled =
     solver.isSolving ||
@@ -66,6 +71,14 @@ export function SolveButton() {
     }
   }, [solver.isSolving])
 
+  const handleSolve = () => {
+    if (!hasClickedSolve) {
+      setHasClickedSolve(true)
+      localStorage.setItem('wasudoku_has_seen_solve', 'true')
+    }
+    solve()
+  }
+
   if (solver.gameMode === 'visualizing') {
     return (
       <Button onClick={exitVisualization} className="flex-1" variant="destructive">
@@ -98,16 +111,31 @@ export function SolveButton() {
     )
   }
 
+  const showTooltip = !hasClickedSolve && !isSolveDisabled && solver.gameMode === 'playing'
+
   return (
-    <Button onClick={solve} className="flex-1" disabled={isSolveDisabled} title={solveButtonTitle}>
-      {isShowingSolvingState ? (
-        <>
-          <BrainCircuit className="mr-2 size-4 animate-pulse" />
-          Solving...
-        </>
-      ) : (
-        'Solve Puzzle'
+    <div className="relative flex flex-1">
+      {showTooltip && (
+        <div className="bg-primary text-primary-foreground pointer-events-none absolute -top-12 left-1/2 z-50 -translate-x-1/2 animate-bounce rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap shadow-lg">
+          Click to see the magic happen! ✨
+          <div className="border-t-primary absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-x-[6px] border-t-[6px] border-b-0 border-x-transparent" />
+        </div>
       )}
-    </Button>
+      <Button
+        onClick={handleSolve}
+        className="w-full"
+        disabled={isSolveDisabled}
+        title={solveButtonTitle}
+      >
+        {isShowingSolvingState ? (
+          <>
+            <BrainCircuit className="mr-2 size-4 animate-pulse" />
+            Solving...
+          </>
+        ) : (
+          'Solve Puzzle'
+        )}
+      </Button>
+    </div>
   )
 }

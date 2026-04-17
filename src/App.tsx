@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Eraser, Share2 } from 'lucide-react'
+import { ChevronDown, Eraser, Share2 } from 'lucide-react'
 import { useCallback } from 'react'
 import { SiGithub } from 'react-icons/si'
 
@@ -110,6 +110,14 @@ function App() {
                 </div>
                 <ClearButton />
               </div>
+
+              {/* Mobile visual cue for solving steps */}
+              {solver.gameMode === 'visualizing' && (
+                <div className="text-primary mt-2 flex animate-bounce items-center justify-center md:hidden">
+                  <span className="text-sm font-medium">Scroll down for solving steps</span>
+                  <ChevronDown className="ml-1 size-5" />
+                </div>
+              )}
             </div>
           </div>
 

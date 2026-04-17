@@ -123,7 +123,7 @@ describe('App component', () => {
     expect(screen.queryByTestId('solver-steps-panel')).not.toBeInTheDocument()
   })
 
-  it('renders the SolverStepsPanel in visualizing mode', () => {
+  it('renders the SolverStepsPanel and scroll cue in visualizing mode', () => {
     mockUseSudokuState.mockReturnValue({
       ...defaultState,
       solver: {
@@ -133,6 +133,7 @@ describe('App component', () => {
     })
     render(<App />)
     expect(screen.getByTestId('solver-steps-panel')).toBeInTheDocument()
+    expect(screen.getByText('Scroll down for solving steps')).toBeInTheDocument()
   })
 
   it('calls eraseActiveCell when erase button is clicked', async () => {
