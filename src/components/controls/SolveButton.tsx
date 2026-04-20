@@ -117,7 +117,7 @@ export function SolveButton() {
     <div className="relative flex flex-1">
       {showTooltip && (
         <div className="bg-primary text-primary-foreground pointer-events-none absolute -top-12 left-1/2 z-50 -translate-x-1/2 animate-bounce rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap shadow-lg">
-          Click to see the magic happen! ✨
+          Click me!
           <div className="border-t-primary absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-x-[6px] border-t-[6px] border-b-0 border-x-transparent" />
         </div>
       )}

@@ -153,7 +153,7 @@ describe('SolveButton component', () => {
         solver: { ...initialState.solver, gameMode: 'playing' },
       })
       render(<SolveButton />)
-      expect(screen.getByText(/Click to see the magic happen!/i)).toBeInTheDocument()
+      expect(screen.getByText(/Click me!/i)).toBeInTheDocument()
     })
 
     it('hides guiding tooltip after clicking solve and sets localStorage', async () => {
@@ -169,13 +169,13 @@ describe('SolveButton component', () => {
       })
       render(<SolveButton />)
 
-      expect(screen.getByText(/Click to see the magic happen!/i)).toBeInTheDocument()
+      expect(screen.getByText(/Click me!/i)).toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: 'Solve Puzzle' }))
 
       expect(mockSolve).toHaveBeenCalled()
       expect(setItemSpy).toHaveBeenCalledWith('wasudoku_has_seen_solve', 'true')
-      expect(screen.queryByText(/Click to see the magic happen!/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
     })
 
     it('does not render guiding tooltip if user has already clicked solve', () => {
@@ -190,7 +190,7 @@ describe('SolveButton component', () => {
         solver: { ...initialState.solver, gameMode: 'playing' },
       })
       render(<SolveButton />)
-      expect(screen.queryByText(/Click to see the magic happen!/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
     })
 
     it('does not update localStorage if user has already clicked solve previously', async () => {
