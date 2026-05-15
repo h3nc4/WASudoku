@@ -21,7 +21,7 @@ set -e
 dev_tools="cargo-llvm-cov 0.8.0
 cargo-audit 0.22.0"
 
-tools="wasm-pack 0.14.0
+tools="wasm-pack 0.15.0
 wasm-opt 0.116.1"
 
 while getopts "d" opt; do
