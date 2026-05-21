@@ -156,6 +156,7 @@ RUN apt-get install --no-install-recommends -y -qq \
   bash-completion \
   ca-certificates \
   curl \
+  file \
   git \
   gnupg \
   gosu \
