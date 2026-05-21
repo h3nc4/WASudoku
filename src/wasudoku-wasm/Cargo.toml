@@ -43,6 +43,11 @@ wasm-bindgen-test = "=0.3.71"
 debug = true
 opt-level = 0
 
+[profile.test]
+# Test profile: use opt-level 3 so tests run in reasonable time.
+inherits = "dev"
+opt-level = 3
+
 [profile.release]
 # Release profile: optimized for a balance of speed and small binary size.
 # `wasm-pack build --release` uses this profile.
