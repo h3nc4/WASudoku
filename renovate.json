@@ -54,6 +54,11 @@
       "matchPackageNames": ["/^serde/"]
     },
     {
+      "matchManagers": ["cargo"],
+      "groupName": "rand",
+      "matchPackageNames": ["/^rand/", "/^getrandom/"]
+    },
+    {
       "description": "Group SonarQube server and scanner updates",
       "groupName": "sonarqube",
       "matchPackageNames": ["sonarqube", "sonarsource/sonar-scanner-cli"]
