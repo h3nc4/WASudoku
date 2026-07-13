@@ -31,7 +31,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
+    "@eslint/js": "9.39.5",
     "@playwright/test": "1.61.1",
     "@radix-ui/react-accordion": "1.2.16",
     "@radix-ui/react-dropdown-menu": "2.1.20",
@@ -50,7 +50,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "eslint": "9.39.4",
+    "eslint": "9.39.5",
     "eslint-import-resolver-typescript": "4.4.5",
     "eslint-plugin-import-x": "4.17.1",
     "eslint-plugin-jest-dom": "5.5.0",
