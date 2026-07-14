@@ -38,7 +38,7 @@ ARG CARGO_HOME="/home/${USER}/.local/share/cargo"
 
 ################################################################################
 # Shared builder image
-FROM debian:trixie-20260623@sha256:d07d1b51c39f51188e60be9b64e6bf769fa94e187f092bc32b91305cfa34ba5a AS builder-base
+FROM debian:13@sha256:fac46bff2e02f51425b6e33b0e1169f55dfb053d83511ca28aa50c09fd5ed7a4 AS builder-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg \
@@ -137,7 +137,7 @@ RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/node/bin/* .
 
 ################################################################################
 # Debian main stage
-FROM debian:trixie-20260623@sha256:d07d1b51c39f51188e60be9b64e6bf769fa94e187f092bc32b91305cfa34ba5a AS main
+FROM debian:13@sha256:fac46bff2e02f51425b6e33b0e1169f55dfb053d83511ca28aa50c09fd5ed7a4 AS main
 ARG USER
 ARG UID
 ARG GID
