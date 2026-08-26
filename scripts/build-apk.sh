@@ -21,7 +21,7 @@ set -e
 
 cd "$(dirname "$0")/../"
 
-bubblewrap_version="1.24.1"
+bubblewrap_version="1.25.0"
 
 # shellcheck disable=SC2154 # KEYSTORE_PASSWORD is always set in CI
 docker run \
