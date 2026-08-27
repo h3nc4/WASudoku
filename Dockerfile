@@ -21,7 +21,7 @@
 ARG CI_IMAGE_TAG="latest@sha256:262948d36adb56131b9ac3a39adacefb30e4de32b7631448ef260cbdea788596"
 
 # NGINX and deps versions
-ARG NGINX_VERSION="1.31.1"
+ARG NGINX_VERSION="1.31.4"
 ARG PCRE2_VERSION="10.47"
 ARG NGX_BROTLI_COMMIT="a71f9312"
 ARG NGX_BROTLI_SHA256="1d21be34f3b7b6d05a8142945e59b3a47665edcdfe0f3ee3d3dbef121f90c08c"
@@ -56,7 +56,7 @@ RUN find /rootfs/static -type f \
 
 ################################################################################
 # Nginx builder stage
-FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS nginx-builder
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS nginx-builder
 ARG NGINX_VERSION
 ARG PCRE2_VERSION
 ARG NGX_BROTLI_COMMIT

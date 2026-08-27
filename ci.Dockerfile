@@ -19,7 +19,7 @@
 
 ########################################
 # Rust versions
-ARG RUST_VERSION="1.96.0"
+ARG RUST_VERSION="1.98.0"
 ARG RUST_DISTRO="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"
 ARG RUST_DISTRO_WASM="rust-std-${RUST_VERSION}-wasm32-unknown-unknown"
 ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
@@ -27,12 +27,12 @@ ARG CARGO_HOME="/opt/rust/.cargo"
 
 ########################################
 # Node.js versions
-ARG NODE_VERSION="24.16.0"
+ARG NODE_VERSION="24.20.0"
 ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ################################################################################
 # Shared debian image
-FROM debian:trixie-slim@sha256:b6e2a152f22a40ff69d92cb397223c906017e1391a73c952b588e51af8883bf8 AS debian-base
+FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS debian-base
 
 # Update apt lists
 RUN apt-get update -qq
@@ -50,7 +50,7 @@ RUN apt-get install --no-install-recommends -y -qq \
 
 ################################################################################
 # Shared builder image
-FROM debian:trixie-slim@sha256:b6e2a152f22a40ff69d92cb397223c906017e1391a73c952b588e51af8883bf8 AS builder-base
+FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS builder-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg \

@@ -19,14 +19,14 @@
 
 ########################################
 # Rust versions
-ARG RUST_VERSION="1.96.0"
+ARG RUST_VERSION="1.98.0"
 ARG RUST_DISTRO="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"
 ARG RUST_DISTRO_WASM="rust-std-${RUST_VERSION}-wasm32-unknown-unknown"
 ARG RUST_DISTRO_SRC="rust-src-${RUST_VERSION}"
 
 ########################################
 # Node.js versions
-ARG NODE_VERSION="24.16.0"
+ARG NODE_VERSION="24.20.0"
 ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 
 ########################################
@@ -38,7 +38,7 @@ ARG CARGO_HOME="/home/${USER}/.local/share/cargo"
 
 ################################################################################
 # Shared builder image
-FROM debian:trixie-20260518@sha256:4ae67669760b807c19f23902a3fd7c121a6a70cf2ae709035674b23e712e4d62 AS builder-base
+FROM debian:13@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1 AS builder-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg \
@@ -137,7 +137,7 @@ RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/node/bin/* .
 
 ################################################################################
 # Debian main stage
-FROM debian:trixie-20260518@sha256:4ae67669760b807c19f23902a3fd7c121a6a70cf2ae709035674b23e712e4d62 AS main
+FROM debian:13@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1 AS main
 ARG USER
 ARG UID
 ARG GID
