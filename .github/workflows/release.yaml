@@ -24,24 +24,35 @@ jobs:
     name: Build web app
     runs-on: ubuntu-latest
     needs: prepare
-    container:
-      image: h3nc4/wasudoku-ci:${{ needs.prepare.outputs.tag }}
+    timeout-minutes: 60
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - run: scripts/version.sh "v${{ needs.prepare.outputs.version }}"
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: echo "dir=$(npm config get cache)" >>"${GITHUB_OUTPUT}"
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        with:
+          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          dockerfile: docker/ci.Dockerfile
+          image-inputs: docker/ci.Dockerfile scripts/wasm-deps.sh
+          docker-args: -e npm_config_cache=/workspace/.npm-ci -e CARGO_HOME=/workspace/.cargo-ci
       - name: Run actions/cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          path: |
+            .npm-ci
+            .cargo-ci
+            src/wasudoku-wasm/target/
+          key: ${{ runner.os }}-deps-${{ hashFiles('package-lock.json', 'src/wasudoku-wasm/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-npm-
-      - run: npm ci
-      - run: npm run build
+            ${{ runner.os }}-deps-
+      - name: Stamp the version, install and build
+        run: |
+          $DEV_RUN -c '
+            set -e
+            scripts/version.sh "v${{ needs.prepare.outputs.version }}"
+            npm ci
+            npm run build
+          '
       - name: Package artifact
         run: |
           tar -czvf WASudoku.tar.gz -C dist .
@@ -137,7 +148,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
-          file: ./Dockerfile
+          file: ./docker/Dockerfile
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:${{ needs.prepare.outputs.version }}

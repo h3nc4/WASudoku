@@ -91,7 +91,7 @@
     {
       "description": "Update NGINX version in Dockerfile",
       "customType": "regex",
-      "managerFilePatterns": ["/^Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": ["ARG NGINX_VERSION=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "nginx/nginx",
@@ -100,7 +100,7 @@
     {
       "description": "Update PCRE2 version in Dockerfile",
       "customType": "regex",
-      "managerFilePatterns": ["/^Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": ["ARG PCRE2_VERSION=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "PCRE2Project/pcre2"
@@ -108,7 +108,7 @@
     {
       "description": "Update Google Brotli version in Dockerfile",
       "customType": "regex",
-      "managerFilePatterns": ["/^Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": ["ARG BROTLI_VERSION=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "google/brotli"
@@ -116,7 +116,7 @@
     {
       "description": "Update ngx_brotli commit hash in Dockerfile",
       "customType": "regex",
-      "managerFilePatterns": ["/^Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/Dockerfile$/"],
       "matchStrings": ["ARG NGX_BROTLI_COMMIT=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "git-refs",
       "depNameTemplate": "https://github.com/google/ngx_brotli",
@@ -125,7 +125,7 @@
     {
       "description": "Update Rust version in CI/Dev Dockerfiles",
       "customType": "regex",
-      "managerFilePatterns": ["/^ci\\.Dockerfile$/", "/^dev\\.Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/ci\\.Dockerfile$/", "/^docker/dev\\.Dockerfile$/"],
       "matchStrings": ["ARG RUST_VERSION=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "rust-lang/rust"
@@ -133,7 +133,7 @@
     {
       "description": "Update Node version in CI/Dev Dockerfiles",
       "customType": "regex",
-      "managerFilePatterns": ["/^ci\\.Dockerfile$/", "/^dev\\.Dockerfile$/"],
+      "managerFilePatterns": ["/^docker/ci\\.Dockerfile$/", "/^docker/dev\\.Dockerfile$/"],
       "matchStrings": ["ARG NODE_VERSION=\"(?<currentValue>.*?)\""],
       "datasourceTemplate": "node-version",
       "depNameTemplate": "node"
