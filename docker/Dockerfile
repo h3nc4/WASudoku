@@ -20,14 +20,6 @@
 # CI image tag
 ARG CI_IMAGE_TAG="latest@sha256:d3fd3d380f700e2b94a4cbe1461001b94a8334941a0c4c5a34751ebedb3b034f"
 
-# NGINX and deps versions
-ARG NGINX_VERSION="1.31.4"
-ARG PCRE2_VERSION="10.47"
-ARG NGX_BROTLI_COMMIT="a71f9312"
-ARG NGX_BROTLI_SHA256="1d21be34f3b7b6d05a8142945e59b3a47665edcdfe0f3ee3d3dbef121f90c08c"
-ARG BROTLI_VERSION="1.2.0"
-ARG BROTLI_SHA256="816c96e8e8f193b40151dad7e8ff37b1221d019dbcb9c35cd3fadbfe6477dfec"
-
 ################################################################################
 # Build stage
 FROM h3nc4/wasudoku-ci:${CI_IMAGE_TAG} AS wasudoku-builder
@@ -56,108 +48,19 @@ RUN find /rootfs/static -type f \
 
 ################################################################################
 # Nginx builder stage
-FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS nginx-builder
-ARG NGINX_VERSION
-ARG PCRE2_VERSION
-ARG NGX_BROTLI_COMMIT
-ARG NGX_BROTLI_SHA256
-ARG BROTLI_VERSION
-ARG BROTLI_SHA256
+FROM busybox:musl@sha256:8635836765b0c4c43970660219739baa58b0883c2e429e4b8918f7dd1519455c AS nginx-builder
 
-# Package installation
-RUN apk add --no-cache cmake gcc git gnupg libc-dev linux-headers make
-
-# Download brotli modules
-ADD "https://github.com/google/ngx_brotli/archive/${NGX_BROTLI_COMMIT}.tar.gz" "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz"
-ADD "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" "brotli-${BROTLI_VERSION}.tar.gz"
-
-# Verify checksums and extract sources for brotli modules
-RUN echo "${NGX_BROTLI_SHA256}  ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" | sha256sum -c - && \
-  echo "${BROTLI_SHA256}  brotli-${BROTLI_VERSION}.tar.gz" | sha256sum -c - && \
-  mkdir "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
-  tar -xf "ngx_brotli-${NGX_BROTLI_COMMIT}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}" && \
-  tar -xf "brotli-${BROTLI_VERSION}.tar.gz" --strip-components=1 -C "ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli"
-
-# Build brotli static library
-RUN mkdir "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
-  cd "/ngx_brotli-${NGX_BROTLI_COMMIT}/deps/brotli/out" && \
-  cmake -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DCMAKE_C_FLAGS="-O3 -fPIC" \
-  -DCMAKE_INSTALL_PREFIX=installed .. && \
-  cmake --build . --config Release --target brotlienc
-
-# Download NGINX and PCRE2 sources and signatures
-ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" .
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x43387825DDB1BB97EC36BA5D007C8D7C15D87369" "nginx-arut.key"
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xD6786CE303D9A9022998DC6CC8464D549AF75C0A" "nginx-pluknet.key"
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7338973069ED3F443F4D37DFA64FD5B17ADB39A8" "nginx-sb.key"
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x13C82A63B603576156E30A4EA0EA981B66B0D967" "nginx-thresh.key"
-ADD "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz.asc" .
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xA95536204A3BB489715231282A98E77EB6F24CA8" "pcre2-nicholas-wilson.key"
-ADD "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBACF71F10404D5761C09D392021DE40BFB63B406" "pcre2-philip-hazel.key"
-ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" .
-ADD "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz.sig" .
-
-# Verify GPG signatures and extract
-RUN gpg --batch --yes --import <"nginx-arut.key" && \
-  gpg --batch --yes --import <"nginx-pluknet.key" && \
-  gpg --batch --yes --import <"nginx-sb.key" && \
-  gpg --batch --yes --import <"nginx-thresh.key" && \
-  gpg --batch --yes --import <"pcre2-nicholas-wilson.key" && \
-  gpg --batch --yes --import <"pcre2-philip-hazel.key" && \
-  gpg --batch --yes --verify "nginx-${NGINX_VERSION}.tar.gz.asc" "nginx-${NGINX_VERSION}.tar.gz" && \
-  gpg --batch --yes --verify "pcre2-${PCRE2_VERSION}.tar.gz.sig" "pcre2-${PCRE2_VERSION}.tar.gz"
-RUN tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
-  tar -xzf "pcre2-${PCRE2_VERSION}.tar.gz"
-
-# Build Nginx
-WORKDIR "/nginx-${NGINX_VERSION}"
-RUN ./configure \
-  --prefix="/run" \
-  --pid-path="/run/nginx.pid" \
-  --conf-path="/nginx.conf" \
-  --error-log-path="/dev/stderr" \
-  --http-log-path="/dev/stdout" \
-  --with-pcre="../pcre2-${PCRE2_VERSION}" \
-  --add-module="../ngx_brotli-${NGX_BROTLI_COMMIT}" \
-  --with-http_gzip_static_module \
-  --with-http_v2_module \
-  --with-http_realip_module \
-  --with-http_stub_status_module \
-  --with-threads \
-  --with-file-aio \
-  --without-http_gzip_module \
-  --without-http_autoindex_module \
-  --without-http_proxy_module \
-  --without-http_fastcgi_module \
-  --without-http_uwsgi_module \
-  --without-http_scgi_module \
-  --without-http_grpc_module \
-  --without-http_memcached_module \
-  --without-http_empty_gif_module \
-  --without-http_browser_module \
-  --without-http_userid_module \
-  --without-http_ssi_module \
-  --without-http_mirror_module \
-  --without-http_split_clients_module \
-  --without-http_geo_module \
-  --without-http_map_module \
-  --with-cc-opt="-O3 -fdata-sections -ffunction-sections -fomit-frame-pointer -flto" \
-  --with-ld-opt="-static -Wl,--gc-sections -fuse-linker-plugin" && \
-  make -j"$(nproc)"
-
-# Minify nginx binary
-RUN strip --strip-all "objs/nginx"
-
-# Create root filesystem
-RUN mkdir -p "/rootfs/run" && \
-  mv "objs/nginx" "/rootfs/nginx" && \
-  chown -R "65534:65534" "/rootfs/run"
+COPY --from=h3nc4/nginx-slim@sha256:2ee10ebafb924324abf41e7ecf9eaf5bddc007e45e48914d119253fc0f72b005 / /rootfs/
 
 # Copy and minify nginx config
 COPY "nginx.conf" "/rootfs/nginx.conf"
-RUN sed -E 's/#.*//g;/^[[:space:]]*$/d' "/rootfs/nginx.conf" | tr -d '\n' | tr -s ' ' >"/rootfs/nginx.conf.min" && \
+RUN \
+  # Remove comments and empty lines
+  sed -E '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "/rootfs/nginx.conf" | \
+  # Remove all newlines to produce a single-line config
+  tr -d '\n' | \
+  # Compress consecutive spaces into a single space
+  tr -s ' ' >"/rootfs/nginx.conf.min" && \
   mv "/rootfs/nginx.conf.min" "/rootfs/nginx.conf"
 
 ################################################################################
