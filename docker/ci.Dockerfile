@@ -121,7 +121,7 @@ COPY --from=rust-stage /rootfs/ /
 # Install build dependencies
 COPY scripts/wasm-deps.sh /usr/local/bin/wasm-deps
 RUN chmod +x /usr/local/bin/wasm-deps
-RUN wasm-deps -d
+RUN wasm-deps
 
 ################################################################################
 # Node.js stage
