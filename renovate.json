@@ -7,9 +7,18 @@
   "prHourlyLimit": 0,
   "lockFileMaintenance": {
     "enabled": true,
+    "addLabels": ["automerge"],
     "automerge": true,
     "schedule": ["before 4am"]
   },
+  "vulnerabilityAlerts": {
+    "description": "Deliberately unscheduled: advisory fixes should not wait for the nightly window",
+    "enabled": true,
+    "addLabels": ["automerge", "security"],
+    "automerge": true,
+    "platformAutomerge": true
+  },
+  "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
       "groupName": "radix-ui",
@@ -76,6 +85,7 @@
     {
       "description": "Auto-merge all minor, patch, pin, and digest updates",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "addLabels": ["automerge"],
       "automerge": true,
       "platformAutomerge": true
     }

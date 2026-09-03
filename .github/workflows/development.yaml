@@ -65,9 +65,7 @@ jobs:
             npm run lint
             npm run lint:md
             npm run lint:sh
-            npm run audit
             npm run lint:wasm
-            npm run audit:wasm || true
             npm run test:wasm
             npm run wasm:build:dev
             npm run typecheck

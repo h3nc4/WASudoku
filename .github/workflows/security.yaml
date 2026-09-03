@@ -13,6 +13,63 @@ on:
     - cron: '23 3 * * *' # Daily at 03:23 UTC
 
 jobs:
+  audit:
+    name: Dependency Audit
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Run actions/setup-node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Audit dependencies
+        run: npm run audit
+
+  audit-wasm:
+    name: Cargo Audit
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      DEV_DOCKER_ARGS: -v ${HOME:?}/ci-cache/cargo:/cache/cargo -e CARGO_HOME=/cache/cargo
+      CI_IMAGE_INPUTS: docker/ci.Dockerfile scripts/wasm-deps.sh
+    steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # dev-image diffs against the base to spot image changes
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        with:
+          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          dockerfile: docker/ci.Dockerfile
+          image-inputs: ${{ env.CI_IMAGE_INPUTS }}
+          docker-args: ${{ env.DEV_DOCKER_ARGS }}
+      - name: Cache the cargo registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/ci-cache/cargo
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('scripts/wasm-deps.sh', 'src/wasudoku-wasm/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit-
+            ${{ runner.os }}-cargo-
+      - name: Create the cache directories
+        run: |
+          mkdir -p ~/ci-cache/cargo
+      - name: Audit cargo dependencies
+        run: |
+          $DEV_RUN -c '
+            set -e
+            export PATH="/cache/cargo/bin:${PATH}"
+            ./scripts/wasm-deps.sh -d
+            npm run audit:wasm
+          '
+
   analyze:
     name: CodeQL
     runs-on: ubuntu-latest
