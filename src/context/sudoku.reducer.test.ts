@@ -153,7 +153,7 @@ describe('sudokuReducer', () => {
         value: 5,
       })
       expect(newState).toBe(stateWithValue)
-      expect(newState.history.stack.length).toBe(historyLength)
+      expect(newState.history.stack).toHaveLength(historyLength)
     })
 
     it('should not allow changing a "given" cell in playing mode', () => {
@@ -210,7 +210,7 @@ describe('sudokuReducer', () => {
       })
       expect(newState.history.stack).toHaveLength(3) // [empty, {0:1}, {0:1, 2:3}]
       expect(newState.history.index).toBe(2)
-      expect(newState.board[1].value).toBe(null) // The undone move is gone
+      expect(newState.board[1].value).toBeNull() // The undone move is gone
     })
   })
 
@@ -459,7 +459,7 @@ describe('sudokuReducer', () => {
     it('should return original state if cell is already empty', () => {
       const state = sudokuReducer(initialState, { type: 'ERASE_CELL', index: 0 })
       expect(state).toBe(initialState)
-      expect(state.history.stack.length).toBe(1)
+      expect(state.history.stack).toHaveLength(1)
     })
 
     it('should not erase a "given" cell', () => {
@@ -573,12 +573,12 @@ describe('sudokuReducer', () => {
 
       expect(newState.board[0].value).toBe(5)
       expect(newState.board[0].isGiven).toBe(true)
-      expect(newState.board[2].value).toBe(null)
+      expect(newState.board[2].value).toBeNull()
       expect(newState.board[2].isGiven).toBe(false)
       expect(newState.board[80].value).toBe(9)
 
       // Check that state was reset for playing
-      expect(newState.history.stack.length).toBe(1)
+      expect(newState.history.stack).toHaveLength(1)
       expect(newState.history.index).toBe(0)
       expect(newState.history.stack[0]).toEqual(newState.initialBoard)
       expect(newState.initialBoard[0].value).toBe(5)
@@ -662,7 +662,7 @@ describe('sudokuReducer', () => {
           value: (((state.board[0].value ?? 0) % 9) + 1) as 1, // Cycle through 1-9
         })
       }
-      expect(state.history.stack.length).toBe(MAX_HISTORY_ENTRIES)
+      expect(state.history.stack).toHaveLength(MAX_HISTORY_ENTRIES)
       expect(state.history.index).toBe(MAX_HISTORY_ENTRIES - 1)
       // Check that the first entry is no longer the initial empty board
       expect(state.history.stack[0]).not.toEqual(createEmptyBoard())
@@ -708,7 +708,7 @@ describe('sudokuReducer', () => {
       expect(newState.solver.steps[0]).toEqual(mockResult.steps[0])
       expect(newState.solver.currentStepIndex).toBe(newState.solver.steps.length)
       expect(newState.solver.visualizationBoard?.[0].value).toBe(1)
-      expect(newState.board[0].value).toBe(null) // Unchanged
+      expect(newState.board[0].value).toBeNull() // Unchanged
       expect(newState.board[1].isGiven).toBe(true) // Matches what we set
     })
 
@@ -731,7 +731,7 @@ describe('sudokuReducer', () => {
       }
       const newState = sudokuReducer(state, { type: 'SOLVE_SUCCESS', result: mockResult })
 
-      expect(newState.solver.steps.length).toBe(2)
+      expect(newState.solver.steps).toHaveLength(2)
       expect(newState.solver.steps[1].technique).toBe('Backtracking')
       expect(newState.solver.currentStepIndex).toBe(2)
     })
@@ -768,7 +768,7 @@ describe('sudokuReducer', () => {
       })
       expect(state.solver.isGenerating).toBe(true)
       expect(state.solver.generationDifficulty).toBe('hard')
-      expect(state.puzzlePool.hard.length).toBe(0)
+      expect(state.puzzlePool.hard).toHaveLength(0)
     })
 
     it('should handle GENERATE_PUZZLE_START with missing difficulty key', () => {
@@ -800,7 +800,7 @@ describe('sudokuReducer', () => {
       // Should immediately start playing
       expect(state.solver.gameMode).toBe('playing')
       expect(state.board[0].value).toBe(1)
-      expect(state.puzzlePool.easy.length).toBe(0) // Consumed
+      expect(state.puzzlePool.easy).toHaveLength(0) // Consumed
     })
 
     it('should handle GENERATE_PUZZLE_START with pool hit having solution with dots', () => {
@@ -881,7 +881,7 @@ describe('sudokuReducer', () => {
         },
       )
 
-      expect(state.puzzlePool.easy.length).toBe(1)
+      expect(state.puzzlePool.easy).toHaveLength(1)
       expect(state.poolRequestCount.easy).toBe(0)
       // Ensure game state wasn't affected
       expect(state.solver.gameMode).toBe('selecting')
@@ -917,7 +917,7 @@ describe('sudokuReducer', () => {
         },
       )
 
-      expect(state.puzzlePool.easy.length).toBe(1)
+      expect(state.puzzlePool.easy).toHaveLength(1)
       expect(state.poolRequestCount.easy).toBe(0) // Should stay 0, not -1
     })
 
@@ -983,7 +983,7 @@ describe('sudokuReducer', () => {
       const state = sudokuReducer(initialState, { type: 'START_CUSTOM_PUZZLE' })
       expect(state.solver.gameMode).toBe('customInput')
       expect(state.board).toEqual(createEmptyBoard())
-      expect(state.history.stack.length).toBe(1)
+      expect(state.history.stack).toHaveLength(1)
     })
 
     it('should handle VALIDATE_PUZZLE_START', () => {
@@ -1194,7 +1194,7 @@ describe('sudokuReducer', () => {
       expect(stateAfterFinalStep.solver.visualizationBoard?.[0].value).toBe(1)
       expect(stateAfterFinalStep.solver.visualizationBoard?.[2].value).toBe(3)
       expect(stateAfterFinalStep.solver.visualizationBoard?.[80].value).toBe(9)
-      expect(stateAfterFinalStep.solver.visualizationBoard?.[1].value).toBe(null)
+      expect(stateAfterFinalStep.solver.visualizationBoard?.[1].value).toBeNull()
     })
 
     it('should do nothing if not in visualizing mode', () => {
@@ -1251,8 +1251,8 @@ describe('sudokuReducer', () => {
         type: 'SET_ACTIVE_CELL',
         index: null,
       })
-      expect(newState.ui.activeCellIndex).toBe(null)
-      expect(newState.ui.highlightedValue).toBe(null)
+      expect(newState.ui.activeCellIndex).toBeNull()
+      expect(newState.ui.highlightedValue).toBeNull()
     })
 
     it('should set input mode', () => {
@@ -1415,7 +1415,7 @@ describe('loadInitialState', () => {
     })
 
     const state = loadInitialState()
-    expect(state.puzzlePool.easy.length).toBe(1)
+    expect(state.puzzlePool.easy).toHaveLength(1)
     expect(state.puzzlePool.easy[0].puzzleString).toBe('abc')
   })
 

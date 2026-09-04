@@ -288,10 +288,10 @@ describe('Sudoku Utilities', () => {
     it('should parse a valid string into a board state', () => {
       const boardString = '5.9' + '.'.repeat(78)
       const board = boardStateFromString(boardString)
-      expect(board.length).toBe(81)
+      expect(board).toHaveLength(81)
       expect(board[0].value).toBe(5)
       expect(board[0].isGiven).toBe(true)
-      expect(board[1].value).toBe(null)
+      expect(board[1].value).toBeNull()
       expect(board[1].isGiven).toBe(false)
       expect(board[2].value).toBe(9)
       expect(board[2].isGiven).toBe(true)
