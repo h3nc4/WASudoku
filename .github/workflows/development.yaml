@@ -27,10 +27,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # dev-image diffs against the base to spot image changes
+      - name: Name the CI image
+        id: ci_image
+        run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
       - name: Run h3nc4/dev-image-action
-        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        uses: h3nc4/dev-image-action@v2
         with:
-          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          image: ${{ steps.ci_image.outputs.ref }}
           dockerfile: docker/ci.Dockerfile
           image-inputs: ${{ env.CI_IMAGE_INPUTS }}
           docker-args: ${{ env.DEV_DOCKER_ARGS }}
@@ -130,10 +133,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # dev-image diffs against the base to spot image changes
+      - name: Name the CI image
+        id: ci_image
+        run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
       - name: Run h3nc4/dev-image-action
-        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        uses: h3nc4/dev-image-action@v2
         with:
-          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          image: ${{ steps.ci_image.outputs.ref }}
           dockerfile: docker/ci.Dockerfile
           image-inputs: ${{ env.CI_IMAGE_INPUTS }}
           base-sha: ''
@@ -193,16 +199,16 @@ jobs:
     needs: [checks]
     runs-on: ubuntu-latest
     steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Prepare metadata
         id: meta
         run: |
-          echo "PUSH=${{ github.ref == 'refs/heads/main' }}" >>$GITHUB_OUTPUT
-          echo "IMAGE=${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest" >>$GITHUB_OUTPUT
-      - name: Run actions/checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Read the published CI image tag
-        id: ci_tag
-        run: echo "tag=$(cat .github/VERSION)" >>"$GITHUB_OUTPUT"
+          {
+            echo "PUSH=${{ github.ref == 'refs/heads/main' }}"
+            echo "IMAGE=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'):latest"
+            echo "CI_IMAGE_TAG=$(./scripts/devcontainer-image.sh -t)"
+          } >>"$GITHUB_OUTPUT"
       - name: Run docker/setup-buildx-action
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
       - name: Run docker/login-action
@@ -223,7 +229,7 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.IMAGE }}
           build-args: |
-            CI_IMAGE_TAG=${{ steps.ci_tag.outputs.tag }}
+            CI_IMAGE_TAG=${{ steps.meta.outputs.CI_IMAGE_TAG }}
             COMMIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ steps.build_date.outputs.date }}
       - name: Run container

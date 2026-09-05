@@ -11,6 +11,7 @@ on:
       - 'release/*'
   schedule:
     - cron: '23 3 * * *' # Daily at 03:23 UTC
+  workflow_dispatch:
 
 jobs:
   audit:
@@ -18,16 +19,88 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # pushes the fix branch
+      pull-requests: write # opens the pull request
+    env:
+      DEV_DOCKER_ARGS: -v ${HOME:?}/ci-cache/npm:/cache/npm -e npm_config_cache=/cache/npm -v ${HOME:?}/ci-cache/cargo:/cache/cargo -e CARGO_HOME=/cache/cargo
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Run actions/setup-node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - name: Name the CI image
+        id: ci_image
+        run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@v2
         with:
-          node-version: '24'
+          image: ${{ steps.ci_image.outputs.ref }}
+          base-sha: ''
+          docker-args: ${{ env.DEV_DOCKER_ARGS }}
+      - name: Create the cache directories
+        run: |
+          mkdir -p ~/ci-cache/npm
+          mkdir -p ~/ci-cache/cargo
+      - name: Fix what can be fixed
+        id: fix
+        if: github.event_name != 'push'
+        run: |
+          $DEV_RUN -c 'npm audit fix --package-lock-only' || true
+          if git diff --quiet -- package.json package-lock.json; then
+            echo 'changed=false' >>"${GITHUB_OUTPUT}"
+          else
+            echo 'changed=true' >>"${GITHUB_OUTPUT}"
+          fi
+      - name: Lint, test and build the fixed tree
+        if: steps.fix.outputs.changed == 'true'
+        run: |
+          $DEV_RUN -c '
+            set -e
+            export PATH="/cache/cargo/bin:${PATH}"
+            ./scripts/wasm-deps.sh -d
+            npm ci
+            npm run format:check
+            npm run lint
+            npm run lint:md
+            npm run lint:sh
+            npm run lint:wasm
+            npm run test:wasm
+            npm run wasm:build:dev
+            npm run typecheck
+            npm run test:ui
+            npm run build
+          '
+      - name: Open a pull request for the fix
+        if: steps.fix.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIX_BRANCH: security/audit-fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -qB "${FIX_BRANCH}"
+          git commit -qm 'npm audit fix' -- package.json package-lock.json
+          git push -qf origin "${FIX_BRANCH}"
+          url="$(gh pr list --head "${FIX_BRANCH}" --base main --state open \
+            --json url --jq '.[0].url // empty')"
+          if [ -z "${url}" ]; then
+            url="$(gh pr create --head "${FIX_BRANCH}" --base main \
+              --title 'npm audit fix' \
+              --body 'Opened by the nightly audit, with the suite already green on this tree.')"
+          fi
+          echo "::notice::the fix is waiting at ${url}"
       - name: Audit dependencies
-        run: npm run audit
+        run: |
+          $DEV_RUN -c 'npm run audit' >"${RUNNER_TEMP}/audit.log" 2>&1 || status=1
+          cat "${RUNNER_TEMP}/audit.log"
+          if [ "${status:-0}" -ne 0 ]; then
+            {
+              echo '## Advisories left for a human'
+              echo
+              echo '```'
+              cat "${RUNNER_TEMP}/audit.log"
+              echo '```'
+            } >>"${GITHUB_STEP_SUMMARY}"
+            echo "::warning::npm audit fix cannot reach these without a major bump"
+          fi
 
   audit-wasm:
     name: Cargo Audit
@@ -43,10 +116,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # dev-image diffs against the base to spot image changes
+      - name: Name the CI image
+        id: ci_image
+        run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
       - name: Run h3nc4/dev-image-action
-        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        uses: h3nc4/dev-image-action@v2
         with:
-          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          image: ${{ steps.ci_image.outputs.ref }}
           dockerfile: docker/ci.Dockerfile
           image-inputs: ${{ env.CI_IMAGE_INPUTS }}
           docker-args: ${{ env.DEV_DOCKER_ARGS }}

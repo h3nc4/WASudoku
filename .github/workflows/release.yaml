@@ -10,15 +10,18 @@ jobs:
     name: Prepare environment
     runs-on: ubuntu-latest
     outputs:
+      image: ${{ steps.image.outputs.name }}
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.read_tag.outputs.tag }}
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - id: image
+        run: echo "name=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >>"${GITHUB_OUTPUT}"
       - id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >>"${GITHUB_OUTPUT}"
       - id: read_tag
-        run: echo "tag=$(cat .github/VERSION)" >>"${GITHUB_OUTPUT}"
+        run: echo "tag=$(./scripts/devcontainer-image.sh -t)" >>"${GITHUB_OUTPUT}"
 
   build-web:
     name: Build web app
@@ -27,10 +30,13 @@ jobs:
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Name the CI image
+        id: ci_image
+        run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
       - name: Run h3nc4/dev-image-action
-        uses: h3nc4/dev-image-action@896daea2e2bdda063d6992243c634f156ce057ac # v1
+        uses: h3nc4/dev-image-action@v2
         with:
-          published-repo: ${{ vars.DOCKERHUB_USERNAME }}/wasudoku-ci
+          image: ${{ steps.ci_image.outputs.ref }}
           dockerfile: docker/ci.Dockerfile
           image-inputs: docker/ci.Dockerfile scripts/wasm-deps.sh
           docker-args: -v ${HOME:?}/ci-cache/npm:/cache/npm -e npm_config_cache=/cache/npm -v ${HOME:?}/ci-cache/cargo:/cache/cargo -e CARGO_HOME=/cache/cargo
@@ -160,7 +166,7 @@ jobs:
           file: ./docker/Dockerfile
           push: true
           tags: |
-            ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:${{ needs.prepare.outputs.version }}
+            ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}
             ${{ vars.DOCKERHUB_USERNAME }}/wasudoku:latest
           build-args: |
             CI_IMAGE_TAG=${{ needs.prepare.outputs.tag }}

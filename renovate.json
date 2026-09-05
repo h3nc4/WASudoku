@@ -21,6 +21,11 @@
   "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
+      "description": "The dev container pin belongs to CI, not to Renovate.",
+      "matchManagers": ["devcontainer"],
+      "enabled": false
+    },
+    {
       "groupName": "radix-ui",
       "matchPackageNames": ["/^@radix-ui/", "/^radix-ui/"]
     },
