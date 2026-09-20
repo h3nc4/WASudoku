@@ -9,6 +9,9 @@ on:
     branches:
       - 'main'
       - 'release/*'
+  schedule:
+    - cron: '30 5 * * *' # Daily at 05:30 UTC
+  workflow_dispatch:
 
 env:
   DEV_DOCKER_ARGS: -v ${HOME:?}/ci-cache/npm:/cache/npm -e npm_config_cache=/cache/npm -v ${HOME:?}/ci-cache/cargo:/cache/cargo -e CARGO_HOME=/cache/cargo
