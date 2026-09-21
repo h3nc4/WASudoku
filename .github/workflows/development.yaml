@@ -225,7 +225,7 @@ jobs:
         id: meta
         run: |
           {
-            echo "PUSH=${{ github.ref == 'refs/heads/main' }}"
+            echo "PUSH=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
             echo "IMAGE=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'):latest"
             echo "CI_IMAGE_TAG=$(./scripts/devcontainer-image.sh -t)"
           } >>"$GITHUB_OUTPUT"
@@ -245,7 +245,7 @@ jobs:
         with:
           driver: docker
       - name: Run docker/login-action
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
