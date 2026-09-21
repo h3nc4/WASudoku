@@ -30,6 +30,6 @@ docker run \
   -e "BUBBLEWRAP_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}" \
   -e "BUBBLEWRAP_KEY_PASSWORD=${KEYSTORE_PASSWORD}" \
   -e "VERSION=${1#v}" \
-  -v "${WASUDOKU_HOST_ROOT:-${PWD}}":/app \
+  -v "${HOST_ROOT:-${PWD}}":/app \
   "ghcr.io/googlechromelabs/bubblewrap:${bubblewrap_version}" \
   -c 'printf "%s\n" "${VERSION}" | bubblewrap update && yes | bubblewrap build'

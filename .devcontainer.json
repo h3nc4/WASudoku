@@ -18,7 +18,7 @@
     "DEVCONTAINER": "1",
     "TERM": "${env:TERM}",
     "TMUX": "${env:TMUX}",
-    "WASUDOKU_HOST_ROOT": "${localWorkspaceFolder}"
+    "HOST_ROOT": "${localWorkspaceFolder}"
   },
   "remoteEnv": {
     "PATH": "/workspaces/wasudoku/node_modules/.bin:${containerEnv:PATH}"
