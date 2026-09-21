@@ -18,9 +18,6 @@
 #
 # Analyses against the shared SonarQube, one project per developer because
 # Community Edition tracks a single branch per project.
-#
-#   ./scripts/sonar.sh      analyse as wasudoku-dev-<your SonarQube login>
-#   ./scripts/sonar.sh -d   analyse, then delete the project
 set -e
 
 cd "$(dirname "$0")/../"
@@ -66,8 +63,7 @@ sonar_api() {
 project_key="${SONAR_PROJECT_KEY:-}"
 
 if [ -z "${project_key}" ] && [ -z "${CI:-}" ]; then
-  # Single quoted so the container's shell expands it. api/users/current is
-  # internal, hence the fallback.
+  # Single quoted so the container's shell expands it, and api/users/current is internal.
   # shellcheck disable=SC2016
   sonar_login="$(sonar_api \
     'curl -s -u "${SONAR_TOKEN}:" "${SONAR_HOST_URL}/api/users/current"' 2>/dev/null |
@@ -101,8 +97,9 @@ docker run --rm \
   -v "${WASUDOKU_HOST_ROOT:-${PWD}}/:/usr/src" \
   "${sonar_scan_image}" "$@" || scan_status=$?
 
-# Whatever the gate said: a failed analysis leaves a project behind too.
-if [ -n "${delete_after}" ] && [ -n "${project_key}" ]; then
+# Only a clean scan is cleaned up. A failure keeps its project, so the dashboard
+# the scanner just named is still there to read.
+if [ -n "${delete_after}" ] && [ -n "${project_key}" ] && [ "${scan_status}" -eq 0 ]; then
   code="$(sonar_api \
     "curl -s -o /dev/null -w '%{http_code}' -u \"\${SONAR_TOKEN}:\" \
        -X POST \"\${SONAR_HOST_URL}/api/projects/delete\" \
