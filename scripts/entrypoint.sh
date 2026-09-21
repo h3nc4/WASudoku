@@ -74,8 +74,6 @@ fi
 
 npm install
 
-./scripts/sonar.sh -i
-
 doas mandb >/dev/null 2>&1
 
 echo "Container initialized successfully."
