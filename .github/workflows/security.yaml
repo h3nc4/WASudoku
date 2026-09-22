@@ -99,7 +99,8 @@ jobs:
               cat "${RUNNER_TEMP}/audit.log"
               echo '```'
             } >>"${GITHUB_STEP_SUMMARY}"
-            echo "::warning::npm audit fix cannot reach these without a major bump"
+            echo "::error::npm audit fix cannot reach these without a major bump"
+            exit 1
           fi
 
   audit-wasm:
