@@ -16,4 +16,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
+# Staged files alone, which is what lint-staged is for.
+set -e
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "${repo_root}"
+
 npx lint-staged

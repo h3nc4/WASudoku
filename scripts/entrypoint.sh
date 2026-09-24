@@ -70,6 +70,10 @@ if [ "${host_gid}" != "${current_gid}" ]; then
   doas groupmod -o -g "${host_gid}" docker
 fi
 
+# The hooks are committed files, so git is pointed at them rather than husky
+# installing shims into .git/hooks.
+git config core.hooksPath scripts/hooks || :
+
 ./scripts/wasm-deps.sh -d
 
 npm install
