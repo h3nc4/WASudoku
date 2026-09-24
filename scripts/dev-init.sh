@@ -16,11 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
-# The suite and the scan, so a push that would fail CI fails here first.
+# What this repository needs past the shared setup dev-base does.
 set -e
 
-repo_root="$(git rev-parse --show-toplevel)"
-cd "${repo_root}"
-
-npm run test
-sonar
+./scripts/wasm-deps.sh -d
+npm install
