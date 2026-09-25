@@ -1,9 +1,9 @@
 {
   "name": "WASudoku",
-  "image": "h3nc4/wasudoku-dev:7",
+  "image": "h3nc4/wasudoku-dev:8",
   "initializeCommand": "${localWorkspaceFolder}/scripts/devcontainer-init.sh",
   "runArgs": ["--name=wasudoku-devcontainer", "--network=host"],
-  "remoteUser": "wasudoku",
+  "remoteUser": "dev",
   "workspaceFolder": "/workspaces/wasudoku",
   "overrideCommand": false,
   "mounts": [

@@ -15,7 +15,9 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+
+# What this repository needs past the shared setup dev-base does.
 set -e
 
-npm run test
-scripts/sonar.sh
+./scripts/wasm-deps.sh -d
+npm install

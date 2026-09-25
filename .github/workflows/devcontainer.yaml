@@ -7,8 +7,6 @@ on:
     paths:
       - 'docker/ci.Dockerfile'
       - 'docker/dev.Dockerfile'
-      - 'scripts/entrypoint.sh'
-      - 'scripts/switch-user.sh'
       - 'scripts/wasm-deps.sh'
   push:
     branches:
@@ -16,8 +14,6 @@ on:
     paths:
       - 'docker/ci.Dockerfile'
       - 'docker/dev.Dockerfile'
-      - 'scripts/entrypoint.sh'
-      - 'scripts/switch-user.sh'
       - 'scripts/wasm-deps.sh'
       - '.devcontainer.json'
   workflow_dispatch:
@@ -112,8 +108,7 @@ jobs:
           fi
           echo "RELEASE=no" >>"${GITHUB_ENV}"
           changed="$(git diff --name-only "${tag}" HEAD -- \
-            docker/ci.Dockerfile docker/dev.Dockerfile scripts/entrypoint.sh \
-            scripts/switch-user.sh scripts/wasm-deps.sh)"
+            docker/ci.Dockerfile docker/dev.Dockerfile scripts/wasm-deps.sh)"
           if [ -n "${changed}" ]; then
             echo "::error::the pin is still ${VERSION}, which ${tag} already released, but" \
               "these moved since: $(echo "${changed}" | tr '\n' ' '). Open a pull request so" \

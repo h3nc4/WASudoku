@@ -98,13 +98,6 @@
   ],
   "customManagers": [
     {
-      "description": "Update Docker images in sonar script",
-      "customType": "regex",
-      "managerFilePatterns": ["/^scripts/sonar\\.sh$/"],
-      "matchStrings": ["_image=\"(?<depName>.*?):(?<currentValue>.*?)\""],
-      "datasourceTemplate": "docker"
-    },
-    {
       "description": "Update Rust version in CI/Dev Dockerfiles",
       "customType": "regex",
       "managerFilePatterns": ["/^docker/ci\\.Dockerfile$/", "/^docker/dev\\.Dockerfile$/"],
