@@ -150,7 +150,7 @@ RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/node/bin/* .
 
 ################################################################################
 # Debian main stage
-FROM h3nc4/dev-base:debian-13@sha256:882dbbaafb92a2b366b54dbed2aca6b2531f01fb89095b5b7889cd930ad68ec2 AS main
+FROM h3nc4/dev-base:debian-13@sha256:1d854408035d42667be8b3b46e166f30b0ca41dff1583c1f04234f9d39e2ebaa AS main
 
 # dev-base ends as the dev user, and the steps below need root.
 USER root
