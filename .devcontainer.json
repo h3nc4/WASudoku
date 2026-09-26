@@ -1,6 +1,6 @@
 {
   "name": "WASudoku",
-  "image": "h3nc4/wasudoku-dev:14",
+  "image": "h3nc4/wasudoku-dev:15",
   "initializeCommand": "${localWorkspaceFolder}/scripts/devcontainer-init.sh",
   "runArgs": ["--name=wasudoku-devcontainer", "--network=host"],
   "remoteUser": "dev",
