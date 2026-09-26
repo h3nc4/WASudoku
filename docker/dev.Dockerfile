@@ -38,18 +38,18 @@ ARG UID="1000"
 ARG GID="1000"
 ARG CARGO_HOME="/home/${USER}/.local/share/cargo"
 
-# A caching mirror on the network this is built on, so a package is fetched from
-# the internet once rather than once per build. Empty by default, which is what
-# CI uses: its runners have no route to a LAN mirror and go straight to Debian.
-ARG APT_MIRROR=""
+# The package mirror to build through. It answers on one network only, so
+# resolving the name is the test for reaching it.
+ARG APT_MIRROR="http://debian.lan.h3nc4.com"
 
 ################################################################################
 # Shared builder image
 FROM debian:13-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS builder-base
 
 ARG APT_MIRROR
-RUN if [ -n "${APT_MIRROR}" ]; then \
-    sed -i "s|http://deb.debian.org|${APT_MIRROR}|g" \
+RUN host="${APT_MIRROR#http://}"; \
+  if [ -n "${host}" ] && getent hosts "${host}" >/dev/null 2>&1; then \
+    sed -i "s|^URIs: http://deb.debian.org/\(.*\)$|URIs: ${APT_MIRROR}/\1 http://deb.debian.org/\1|" \
       /etc/apt/sources.list.d/debian.sources; \
   fi
 
@@ -162,8 +162,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ########################################
 # What rust needs to link, which dev-base does not carry
 ARG APT_MIRROR
-RUN if [ -n "${APT_MIRROR}" ]; then \
-    sed -i "s|http://deb.debian.org|${APT_MIRROR}|g" \
+RUN host="${APT_MIRROR#http://}"; \
+  if [ -n "${host}" ] && getent hosts "${host}" >/dev/null 2>&1; then \
+    sed -i "s|^URIs: http://deb.debian.org/\(.*\)$|URIs: ${APT_MIRROR}/\1 http://deb.debian.org/\1|" \
       /etc/apt/sources.list.d/debian.sources; \
   fi
 
@@ -190,7 +191,7 @@ RUN npm install -g npm@latest
 # Clean cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
   if [ -n "${APT_MIRROR}" ]; then \
-    sed -i "s|${APT_MIRROR}|http://deb.debian.org|g" \
+    sed -i "s|${APT_MIRROR}/[^ ]* ||" \
       /etc/apt/sources.list.d/debian.sources; \
   fi
 RUN rm -rf /var/cache/* /var/log/* /tmp/* /root/.npm
