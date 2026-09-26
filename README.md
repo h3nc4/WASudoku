@@ -1,106 +1,102 @@
 # WASudoku
 
-WASudoku is a Sudoku solver that runs locally in the browser using WebAssembly.
+A Sudoku solver and generator that runs entirely in the browser. The solving engine is Rust compiled to WebAssembly, and it works the way a person would, so it can show the reasoning behind each digit it places rather than only the answer.
+
+It runs offline after the first load. There is no backend and no account, and the page stops requesting anything once it has loaded.
 
 ## Live
 
-WASudoku is available at: [https://wasudoku.h3nc4.com](https://wasudoku.h3nc4.com) _via Cloudflare_
+[wasudoku.h3nc4.com](https://wasudoku.h3nc4.com) _via Cloudflare_, or [gh.wasudoku.h3nc4.com](https://gh.wasudoku.h3nc4.com) _via GitHub Pages_.
 
-Or at [https://gh.wasudoku.h3nc4.com](https://gh.wasudoku.h3nc4.com) _via GitHub Pages_
+Also as a hidden service at `wasudoku.h3nc4cd73utflolf2uxgws3j6rmgzotlwndukabzgzawpzk5fejws5id.onion`.
 
-Also available as a hidden service at: `wasudoku.h3nc4cd73utflolf2uxgws3j6rmgzotlwndukabzgzawpzk5fejws5id.onion`
+## Solving a puzzle
 
-## Features
+Get a puzzle onto the grid by any of these:
 
-### Core Engine
+- **Paste** an 81-character string straight onto the board.
+- **Type** digits, and the focus advances on its own. Arrow keys move, Backspace and Delete clear.
+- **Number pad** on screen, which also counts how many of each digit remain unplaced.
+- **Export** the grid back out as an 81-character string.
 
-- **WASM Solver:** The solver logic is written in Rust and compiled to WebAssembly. It runs in a background Web Worker, ensuring the UI remains responsive during calculations.
-- **Hybrid Solving Strategy:** The engine first uses logical, human-like techniques to find a solution path. If logic alone is insufficient, it seamlessly falls back to a backtracking algorithm.
-- **Puzzle Generation:** Generates unique, solvable puzzles with a single solution for various difficulty levels: Easy, Medium, Hard, and Extreme, directly in the browser.
+Entry modes cover notes as well as answers. **Normal** places a digit, **Candidate** writes small corner notes, and **Center** writes centre notes for the techniques that read them. Undo and redo step through all of it.
 
-### User Interface & Experience
+Conflicts are highlighted as they appear, so a digit repeated in a row, a column or a box shows up before the solve runs.
 
-- **Responsive & Modern UI:** Built with React, Vite, Tailwind CSS, and shadcn/ui for a clean, accessible, and responsive layout that works on any device.
-- **Light & Dark Modes:** Supports both light and dark themes.
-- **Installable as a PWA:** As a Progressive Web App, WASudoku can be installed on a desktop or mobile device for a native, offline-first experience.
-- **Local Storage Persistence:** The current board state, including all numbers, pencil marks, and undo/redo history, is automatically saved to the browser's local storage.
+The solver runs in a Web Worker, which keeps the grid responsive while it works.
 
-### Gameplay Features
+## Reading the solution
 
-- **Solver Visualization:** After a puzzle is solved, the interface reveals all logical steps the solver took. Navigate step-by-step to see the board's state at each stage and understand the reasoning behind each move.
-- **Conflict Highlighting:** The board highlights any numbers that break Sudoku rules in a row, column, or 3x3 box.
-- **Undo/Redo:** Step backward and forward through any moves.
-- **Multiple Input Modes:**
-  - **Normal:** Enter the final numbers.
-  - **Candidate:** Add small "corner" notes for potential numbers.
-  - **Center:** Add "center" notes, used for advanced techniques.
-- **Controls:**
-  - **Navigation:** Use arrow keys to navigate between cells, and Backspace/Delete to clear. Typing a number automatically advances focus to the next cell.
-  - **Number Pad:** An on-screen number pad makes input easy on touch devices and displays a count of remaining numbers to be placed.
-  - **Clipboard Support:** Paste an 81-character puzzle string directly onto the grid to start solving.
-  - **Export Puzzle:** Copy the current puzzle state as an 81-character string for sharing or saving.
+After a solve, the interface replays the steps the logical engine took, one at a time, with the board as it stood at each one. Each step cites the technique that justified it, which is what the list further down explains.
 
-## Supported Solving Techniques
+**A puzzle that logic cannot finish has a shorter replay.** The engine applies its techniques first. When those run out with cells still empty, it finishes the grid by backtracking, and backtracking produces a correct answer with no reasoning attached. The replay covers the part logic solved and stops at that point. Puzzles generated at the Extreme setting are where this happens, that being the one level with no guarantee that logic alone reaches the end.
 
-The WASudoku engine solves puzzles much like a human would, sequentially applying logical techniques from easiest to hardest before falling back to brute-force algorithms. This allows the engine to explain its reasoning step-by-step.
+## Generating a puzzle
 
-Below is a list of the solving techniques supported by the WASudoku engine:
+Five levels, each set by the hardest technique needed rather than by how many digits are given:
 
-### Basic Techniques
+| Level   | Needs                                                      |
+| ------- | ---------------------------------------------------------- |
+| Easy    | basic techniques alone                                     |
+| Medium  | intermediate techniques                                    |
+| Hard    | advanced techniques, still without backtracking            |
+| Expert  | master techniques, still solvable by logic                 |
+| Extreme | a unique solution, without a guarantee that logic suffices |
 
-- **Naked Single:** A cell has only one possible candidate remaining because all other numbers are present in its row, column, or 3x3 box.
-- **Hidden Single:** Within a specific row, column, or 3x3 box, a number can only be placed in one specific cell because all other empty cells in that unit are blocked.
+The generator asserts a unique solution at each of the five levels, and its tests check that.
 
-### Intermediate Techniques
+## Installing it
 
-- **Naked Pair / Triple:** Two or three cells in a unit, such as a row, column, or box, contain exactly the same two or three candidates. Since these numbers must go into these cells, they can be eliminated from all other cells in that unit.
-- **Hidden Pair / Triple:** Two or three candidates appear in exactly two or three cells within a unit. Since these cells must contain these candidates, all other candidates can be safely eliminated from these specific cells.
-- **Pointing Subsets: Pairs and Triples:** If a candidate appears only within a single row or column inside a 3x3 box, it must be placed in that line. Therefore, it can be eliminated from the rest of that row or column outside the box.
-- **Box-Line Reduction: Claiming Candidates:** If a candidate in a row or column is confined to a single 3x3 box, it must be placed in that box. It can thus be eliminated from the rest of the cells in that box that do not belong to the row or column.
+It is a Progressive Web App, which means a browser offers to install it, and an installed copy runs offline. The board, the notes and the undo history are kept in local storage. A closed tab reopens where it was left.
 
-### Advanced Techniques
+Light and dark themes follow the system setting.
 
-- **X-Wing:** A single-candidate pattern where a number appears exactly twice in two distinct rows, and they align in the same two columns, forming a rectangle. The candidate can be eliminated from the rest of those columns, or from the rest of those rows instead.
-- **Swordfish:** An extension of the X-Wing pattern across three rows and three columns. If a candidate appears two or three times in three rows and aligns perfectly in three columns, it can be eliminated from the rest of those columns.
-- **XY-Wing or Y-Wing:** A pattern involving three bi-value cells: a pivot cell with candidates X and Y, connecting to two pincer cells with candidates X,Z and Y,Z respectively. Regardless of whether the pivot is X or Y, one of the pincers must be Z. Thus, Z can be eliminated from any cell that sees both pincers.
-- **XYZ-Wing:** Similar to an XY-Wing, but the pivot cell has three candidates: X, Y, and Z. The candidate Z is eliminated from any cell that sees all three cells.
-- **Skyscraper:** A single-digit pattern consisting of two rows or two columns where a candidate appears exactly twice. One pair of cells aligns perfectly in a column, while the other "roof" pair does not. The candidate can be eliminated from any cell seeing both roof cells.
-- **Two-String Kite:** A single-digit pattern using a row and a column that both have exactly two positions for a candidate, and they intersect inside a single 3x3 box. The candidate can be eliminated from the intersection of the two ends outside the box.
+## Techniques
 
-### Master Techniques
+Tried cheapest first. The first one that matches becomes the next step.
 
-- **Jellyfish:** A massive single-candidate pattern, extending the logic of X-Wing and Swordfish across four rows and four columns.
-- **Unique Rectangle, Type 1:** Capitalizes on the meta-rule that a valid Sudoku must have exactly one unique solution. It identifies a "deadly pattern," meaning a rectangle of four identical bi-value cells spanning two rows, two columns, and two boxes, and eliminates candidates to prevent the puzzle from becoming ambiguous.
-- **W-Wing:** Uses two identical bi-value cells that do not see each other but are connected by a "strong link" on one of their candidates, meaning a candidate that only appears twice in a unit. It eliminates the other candidate from cells that see both identical bi-value cells.
+### Basic
 
-### Fallback Strategy
+- **Naked Single.** One candidate remains in a cell, because the other eight digits already appear across its row, its column and its box taken together.
+- **Hidden Single.** A digit fits only one cell of a unit, because every other empty cell in that unit already sees that digit elsewhere.
 
-- **Backtracking / Brute-force:** If the puzzle cannot be solved using the logical techniques above, which is common to all "Extreme" difficulty puzzles, the engine falls back to a backtracking algorithm to find the solution.
+### Intermediate
 
-## Architecture
+- **Naked Pair and Naked Triple.** Two or three cells in a unit share exactly the same two or three candidates between them. Those digits have to occupy those cells, so they come off every other cell in the unit.
+- **Hidden Pair and Hidden Triple.** Two or three digits appear in only two or three cells of a unit. Those cells have to take those digits, which removes their other candidates.
+- **Pointing pairs and triples.** Within one box a digit is confined to one row or column. Its placement falls on that line inside the box, and it comes off the rest of that row or column outside it.
+- **Box-line reduction.** Along one row or column a digit is confined to one box. It comes off the cells of that box that fall outside the line.
 
-The UI architecture follows the **Context + Reducer Pattern** with an emphasis on **State Domain Isolation**.
+### Advanced
 
-This is implemented using React's built-in [useReducer](https://react.dev/reference/react/useReducer) and [useContext](https://react.dev/reference/react/useContext) hooks.
+- **X-Wing.** A digit appears exactly twice in each of two rows, and both pairs occupy the same two columns. Those four cells form a rectangle, and the digit comes off the rest of the two columns. Exchange rows for columns and the same pattern eliminates along the rows instead.
+- **Swordfish.** The same idea over three rows and three columns, where the digit appears two or three times in each row and the positions line up on three columns.
+- **XY-Wing.** A pivot cell holding X and Y sees two cells holding X,Z and Y,Z. Whichever of X or Y the pivot takes, one of the other two is forced to Z, so Z comes off any cell seeing both of them.
+- **XYZ-Wing.** As above, with a pivot holding X, Y and Z. Z comes off any cell that sees all three.
+- **Skyscraper.** A digit appears exactly twice in each of two rows, and one pair of ends shares a column. The digit comes off any cell that sees both of the remaining two ends.
+- **Two-String Kite.** A row and a column each have exactly two positions for a digit, and one end of each meets inside one box. The digit comes off the cell where the two far ends cross.
 
-## Stack
+### Master
 
-- **UI:**
-  - [React](https://react.dev/)
-  - [Vite](https://vitejs.dev/)
-  - [TypeScript](https://www.typescriptlang.org/)
-  - [Tailwind CSS](https://tailwindcss.com/)
-  - [shadcn/ui](https://ui.shadcn.com/)
-- **WebAssembly Module:**
-  - [Rust](https://www.rust-lang.org/)
-  - [wasm-pack](https://drager.github.io/wasm-pack/)
-  - [wasm-bindgen](https://wasm-bindgen.github.io/wasm-bindgen/)
+- **Jellyfish.** The X-Wing and Swordfish pattern extended to four rows and four columns.
+- **Unique Rectangle, type 1.** The same two candidates appear in four cells spanning two rows, two columns and two boxes. Leaving that standing would give the puzzle a second solution. A valid puzzle has one, which removes the candidates that would complete the rectangle.
+- **W-Wing.** The same two candidates appear in two cells that do not see each other, joined by a strong link on one of them. The other candidate comes off any cell that sees both.
 
-## Sources
+### Fallback
 
-These techniques were implemented based on the comprehensive list of Sudoku solving techniques documented on [SudokuWiki.org](https://www.sudokuwiki.org/Strategy_Families).
+- **Backtracking.** Used when the techniques above leave cells empty. It finds the solution without producing a reason for any digit, which is where the step replay ends.
+
+Definitions follow the strategy reference at [SudokuWiki](https://www.sudokuwiki.org/Strategy_Families).
+
+## Built with
+
+The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. State sits in reducers reached through React context, split one per concern, so the board, the notes and the solver each own their own transitions.
+
+The engine is Rust, built with wasm-pack and wasm-bindgen.
 
 ## License
+
+<!-- vale off -->
 
 WASudoku is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
