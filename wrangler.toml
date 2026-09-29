@@ -1,0 +1,35 @@
+# Copyright (C) 2025-2026  Henrique Almeida
+# This file is part of WASudoku.
+#
+# WASudoku is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# WASudoku is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+
+# Serves dist from the edge, replacing the nginx container behind the tunnel.
+# An assets-only Worker runs no script, so asset requests are never billed.
+name = "wasudoku"
+compatibility_date = "2026-09-28"
+
+# Off, so the site answers on its own hostname and not on workers.dev too.
+workers_dev = false
+
+[assets]
+directory = "./dist"
+
+# Replaces `try_files $uri $uri/ /index.html`.
+not_found_handling = "single-page-application"
+
+# Takes over the hostname, so its DNS stops pointing at the tunnel. Deploying
+# this is the cutover, and the cloudflared route goes in the same change.
+[[routes]]
+pattern = "wasudoku.h3nc4.com"
+custom_domain = true
