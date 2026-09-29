@@ -28,8 +28,11 @@ directory = "./dist"
 # Replaces `try_files $uri $uri/ /index.html`.
 not_found_handling = "single-page-application"
 
-# Takes over the hostname, so its DNS stops pointing at the tunnel. Deploying
-# this is the cutover, and the cloudflared route goes in the same change.
+# A route, not a custom domain. A custom domain owns the DNS record and refuses
+# while the tunnel's CNAME exists, which is code 100117.
+
+# A route intercepts ahead of the origin, so DNS is untouched and deleting the
+# route sends traffic back down the tunnel.
 [[routes]]
-pattern = "wasudoku.h3nc4.com"
-custom_domain = true
+pattern = "wasudoku.h3nc4.com/*"
+zone_name = "h3nc4.com"
