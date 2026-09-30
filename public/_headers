@@ -3,10 +3,13 @@
 
 # The security set is named here rather than left to the zone rule in
 # h3nc4-infra, which measuring the apex on 2026-09-29 showed is not live.
+
+# frame-ancestors rather than X-Frame-Options, because the portfolio embeds this
+# in a DeviceFrame and SAMEORIGIN broke that preview on 2026-09-29.
 /
   Cache-Control: no-cache, no-store, must-revalidate
   X-Content-Type-Options: nosniff
-  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self' https://h3nc4.com https://www.h3nc4.com
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
@@ -14,7 +17,7 @@
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
   X-Content-Type-Options: nosniff
-  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self' https://h3nc4.com https://www.h3nc4.com
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
