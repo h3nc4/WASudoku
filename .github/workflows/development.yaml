@@ -204,13 +204,16 @@ jobs:
             *) echo "::error::docker/dev.Dockerfile names no pinned dev-base to take the scan from"; exit 1 ;;
           esac
           echo "SCAN_IMAGE=${image}" >>"${GITHUB_ENV}"
+      - name: Take the scan script out of the pinned image
+        run: |
+          docker run --rm --entrypoint cat "${SCAN_IMAGE}" /usr/local/bin/sonar >"${RUNNER_TEMP}/sonar"
+          chmod +x "${RUNNER_TEMP}/sonar"
       - name: Run h3nc4/sonar-action
-        uses: h3nc4/sonar-action@e799384ff5832f1bc2205946e6f342029c3b388c # v1
+        uses: h3nc4/sonar-action@f16ceef53c5a806b98ac93fc631ce62875e929fd # v1
         with:
           host-url: ${{ vars.SONAR_HOST_URL }}
           token: ${{ secrets.SONAR_TOKEN }}
-          image: ${{ env.SCAN_IMAGE }}
-          script: /usr/local/bin/sonar
+          script: ${{ runner.temp }}/sonar
 
   build-test-container:
     name: Build and Test Runtime Container
