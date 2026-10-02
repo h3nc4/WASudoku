@@ -52,9 +52,9 @@ jobs:
       - name: Lint, test and build the fixed tree
         if: steps.fix.outputs.changed == 'true'
         run: |
-          $DEV_RUN -c '
+          $DEV_RUN -c "
             set -e
-            export PATH="/cache/cargo/bin:${PATH}"
+            export PATH=/cache/cargo/bin:\${PATH}
             ./scripts/wasm-deps.sh -d
             npm ci
             npm run format:check
@@ -67,7 +67,7 @@ jobs:
             npm run typecheck
             npm run test:ui
             npm run build
-          '
+          "
       - name: Open a pull request for the fix
         if: steps.fix.outputs.changed == 'true'
         env:
@@ -140,12 +140,12 @@ jobs:
           mkdir -p ~/ci-cache/cargo
       - name: Audit cargo dependencies
         run: |
-          $DEV_RUN -c '
+          $DEV_RUN -c "
             set -e
-            export PATH="/cache/cargo/bin:${PATH}"
+            export PATH=/cache/cargo/bin:\${PATH}
             ./scripts/wasm-deps.sh -d
             npm run audit:wasm
-          '
+          "
 
   analyze:
     name: CodeQL

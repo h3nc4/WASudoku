@@ -64,9 +64,9 @@ jobs:
           mkdir -p ~/ci-cache/cargo
       - name: Lint, test and build
         run: |
-          $DEV_RUN -c '
+          $DEV_RUN -c "
             set -e
-            export PATH="/cache/cargo/bin:${PATH}"
+            export PATH=/cache/cargo/bin:\${PATH}
             ./scripts/wasm-deps.sh -d
             npm ci
             npm run format:check
@@ -80,7 +80,7 @@ jobs:
             npm run test:ui
             npm run build
             XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
-          '
+          "
       - name: Run actions/upload-artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -274,7 +274,7 @@ jobs:
           echo "CONTAINER_ID=$CONTAINER_ID" >>"$GITHUB_ENV"
       - name: Poll container url
         run: |
-          for i in $(seq 1 10); do
+          for _ in $(seq 1 10); do
             if wget -qO- http://localhost:8080/ | grep -q "WASudoku"; then
               echo "Container started successfully."
               exit 0
