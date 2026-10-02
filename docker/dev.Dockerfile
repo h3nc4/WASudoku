@@ -36,7 +36,8 @@ ARG NODE_DISTRO="node-v${NODE_VERSION}-linux-x64"
 ARG USER="dev"
 ARG UID="1000"
 ARG GID="1000"
-ARG CARGO_HOME="/home/${USER}/.local/share/cargo"
+# Outside /home/dev, which is 0700 and closed to a hook running as the host uid.
+ARG CARGO_HOME="/opt/cargo"
 
 # The package mirror to build through. It answers on one network only, so
 # resolving the name is the test for reaching it.
@@ -125,6 +126,29 @@ RUN mkdir -p "/rootfs/usr/local/bin"
 RUN cd "/rootfs/usr/local/bin" && ln -s ../../../opt/rust/bin/* .
 
 ################################################################################
+# Cargo tools stage
+FROM builder-base AS cargo-deps-stage
+ARG CARGO_HOME
+ENV CARGO_HOME="/rootfs${CARGO_HOME}"
+
+RUN apt-get install -y --no-install-recommends \
+  build-essential \
+  ca-certificates \
+  pkg-config \
+  libssl-dev
+
+COPY --from=rust-stage /rootfs/ /
+
+# The tools dev-init.sh would otherwise install on first start.
+COPY scripts/wasm-deps.sh /usr/local/bin/wasm-deps
+RUN chmod +x /usr/local/bin/wasm-deps && wasm-deps -d
+
+# Only the binaries are kept, and the tree is opened to any uid, since cargo writes its
+# registry here at run time.
+RUN rm -rf "${CARGO_HOME}/registry" "${CARGO_HOME}/git" && \
+  chmod -R a+rwX "${CARGO_HOME}"
+
+################################################################################
 # Node.js stage
 FROM builder-base AS node-stage
 ARG NODE_VERSION
@@ -182,6 +206,7 @@ RUN apt-get install --no-install-recommends -y -qq \
 # Copy features from other stages
 COPY --from=node-stage /rootfs/ /
 COPY --from=rust-stage /rootfs/ /
+COPY --from=cargo-deps-stage /rootfs/ /
 
 ########################################
 # Upgrade npm to the latest version
