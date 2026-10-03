@@ -23,6 +23,7 @@
     "test:wasm": "cd src/wasudoku-wasm && cargo llvm-cov --features test-panic --cobertura --output-path ../../coverage-wasm.xml",
     "test:ui": "vitest run --coverage; s=$?; mv coverage/lcov.info coverage-ui.lcov; rm -rf coverage; exit $s",
     "test:browser": "vitest --config vitest.config.browser.ts",
+    "pretest": "npm run wasm:build:dev",
     "test": "rm -f coverage-*; npm run test:wasm && npm run test:ui",
     "audit": "npm audit --audit-level=high",
     "audit:wasm": "cd src/wasudoku-wasm && cargo audit",
