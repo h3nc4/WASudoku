@@ -23,6 +23,7 @@
     "test:wasm": "cd src/wasudoku-wasm && cargo llvm-cov --features test-panic --cobertura --output-path ../../coverage-wasm.xml",
     "test:ui": "vitest run --coverage; s=$?; mv coverage/lcov.info coverage-ui.lcov; rm -rf coverage; exit $s",
     "test:browser": "vitest --config vitest.config.browser.ts",
+    "pretest": "npm run wasm:build:dev",
     "test": "rm -f coverage-*; npm run test:wasm && npm run test:ui",
     "audit": "npm audit --audit-level=high",
     "audit:wasm": "cd src/wasudoku-wasm && cargo audit",
@@ -45,8 +46,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
-    "@vitest/browser-playwright": "5.0.2",
-    "@vitest/coverage-v8": "5.0.2",
+    "@vitest/browser-playwright": "5.0.3",
+    "@vitest/coverage-v8": "5.0.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "eslint": "10.11.0",
@@ -80,7 +81,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.0",
     "vite": "8.3.1",
-    "vitest": "5.0.2"
+    "vitest": "5.0.3"
   },
   "overrides": {
     "eslint-plugin-react": {
