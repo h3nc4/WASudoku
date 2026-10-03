@@ -52,7 +52,7 @@ export default defineConfig({
         'src/main.tsx',
         'src/components/ui',
         'src/wasudoku-wasm',
-        'src/test/setup.ts',
+        'src/test',
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/__mocks__',
