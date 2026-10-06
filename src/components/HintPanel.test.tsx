@@ -57,31 +57,53 @@ describe('HintPanel component', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('titles a step hint with the technique name', () => {
+  it('labels a step hint with its cell and technique, leaving the digit out', () => {
     mockUseSudokuState.mockReturnValue(
       withHint({
         kind: 'step',
         step: {
           technique: 'HiddenSingle',
-          placements: [{ index: 0, value: 4 }],
+          placements: [{ index: 11, value: 4 }],
           eliminations: [],
           cause: [],
         },
       }),
     )
     render(<HintPanel />)
+    expect(screen.getByText('Hint')).toBeInTheDocument()
+    expect(screen.getByText('R2C3')).toBeInTheDocument()
     expect(screen.getByText('Hidden Single')).toBeInTheDocument()
-    expect(screen.getByText(/the number 4 fits only in cell R1C1/)).toBeInTheDocument()
+    expect(screen.getByText(/the number 4 fits only in cell R2C3/)).toBeInTheDocument()
   })
 
-  it('titles a mistake hint and a revealed cell', () => {
+  it('points an elimination hint at its pattern cells', () => {
+    mockUseSudokuState.mockReturnValue(
+      withHint({
+        kind: 'step',
+        step: {
+          technique: 'NakedPair',
+          placements: [],
+          eliminations: [{ index: 5, value: 4 }],
+          cause: [
+            { index: 1, candidates: [4, 6] },
+            { index: 2, candidates: [4, 6] },
+          ],
+        },
+      }),
+    )
+    render(<HintPanel />)
+    expect(screen.getByText('R1C2 +1')).toBeInTheDocument()
+    expect(screen.getByText('Naked Pair')).toBeInTheDocument()
+  })
+
+  it('labels a mistake hint and a revealed cell', () => {
     mockUseSudokuState.mockReturnValue(withHint({ kind: 'mistake', index: 0 }))
     const { rerender } = render(<HintPanel />)
-    expect(screen.getByText('Check this cell')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/^Hint R1C1 Check this cell/)
 
     mockUseSudokuState.mockReturnValue(withHint({ kind: 'reveal', index: 0, value: 3 }))
     rerender(<HintPanel />)
-    expect(screen.getByText('Hint')).toBeInTheDocument()
+    expect(screen.getByText('Reveal')).toBeInTheDocument()
     expect(screen.getByText(/Cell R1C1 is 3/)).toBeInTheDocument()
   })
 

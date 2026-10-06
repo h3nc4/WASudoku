@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
@@ -225,7 +225,7 @@ describe('SolverStepsPanel component', () => {
     expect(mockViewSolverStep).toHaveBeenCalledWith(mockSteps.length)
   })
 
-  it('calls viewSolverStep when an accordion trigger is clicked', async () => {
+  it('calls viewSolverStep when a trace line is clicked', async () => {
     const user = userEvent.setup()
     render(<SolverStepsPanel />)
 
@@ -246,7 +246,10 @@ describe('SolverStepsPanel component', () => {
     const { rerender } = render(<SolverStepsPanel />)
 
     const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
-    expect(step1Button).toHaveAttribute('data-state', 'open')
+    expect(step1Button).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('button', { name: /Step 2: Hidden Single/ })).not.toHaveAttribute(
+      'aria-current',
+    )
 
     // When viewing initial state
     mockUseSudokuState.mockReturnValue({
@@ -276,7 +279,76 @@ describe('SolverStepsPanel component', () => {
     )
   })
 
-  it('shows the explanation of the open step', async () => {
+  it('writes each line as step number, cells and technique', () => {
+    render(<SolverStepsPanel />)
+    const log = screen.getByRole('list', { name: 'Solver trace' })
+    const lines = within(log).getAllByRole('button')
+    expect(lines).toHaveLength(mockSteps.length)
+    expect(lines[0]).toHaveTextContent('01 R1C1 = 5 Naked Single')
+    expect(lines[2]).toHaveTextContent('03 R1C2 +1 Naked Pair')
+    expect(lines[16]).toHaveTextContent('17 R1C1 Unique Rectangle Type 1')
+    expect(lines[18]).toHaveTextContent(/^19\s+Backtracking$/)
+  })
+
+  it('tones past lines as ink, the current one as solver and later ones as notes', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, currentStepIndex: 2 },
+    })
+    render(<SolverStepsPanel />)
+    expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveClass('text-ink')
+    expect(screen.getByRole('button', { name: /Step 1:/ })).toHaveClass('text-ink')
+    expect(screen.getByRole('button', { name: /Step 2:/ })).toHaveClass(
+      'text-solver',
+      'bg-solver-wash',
+    )
+    expect(screen.getByRole('button', { name: /Step 3:/ })).toHaveClass('text-note')
+    expect(screen.getByRole('button', { name: 'Solution' })).toHaveClass('text-note')
+    expect(screen.getByText('02/19')).toBeInTheDocument()
+  })
+
+  it('explains the initial board and the solution', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, currentStepIndex: 0 },
+    })
+    const { rerender } = render(<SolverStepsPanel />)
+    expect(screen.getByText(/The puzzle as given/)).toBeInTheDocument()
+
+    mockUseSudokuState.mockReturnValue(defaultState)
+    rerender(<SolverStepsPanel />)
+    expect(screen.getByText('Solved in 19 steps')).toBeInTheDocument()
+    expect(screen.getByText(/backtracking \(brute-force\) search/)).toBeInTheDocument()
+  })
+
+  it('keeps the current mark on the last step when the solution is shown', () => {
+    render(<SolverStepsPanel />)
+    expect(screen.getByRole('button', { name: /Step 19:/ })).toHaveAttribute('aria-current', 'step')
+    const solution = screen.getByRole('button', { name: 'Solution' })
+    expect(solution).toHaveClass('text-solver')
+    expect(solution).not.toHaveClass('bg-solver-wash')
+    expect(solution).not.toHaveAttribute('aria-current')
+  })
+
+  it('scrolls the log back to the top at the initial board', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, currentStepIndex: 0 },
+    })
+    const { rerender } = render(<SolverStepsPanel />)
+    const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
+    viewport.scrollTop = 250
+    mockUseSudokuState.mockReturnValue(defaultState)
+    rerender(<SolverStepsPanel />)
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, currentStepIndex: 0 },
+    })
+    rerender(<SolverStepsPanel />)
+    expect(viewport.scrollTop).toBe(0)
+  })
+
+  it('shows the explanation of the current step', async () => {
     mockUseSudokuState.mockReturnValue({
       ...defaultState,
       solver: { ...defaultState.solver, currentStepIndex: 3 },
@@ -347,7 +419,7 @@ describe('SolverStepsPanel component', () => {
     })
   })
 
-  it('does not call viewSolverStep when an accordion item is closed', async () => {
+  it('does not call viewSolverStep when the current line is clicked again', async () => {
     const user = userEvent.setup()
     // Start with an item open
     mockUseSudokuState.mockReturnValue({
@@ -358,7 +430,7 @@ describe('SolverStepsPanel component', () => {
 
     mockViewSolverStep.mockClear()
 
-    // Click the already-open trigger to close it
+    // Click the line already on the board
     const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
     await user.click(step1Button)
 
