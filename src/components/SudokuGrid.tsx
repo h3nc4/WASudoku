@@ -231,7 +231,7 @@ export function SudokuGrid() {
         onPaste={handlePaste}
         aria-hidden={ui.isPaused || undefined}
         className={cn(
-          'border-primary grid aspect-square grid-cols-9 overflow-hidden rounded-lg border-2 shadow-lg outline-none',
+          'bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none',
           ui.isPaused && 'invisible',
         )}
       >
@@ -293,8 +293,8 @@ export function SudokuGrid() {
         })}
       </div>
       {ui.isPaused && (
-        <div className="bg-card border-primary absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-lg border-2 shadow-lg">
-          <p className="text-lg font-semibold">Paused</p>
+        <div className="bg-paper border-grid-thick absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-[3px] border-2">
+          <p className="text-ink voice-ink text-2xl">Paused</p>
           <Button onClick={actions.resumeGame}>
             <Play className="mr-2 size-4" />
             Resume

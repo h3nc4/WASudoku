@@ -18,7 +18,6 @@
 
 import { forwardRef, memo } from 'react'
 
-import { Input } from '@/components/ui/input'
 import type { CellState } from '@/context/sudoku.types'
 import { cn } from '@/lib/utils'
 
@@ -64,40 +63,27 @@ interface SudokuCellProps {
  * @returns A string of Tailwind classes.
  */
 const getBackgroundStyles = ({
-  isConflict,
-  isError,
   isActive,
   isSolving,
   isCause,
-  isPlaced,
   isNumberHighlighted,
   isHighlighted,
-  isTransientConflict,
   isHintTarget,
 }: Pick<
   SudokuCellProps,
-  | 'isConflict'
-  | 'isError'
-  | 'isActive'
-  | 'isSolving'
-  | 'isCause'
-  | 'isPlaced'
-  | 'isNumberHighlighted'
-  | 'isHighlighted'
-  | 'isTransientConflict'
-  | 'isHintTarget'
+  'isActive' | 'isSolving' | 'isCause' | 'isNumberHighlighted' | 'isHighlighted' | 'isHintTarget'
 >) => {
-  const hintRing = isHintTarget ? ' ring-2 ring-inset ring-amber-500 dark:ring-amber-400' : ''
-  if (isTransientConflict) return '!bg-destructive/30 transition-colors duration-200'
-  if (isConflict || isError) return '!bg-destructive/20' + hintRing
-  if (isHintTarget) return 'bg-amber-100 dark:bg-amber-900/60' + hintRing
-  if (isActive) return 'bg-blue-200 dark:bg-sky-700'
-  if (isSolving) return 'cursor-not-allowed bg-muted/50'
-  if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
-  if (isPlaced) return 'bg-green-100 dark:bg-green-900/80'
-  if (isNumberHighlighted) return 'bg-indigo-100 dark:bg-indigo-900/70'
-  if (isHighlighted) return 'bg-blue-50 dark:bg-sky-950/80'
-  return ''
+  let fill = ''
+  if (isHintTarget) fill = 'solver-hatch'
+  else if (isActive) fill = 'highlighter'
+  else if (isNumberHighlighted) fill = 'bg-same'
+  else if (isHighlighted) fill = 'bg-peer'
+
+  let ring = ''
+  if (isHintTarget) ring = 'ring-2 ring-inset ring-solver'
+  else if (isCause) ring = 'ring-[1.5px] ring-inset ring-solver'
+
+  return cn(fill, ring, isSolving && 'cursor-not-allowed')
 }
 
 /**
@@ -111,34 +97,33 @@ const getInputTextStyles = ({
   isError,
   isGiven,
   isSolved,
-  isNumberHighlighted,
   isPlaced,
   isTransientConflict,
 }: Pick<
   SudokuCellProps,
-  | 'cell'
-  | 'isConflict'
-  | 'isError'
-  | 'isGiven'
-  | 'isSolved'
-  | 'isNumberHighlighted'
-  | 'isPlaced'
-  | 'isTransientConflict'
+  'cell' | 'isConflict' | 'isError' | 'isGiven' | 'isSolved' | 'isPlaced' | 'isTransientConflict'
 > & {
   hasPencilMarks: boolean
 }) => {
-  const isSolverResult = isSolved && !isGiven
-  const isUserInput = cell.value !== null && !isGiven && !isSolved && !isPlaced
-  return cn({
-    'text-transparent': hasPencilMarks && cell.value === null,
-    'text-xl md:text-2xl': !(hasPencilMarks && cell.value === null),
-    'text-primary font-bold': isGiven,
-    'text-green-600 dark:text-green-400 font-bold': isPlaced,
-    'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven && !isPlaced,
-    'text-blue-600 dark:text-blue-400': isUserInput,
-    'text-sky-600 dark:text-sky-400': isSolverResult,
-    '!text-destructive': isConflict || isError || isTransientConflict,
-  })
+  if (hasPencilMarks && cell.value === null) return 'text-transparent'
+
+  // Givens and walkthrough placements are inked, solver output speaks in mono, the rest is pencil.
+  let voice = 'voice-pencil'
+  if (isGiven || isPlaced) voice = 'voice-ink'
+  else if (isSolved) voice = 'voice-mono'
+
+  let color = 'text-pencil'
+  if (isConflict || isError || isTransientConflict) color = 'text-error'
+  else if (isPlaced) color = 'text-solver'
+  else if (isGiven) color = 'text-ink'
+
+  return cn(
+    'text-xl md:text-2xl',
+    voice,
+    color,
+    (isConflict || isError) && 'underline decoration-error decoration-wavy decoration-[1.5px]',
+    isTransientConflict && !(isConflict || isError) && 'underline decoration-error decoration-2',
+  )
 }
 
 /**
@@ -163,7 +148,15 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
   })
 
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'relative',
+        col !== 8 &&
+          (col % 3 === 2 ? 'border-r-grid-thick border-r-2' : 'border-r-grid-thin border-r'),
+        row !== 8 &&
+          (row % 3 === 2 ? 'border-b-grid-thick border-b-2' : 'border-b-grid-thin border-b'),
+      )}
+    >
       <div
         data-testid="cell-background"
         className={cn(
@@ -180,7 +173,8 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         )}
       </div>
 
-      <Input
+      {/* A bare input keeps focus and the accessible name without looking like a form field. */}
+      <input
         ref={ref}
         id={`cell-${index}`}
         type="tel"
@@ -188,11 +182,8 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         value={cell.value === null ? '' : String(cell.value)}
         onFocus={handleFocus}
         className={cn(
-          'border-border absolute inset-0 z-10 aspect-square size-full rounded-none bg-transparent p-0 text-center font-semibold transition-colors duration-200',
-          'focus:z-20 focus:shadow-inner',
-          'caret-transparent',
-          col % 3 === 2 && col !== 8 && 'border-r-primary border-r-2',
-          row % 3 === 2 && row !== 8 && 'border-b-primary border-b-2',
+          'absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent transition-colors duration-200 outline-none',
+          'focus-visible:ring-ink focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
           textClasses,
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
