@@ -25,11 +25,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /** Header menu that copies the puzzle as a link or as an 81-character string. */
 export function ShareMenu() {
+  const { board, initialBoard, solver } = useSudokuState()
   const { sharePuzzleLink, exportBoard } = useSudokuActions()
+  // A link shares the puzzle without the player's progress.
+  const puzzle = solver.gameMode === 'customInput' ? board : initialBoard
 
   return (
     <DropdownMenu modal={false}>
@@ -39,11 +43,11 @@ export function ShareMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={sharePuzzleLink}>
+        <DropdownMenuItem onSelect={() => sharePuzzleLink(puzzle)}>
           <Link />
           Copy puzzle link
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={exportBoard}>
+        <DropdownMenuItem onSelect={() => exportBoard(board)}>
           <Type />
           Copy board as text
         </DropdownMenuItem>

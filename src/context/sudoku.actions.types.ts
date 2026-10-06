@@ -239,6 +239,35 @@ export interface LoadPuzzleAction {
   boardString: string
 }
 
+/** Action to input a value into the active cell, respecting the input mode. */
+export interface InputValueAction {
+  type: 'INPUT_VALUE'
+  value: number
+}
+
+/** Action to move the active cell one step in a direction. */
+export interface NavigateAction {
+  type: 'NAVIGATE'
+  direction: 'up' | 'down' | 'left' | 'right'
+}
+
+/** Action to erase the active cell, moving left afterwards on backspace. */
+export interface EraseActiveCellAction {
+  type: 'ERASE_ACTIVE_CELL'
+  mode: 'delete' | 'backspace'
+}
+
+/** Action to switch to the next input mode. */
+export interface CycleInputModeAction {
+  type: 'CYCLE_INPUT_MODE'
+}
+
+/** Action to move the solver visualization one step back or forward. */
+export interface StepVisualizationAction {
+  type: 'STEP_VISUALIZATION'
+  delta: -1 | 1
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -280,3 +309,8 @@ export type SudokuAction =
   | OfferPuzzleAction
   | DismissPuzzleAction
   | LoadPuzzleAction
+  | InputValueAction
+  | NavigateAction
+  | EraseActiveCellAction
+  | CycleInputModeAction
+  | StepVisualizationAction

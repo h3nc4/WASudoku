@@ -230,4 +230,15 @@ describe('Sudoku Action Creators', () => {
     expect(actions.dismissPuzzle()).toEqual({ type: 'DISMISS_PUZZLE' })
     expect(actions.loadPuzzle(boardString)).toEqual({ type: 'LOAD_PUZZLE', boardString })
   })
+
+  it('should create the intents that the reducer resolves against the active cell', () => {
+    expect(actions.inputValue(5)).toEqual({ type: 'INPUT_VALUE', value: 5 })
+    expect(actions.navigate('up')).toEqual({ type: 'NAVIGATE', direction: 'up' })
+    expect(actions.eraseActiveCell('backspace')).toEqual({
+      type: 'ERASE_ACTIVE_CELL',
+      mode: 'backspace',
+    })
+    expect(actions.cycleInputMode()).toEqual({ type: 'CYCLE_INPUT_MODE' })
+    expect(actions.stepVisualization(-1)).toEqual({ type: 'STEP_VISUALIZATION', delta: -1 })
+  })
 })

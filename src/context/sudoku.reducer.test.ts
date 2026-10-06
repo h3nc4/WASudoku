@@ -1600,6 +1600,191 @@ describe('sudokuReducer', () => {
     })
   })
 
+  describe('Intents on the active cell', () => {
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, activeCellIndex: 0 },
+    }
+    const withCell = (state: SudokuState, index: number, cell: Partial<BoardState[number]>) => ({
+      ...state,
+      board: state.board.map((c, i) => (i === index ? { ...c, ...cell } : c)),
+    })
+    const withMode = (state: SudokuState, inputMode: SudokuState['ui']['inputMode']) => ({
+      ...state,
+      ui: { ...state.ui, inputMode },
+    })
+    const typing: SudokuState = {
+      ...playing,
+      solver: { ...playing.solver, gameMode: 'customInput' },
+    }
+
+    describe('INPUT_VALUE', () => {
+      it('sets the value and advances on a valid move while typing in a puzzle', () => {
+        const state = sudokuReducer(typing, { type: 'INPUT_VALUE', value: 5 })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(1)
+      })
+
+      it('stays on the cell after a valid move during play', () => {
+        const state = sudokuReducer(playing, { type: 'INPUT_VALUE', value: 5 })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('sets the value but does not advance on an invalid move', () => {
+        const state = sudokuReducer(withCell(typing, 8, { value: 5 }), {
+          type: 'INPUT_VALUE',
+          value: 5,
+        })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it.each(['candidate', 'center'] as const)('toggles a %s mark', (mode) => {
+        const state = sudokuReducer(withMode(playing, mode), { type: 'INPUT_VALUE', value: 3 })
+        const marks = mode === 'candidate' ? state.board[0].candidates : state.board[0].centers
+        expect(marks).toEqual(new Set([3]))
+      })
+
+      it('highlights the conflicts instead of adding a clashing mark', () => {
+        const start = withMode(
+          withCell(withCell(playing, 1, { value: 3 }), 9, { value: 3 }),
+          'candidate',
+        )
+        const state = sudokuReducer(start, { type: 'INPUT_VALUE', value: 3 })
+        expect(state.ui.transientConflicts).toEqual(new Set([1, 9]))
+        expect(state.board).toBe(start.board)
+      })
+
+      it('removes an existing mark even when a peer now conflicts', () => {
+        const start = withMode(
+          withCell(withCell(playing, 0, { candidates: new Set([3]) }), 1, { value: 3 }),
+          'candidate',
+        )
+        const state = sudokuReducer(start, { type: 'INPUT_VALUE', value: 3 })
+        expect(state.board[0].candidates.size).toBe(0)
+        expect(state.ui.transientConflicts).toBeNull()
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'INPUT_VALUE', value: 5 })).toBe(start)
+      })
+
+      it.each(['normal', 'candidate'] as const)('leaves a given cell alone in %s mode', (mode) => {
+        const start = withMode(withCell(playing, 0, { value: 1, isGiven: true }), mode)
+        expect(sudokuReducer(start, { type: 'INPUT_VALUE', value: 9 })).toBe(start)
+      })
+    })
+
+    describe('NAVIGATE', () => {
+      it.each([
+        ['right', 0, 1],
+        ['left', 1, 0],
+        ['down', 0, 9],
+        ['up', 9, 0],
+      ] as const)('moves %s from %i to %i', (direction, from, to) => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: from } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction }).ui.activeCellIndex).toBe(to)
+      })
+
+      it('stays put at the edge of the grid', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: 80 } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction: 'right' })).toBe(start)
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction: 'right' })).toBe(start)
+      })
+    })
+
+    describe('ERASE_ACTIVE_CELL', () => {
+      const filled = withCell(withCell(playing, 1, { value: 4 }), 0, { value: 2 })
+
+      it('erases and moves left on backspace', () => {
+        const start = { ...filled, ui: { ...filled.ui, activeCellIndex: 1 } }
+        const state = sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'backspace' })
+        expect(state.board[1].value).toBeNull()
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('erases and stays on delete', () => {
+        const state = sudokuReducer(filled, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })
+        expect(state.board[0].value).toBeNull()
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...filled, ui: { ...filled.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })).toBe(start)
+      })
+
+      it('does not erase a given cell', () => {
+        const start = withCell(playing, 0, { value: 2, isGiven: true })
+        expect(sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })).toBe(start)
+      })
+
+      it('moves left on backspace from a given cell without erasing it', () => {
+        const given = withCell(playing, 1, { value: 4, isGiven: true })
+        const start = { ...given, ui: { ...given.ui, activeCellIndex: 1 } }
+        const state = sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'backspace' })
+        expect(state.board).toBe(start.board)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+    })
+
+    describe('CYCLE_INPUT_MODE', () => {
+      it.each([
+        ['normal', 'candidate'],
+        ['candidate', 'center'],
+        ['center', 'normal'],
+      ] as const)('goes from %s to %s', (from, to) => {
+        const state = sudokuReducer(withMode(playing, from), { type: 'CYCLE_INPUT_MODE' })
+        expect(state.ui.inputMode).toBe(to)
+      })
+    })
+  })
+
+  describe('STEP_VISUALIZATION', () => {
+    const step: SolvingStep = {
+      technique: 'NakedSingle',
+      placements: [],
+      eliminations: [],
+      cause: [],
+    }
+    const visualizing = (currentStepIndex: number): SudokuState => ({
+      ...initialState,
+      solver: {
+        ...initialState.solver,
+        gameMode: 'visualizing',
+        steps: [step, step],
+        currentStepIndex,
+      },
+    })
+
+    it('moves one step in either direction', () => {
+      const back = sudokuReducer(visualizing(1), { type: 'STEP_VISUALIZATION', delta: -1 })
+      const forward = sudokuReducer(visualizing(1), { type: 'STEP_VISUALIZATION', delta: 1 })
+      expect(back.solver.currentStepIndex).toBe(0)
+      expect(forward.solver.currentStepIndex).toBe(2)
+    })
+
+    it('stops at the initial board and at the solution', () => {
+      const atEnd = visualizing(2)
+      const atStart = visualizing(0)
+      expect(sudokuReducer(atEnd, { type: 'STEP_VISUALIZATION', delta: 1 })).toBe(atEnd)
+      expect(sudokuReducer(atStart, { type: 'STEP_VISUALIZATION', delta: -1 })).toBe(atStart)
+    })
+
+    it('does nothing outside visualization', () => {
+      expect(sudokuReducer(initialState, { type: 'STEP_VISUALIZATION', delta: 1 })).toBe(
+        initialState,
+      )
+    })
+  })
+
   describe('Default Case', () => {
     it('should return the same state for an unknown action', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
