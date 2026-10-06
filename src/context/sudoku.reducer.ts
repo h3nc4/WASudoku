@@ -49,15 +49,14 @@ import type {
   ValidatePuzzleSuccessAction,
   ViewSolverStepAction,
 } from './sudoku.actions.types'
+import { loadPersistedState } from './sudoku.persistence'
 import type {
   BoardState,
   Hint,
   HistoryState,
   InputMode,
-  PersistedGameState,
-  PersistedMetrics,
-  PersistedPool,
   PuzzleData,
+  SavedGame,
   SolvingStep,
   SudokuState,
 } from './sudoku.types'
@@ -65,12 +64,6 @@ import type {
 const BOARD_SIZE = 81
 const MAX_HISTORY_ENTRIES = 100
 const INPUT_MODES: readonly InputMode[] = ['normal', 'candidate', 'center']
-
-export const STORAGE_KEYS = {
-  GAME: 'wasudoku.state.game',
-  METRICS: 'wasudoku.state.metrics',
-  POOL: 'wasudoku.state.pool',
-}
 
 const isBoardSolved = (board: BoardState, solution: readonly number[] | null): boolean =>
   solution !== null && board.every((cell, i) => cell.value === solution[i])
@@ -150,54 +143,16 @@ export const initialState: SudokuState = {
   },
 }
 
-/**
- * Custom JSON reviver to handle deserializing `Set` objects.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function reviver(_key: string, value: any) {
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    value.__dataType === 'Set' &&
-    Array.isArray(value.value)
-  ) {
-    return new Set(value.value)
-  }
-  return value
-}
-
-/**
- * Helper to safely load and parse an item from local storage.
- * @param key The local storage key.
- * @param reviverFn Optional JSON reviver function.
- */
-function loadFromStorage<T>(
-  key: string,
-  reviverFn?: (this: unknown, key: string, value: unknown) => unknown,
-): T | null {
-  const item = globalThis.localStorage.getItem(key)
-  return item ? (JSON.parse(item, reviverFn) as T) : null
-}
-
-/**
- * Resolves the game state (board, history, mode) from persisted data.
- * Validates the history stack to ensure it's safe to use.
- */
-function resolveGameState(game: PersistedGameState | null) {
-  const stack = game?.history?.stack
-  const index = game?.history?.index
-  // Ensure stack is valid and index points to an existing board
-  const hasValidHistory =
-    Array.isArray(stack) && stack.length > 0 && typeof index === 'number' && stack[index]
-
-  if (hasValidHistory && game) {
+/** Resolves the board, history and mode from a saved game, or a fresh one without it. */
+function resolveGameState(game: SavedGame | null) {
+  if (game) {
     return {
-      board: stack[index],
-      initialBoard: game.initialBoard ?? createEmptyBoard(),
+      board: game.history.stack[game.history.index],
+      initialBoard: game.initialBoard,
       history: game.history,
       gameMode: 'playing' as const,
-      solution: game.solution ?? null,
-      difficulty: game.difficulty ?? null,
+      solution: game.solution,
+      difficulty: game.difficulty,
     }
   }
 
@@ -212,39 +167,31 @@ function resolveGameState(game: PersistedGameState | null) {
 }
 
 export function loadInitialState(): SudokuState {
-  try {
-    const game = loadFromStorage<PersistedGameState>(STORAGE_KEYS.GAME, reviver)
-    const metrics = loadFromStorage<PersistedMetrics>(STORAGE_KEYS.METRICS)
-    const pool = loadFromStorage<PersistedPool>(STORAGE_KEYS.POOL)
+  const { game, metrics, puzzlePool } = loadPersistedState()
 
-    if (!game && !metrics && !pool) {
-      return initialState
-    }
-
-    const { board, initialBoard, history, gameMode, solution, difficulty } = resolveGameState(game)
-
-    return {
-      ...initialState,
-      board,
-      initialBoard,
-      history,
-      solver: {
-        ...initialState.solver,
-        gameMode,
-        solution,
-        difficulty,
-        isSolved: gameMode === 'playing' && isBoardSolved(board, solution),
-      },
-      derived: getDerivedBoardState(board),
-      game: metrics ?? initialState.game,
-      puzzlePool: pool?.puzzlePool ?? initialState.puzzlePool,
-      // Always reset poolRequestCount to 0 on load.
-      // In-flight requests do not survive a page refresh, so we must not persist them.
-      poolRequestCount: initialState.poolRequestCount,
-    }
-  } catch (error) {
-    console.error('Failed to load game state from local storage:', error)
+  if (!game && !metrics && !puzzlePool) {
     return initialState
+  }
+
+  const { board, initialBoard, history, gameMode, solution, difficulty } = resolveGameState(game)
+
+  return {
+    ...initialState,
+    board,
+    initialBoard,
+    history,
+    solver: {
+      ...initialState.solver,
+      gameMode,
+      solution,
+      difficulty,
+      isSolved: gameMode === 'playing' && isBoardSolved(board, solution),
+    },
+    derived: getDerivedBoardState(board),
+    game: metrics ?? initialState.game,
+    puzzlePool: puzzlePool ?? initialState.puzzlePool,
+    // A page refresh drops every in-flight request, so the count always starts at zero.
+    poolRequestCount: initialState.poolRequestCount,
   }
 }
 

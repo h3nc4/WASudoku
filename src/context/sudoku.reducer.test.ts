@@ -21,23 +21,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
 
 import type { SudokuAction } from './sudoku.actions.types'
-import {
-  createEmptyBoard,
-  initialState,
-  loadInitialState,
-  STORAGE_KEYS,
-  sudokuReducer,
-} from './sudoku.reducer'
-import type {
-  BoardState,
-  PersistedGameState,
-  PersistedMetrics,
-  PersistedPool,
-  PuzzleData,
-  SolveResult,
-  SolvingStep,
-  SudokuState,
-} from './sudoku.types'
+import { saveGame, STORAGE_KEYS } from './sudoku.persistence'
+import { createEmptyBoard, initialState, loadInitialState, sudokuReducer } from './sudoku.reducer'
+import type { BoardState, PuzzleData, SolveResult, SolvingStep, SudokuState } from './sudoku.types'
 
 // Mock utils to spy on calculateCandidates
 vi.mock('@/lib/utils', async (importOriginal) => {
@@ -1797,25 +1783,19 @@ describe('sudokuReducer', () => {
 })
 
 describe('loadInitialState', () => {
-  const localStorageMock = (() => {
-    let store: Record<string, string> = {}
-    return {
-      getItem: vi.fn((key: string) => store[key] || null),
-      setItem: vi.fn((key: string, value: string) => {
-        store[key] = value.toString()
-      }),
-      clear: vi.fn(() => {
-        store = {}
-      }),
-      removeItem: vi.fn(),
-      length: 0,
-      key: vi.fn(),
-    }
-  })()
+  const tagged = (values: number[]) => ({ __dataType: 'Set', value: values })
+  const legacyCell = (candidates: number[] = [], centers: number[] = []) => ({
+    value: null,
+    isGiven: false,
+    candidates: tagged(candidates),
+    centers: tagged(centers),
+  })
+  const legacyBoard = () => Array.from({ length: 81 }, () => legacyCell())
+  const store = (key: string, data: unknown) =>
+    globalThis.localStorage.setItem(key, typeof data === 'string' ? data : JSON.stringify(data))
 
   beforeEach(() => {
-    localStorageMock.clear()
-    vi.spyOn(window, 'localStorage', 'get').mockReturnValue(localStorageMock)
+    globalThis.localStorage.clear()
   })
 
   afterEach(() => {
@@ -1823,47 +1803,35 @@ describe('loadInitialState', () => {
   })
 
   it('should return initial state if localStorage is empty', () => {
-    localStorageMock.getItem.mockReturnValue(null)
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    expect(loadInitialState()).toEqual(initialState)
   })
 
   it('restores the difficulty and the solved flag of a finished game', () => {
     const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
     const solvedBoard = createEmptyBoard().map((c, i) => ({ ...c, value: solution[i] }))
-    const persistedGame: PersistedGameState = {
+    saveGame({
       history: { stack: [solvedBoard], index: 0 },
       initialBoard: createEmptyBoard(),
       solution,
       difficulty: 'medium',
-    }
-    localStorageMock.getItem.mockImplementation((key) =>
-      key === STORAGE_KEYS.GAME ? JSON.stringify(persistedGame) : null,
-    )
+    })
 
     const state = loadInitialState()
+    expect(state.solver.gameMode).toBe('playing')
     expect(state.solver.difficulty).toBe('medium')
     expect(state.solver.isSolved).toBe(true)
+    expect(state.board).toEqual(solvedBoard)
   })
 
-  it('should load state from new split keys', () => {
-    const persistedGame: PersistedGameState = {
+  it('should load state from split keys', () => {
+    saveGame({
       history: { stack: [createEmptyBoard()], index: 0 },
       initialBoard: createEmptyBoard(),
       solution: null,
-    }
-    const persistedMetrics: PersistedMetrics = { timer: 123, mistakes: 2 }
-    const persistedPool: PersistedPool = {
-      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
-      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(persistedGame)
-      if (key === STORAGE_KEYS.METRICS) return JSON.stringify(persistedMetrics)
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
-      return null
+      difficulty: null,
     })
+    store(STORAGE_KEYS.METRICS, { timer: 123, mistakes: 2 })
+    store(STORAGE_KEYS.POOL, { puzzlePool: { easy: [], medium: [], hard: [], extreme: [] } })
 
     const state = loadInitialState()
     expect(state.game.timer).toBe(123)
@@ -1872,117 +1840,46 @@ describe('loadInitialState', () => {
   })
 
   it('should load puzzle pool from local storage (split key)', () => {
-    const pool: PersistedPool = {
-      puzzlePool: {
-        easy: [{ puzzleString: 'abc', solutionString: 'def' }],
-        medium: [],
-        hard: [],
-        extreme: [],
-      },
-      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
-    }
-    // Correctly mock implementation to only return pool data for the POOL key
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(pool)
-      return null
+    store(STORAGE_KEYS.POOL, {
+      puzzlePool: { easy: [{ puzzleString: 'abc', solutionString: 'def' }], medium: [] },
     })
 
     const state = loadInitialState()
     expect(state.puzzlePool.easy).toHaveLength(1)
     expect(state.puzzlePool.easy[0].puzzleString).toBe('abc')
+    expect(state.solver.gameMode).toBe('selecting')
   })
 
-  it('should correctly revive Set objects from local storage', () => {
-    // Manually construct the serialized format for a Set
-    // We mock the structure that the `replacer` in persistence would output
-    const serializedCandidates = { __dataType: 'Set', value: [1, 5, 9] }
-    const serializedCenters = { __dataType: 'Set', value: [2, 4] }
-
-    // Use 'any' to bypass TS check for 'Set' type on candidates/centers during mock creation
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawCell: any = {
-      value: null,
-      isGiven: false,
-      candidates: serializedCandidates,
-      centers: serializedCenters,
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const emptyCell: any = {
-      value: null,
-      isGiven: false,
-      candidates: { __dataType: 'Set', value: [] },
-      centers: { __dataType: 'Set', value: [] },
-    }
-
-    const rawBoard = [rawCell, ...new Array(80).fill(emptyCell)]
-
-    const savedGame: PersistedGameState = {
-      history: { stack: [rawBoard], index: 0 },
-      initialBoard: createEmptyBoard(),
+  it('should revive a game saved with Set tags by older builds', () => {
+    store(STORAGE_KEYS.GAME, {
+      history: { stack: [[legacyCell([1, 5, 9], [2, 4]), ...legacyBoard().slice(1)]], index: 0 },
+      initialBoard: legacyBoard(),
       solution: null,
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(savedGame)
-      return null
     })
 
-    const state = loadInitialState()
-
-    const cell0 = state.board[0]
-
-    // Candidates
-    expect(cell0.candidates).toBeInstanceOf(Set)
-    expect(cell0.candidates.has(1)).toBe(true)
-    expect(cell0.candidates.has(5)).toBe(true)
-    expect(cell0.candidates.has(9)).toBe(true)
-    expect(cell0.candidates.size).toBe(3)
-
-    // Centers
-    expect(cell0.centers).toBeInstanceOf(Set)
-    expect(cell0.centers.has(2)).toBe(true)
-    expect(cell0.centers.has(4)).toBe(true)
-    expect(cell0.centers.size).toBe(2)
+    const cell0 = loadInitialState().board[0]
+    expect(cell0.candidates).toEqual(new Set([1, 5, 9]))
+    expect(cell0.centers).toEqual(new Set([2, 4]))
   })
 
   it('should handle JSON parsing errors gracefully', () => {
-    localStorageMock.getItem.mockReturnValue('not json')
+    store(STORAGE_KEYS.GAME, 'not json')
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    expect(loadInitialState()).toEqual(initialState)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to load game state from local storage:',
+      `Failed to load ${STORAGE_KEYS.GAME} from local storage:`,
       expect.any(Error),
     )
-    consoleErrorSpy.mockRestore()
   })
 
   it('should return initial state if game state is malformed', () => {
-    const malformedGame = {
-      history: { index: 0 }, // Missing stack
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(malformedGame)
-      return null
-    })
-
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    store(STORAGE_KEYS.GAME, { history: { index: 0 } })
+    expect(loadInitialState()).toEqual(initialState)
   })
 
-  it('should default initialBoard to empty if missing in persisted game state', () => {
-    const persistedGame = {
-      history: { stack: [createEmptyBoard()], index: 0 },
-      solution: null,
-      // initialBoard missing
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(persistedGame)
-      return null
-    })
+  it('should default initialBoard to empty if missing in a legacy game', () => {
+    store(STORAGE_KEYS.GAME, { history: { stack: [legacyBoard()], index: 0 }, solution: null })
 
     const state = loadInitialState()
     expect(state.initialBoard).toEqual(createEmptyBoard())
@@ -1990,18 +1887,12 @@ describe('loadInitialState', () => {
   })
 
   it('should reset poolRequestCount to 0 on load even if persisted', () => {
-    const persistedPool: PersistedPool = {
+    store(STORAGE_KEYS.POOL, {
       puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
-      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 }, // Persisted dirty state
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
-      return null
+      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 },
     })
 
     const state = loadInitialState()
-    // Should be reset to 0
     expect(state.poolRequestCount.easy).toBe(0)
     expect(state.poolRequestCount.medium).toBe(0)
   })
