@@ -23,7 +23,7 @@ import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { cn, formatTime } from '@/lib/utils'
 
-/** Displays the game timer and mistake count, with a pause control. */
+/** Displays the difficulty, timer and mistake count, with a pause control. */
 export function GameStatus() {
   const { game, solver, ui } = useSudokuState()
   const { pauseGame, resumeGame } = useSudokuActions()
@@ -35,18 +35,22 @@ export function GameStatus() {
 
   const { timer, mistakes } = game
   const isLimitReached = mistakes >= 3
+  const difficulty = solver.difficulty
+    ? solver.difficulty.charAt(0).toUpperCase() + solver.difficulty.slice(1)
+    : 'Custom'
 
   return (
-    <div className="flex w-full items-center justify-between text-sm font-medium text-gray-600 dark:text-gray-400">
-      <div className="flex items-center gap-2">
-        <span>Mistakes:</span>
-        <span className={cn(isLimitReached && 'font-bold text-red-500')}>{mistakes}/3</span>
+    <div className="voice-mono text-muted-foreground flex w-full items-center justify-between text-sm tabular-nums">
+      <div className="flex items-center gap-3">
+        <span className="text-foreground">{difficulty}</span>
+        <span className="flex items-center gap-1.5">
+          <span>Mistakes:</span>
+          <span className={cn(isLimitReached && 'text-error font-bold')}>{mistakes}/3</span>
+        </span>
       </div>
       <div className="flex items-center gap-2">
-        {solver.isSolved && (
-          <span className="font-semibold text-green-600 dark:text-green-400">Solved</span>
-        )}
-        <span>{formatTime(timer)}</span>
+        {solver.isSolved && <span className="text-ink font-bold">Solved</span>}
+        <span className="text-foreground">{formatTime(timer)}</span>
         {!solver.isSolved && (
           <Button
             variant="ghost"

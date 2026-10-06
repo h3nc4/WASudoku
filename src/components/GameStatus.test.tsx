@@ -67,6 +67,19 @@ describe('GameStatus component', () => {
     expect(screen.getByText('01:05')).toBeInTheDocument()
   })
 
+  it('renders the difficulty, or Custom for a custom puzzle', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...playingState,
+      solver: { ...playingState.solver, difficulty: 'medium' },
+    })
+    const { rerender } = render(<GameStatus />)
+    expect(screen.getByText('Medium')).toBeInTheDocument()
+
+    mockUseSudokuState.mockReturnValue(playingState)
+    rerender(<GameStatus />)
+    expect(screen.getByText('Custom')).toBeInTheDocument()
+  })
+
   it('renders mistakes count', () => {
     mockUseSudokuState.mockReturnValue({
       ...playingState,
@@ -77,14 +90,14 @@ describe('GameStatus component', () => {
     expect(screen.getByText('2/3')).toBeInTheDocument()
   })
 
-  it('highlights mistakes in red when limit reached', () => {
+  it('highlights mistakes in the error colour when limit reached', () => {
     mockUseSudokuState.mockReturnValue({
       ...playingState,
       game: { timer: 0, mistakes: 3 },
     })
     render(<GameStatus />)
     const countElement = screen.getByText('3/3')
-    expect(countElement).toHaveClass('text-red-500 font-bold')
+    expect(countElement).toHaveClass('text-error font-bold')
   })
 
   it('pauses and resumes the game', async () => {

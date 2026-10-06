@@ -61,7 +61,7 @@ export function ClearButton({ className }: ClearButtonProps) {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       onClick={handleClear}
       className={cn('w-full', className)}
       disabled={isClearDisabled}

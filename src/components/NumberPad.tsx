@@ -21,6 +21,7 @@ import { memo, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { cn } from '@/lib/utils'
 
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -63,16 +64,24 @@ export const NumberPad = memo(function NumberPad() {
             key={`pad-${num}`}
             variant="outline"
             size="icon"
-            className="aspect-square h-auto w-full"
+            data-complete={isComplete || undefined}
+            className="aspect-[1/1.12] h-auto w-full rounded-[4px] data-[complete]:border-dashed data-[complete]:border-current/20 data-[complete]:bg-transparent data-[complete]:opacity-100"
             onClick={() => handleNumberClick(num)}
             disabled={isComplete || solver.gameMode === 'visualizing' || ui.isPaused}
             aria-label={`Enter number ${num}`}
             onMouseDown={(e) => e.preventDefault()}
           >
-            <div className="relative flex size-full items-center justify-center">
-              <span className="pb-2.5 text-xl font-medium md:text-2xl">{num}</span>
+            <div className="flex size-full flex-col items-center justify-center gap-0.5 md:gap-1">
+              <span
+                className={cn(
+                  'voice-ink text-xl leading-none md:text-2xl',
+                  isComplete ? 'text-note/50' : 'text-ink',
+                )}
+              >
+                {num}
+              </span>
               {!isComplete && (
-                <span className="text-muted-foreground absolute bottom-0.5 left-1/2 -translate-x-1/2 text-xs leading-none font-semibold md:text-sm">
+                <span className="voice-mono text-muted-foreground text-[10px] leading-none tabular-nums md:text-xs">
                   {remaining}
                 </span>
               )}

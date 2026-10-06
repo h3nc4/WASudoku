@@ -195,12 +195,12 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
-  it('renders SelectionScreen and blurs main content when in selecting mode', () => {
+  it('renders SelectionScreen and dims main content when in selecting mode', () => {
     mockUseSudokuState.mockReturnValue({
       ...initialState, // gameMode is 'selecting' by default
     })
     render(<App />)
     expect(screen.getByTestId('selection-screen')).toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveClass('blur-sm pointer-events-none')
+    expect(screen.getByRole('main')).toHaveClass('opacity-35 pointer-events-none')
   })
 })
