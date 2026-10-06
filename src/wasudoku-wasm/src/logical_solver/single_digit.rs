@@ -17,7 +17,7 @@
 */
 
 use super::{LogicalBoard, PEER_MAP, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 // --- Skyscraper ---
 
@@ -136,7 +136,7 @@ fn check_skyscraper_pair(
 
     if !elims.is_empty() {
         return Some(SolvingStep {
-            technique: "Skyscraper".to_string(),
+            technique: Technique::Skyscraper,
             placements: vec![],
             eliminations: elims,
             cause: vec![
@@ -299,7 +299,7 @@ fn construct_kite_step(
 
     if !elims.is_empty() {
         return Some(SolvingStep {
-            technique: "TwoStringKite".to_string(),
+            technique: Technique::TwoStringKite,
             placements: vec![],
             eliminations: elims,
             cause: vec![

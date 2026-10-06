@@ -17,7 +17,7 @@
 */
 
 use super::{LogicalBoard, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 /// Searches for Unique Rectangle Type 1.
 pub fn find_unique_rectangle_type_1(board: &LogicalBoard) -> Option<SolvingStep> {
@@ -132,7 +132,7 @@ fn solve_ur_type_1(board: &LogicalBoard, indices: &[usize; 4]) -> Option<Solving
                 .collect();
 
             return Some(SolvingStep {
-                technique: "UniqueRectangleType1".to_string(),
+                technique: Technique::UniqueRectangleType1,
                 placements: vec![],
                 eliminations,
                 cause,

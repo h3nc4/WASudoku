@@ -28,7 +28,7 @@ pub mod uniqueness;
 pub mod wings;
 
 use crate::board::Board;
-use crate::types::SolvingStep;
+use crate::types::{SolvingStep, Technique};
 use std::collections::HashSet;
 
 /// Bitmask representing all candidates (1-9) for a cell.
@@ -105,6 +105,31 @@ pub enum TechniqueLevel {
     Intermediate, // Pointing Subsets, Naked/Hidden Pairs/Triples, Box-Line Reduction
     Advanced,     // X-Wing, Swordfish, XY-Wing, XYZ-Wing, Skyscraper, 2-String Kite
     Master,       // Jellyfish, Unique Rectangle, W-Wing
+}
+
+impl Technique {
+    /// The difficulty level this technique counts towards.
+    pub fn level(self) -> TechniqueLevel {
+        match self {
+            Technique::NakedSingle | Technique::HiddenSingle => TechniqueLevel::Basic,
+            Technique::PointingPair
+            | Technique::PointingTriple
+            | Technique::NakedPair
+            | Technique::NakedTriple
+            | Technique::HiddenPair
+            | Technique::HiddenTriple
+            | Technique::ClaimingCandidate => TechniqueLevel::Intermediate,
+            Technique::XWing
+            | Technique::Swordfish
+            | Technique::XyWing
+            | Technique::XyzWing
+            | Technique::Skyscraper
+            | Technique::TwoStringKite => TechniqueLevel::Advanced,
+            Technique::Jellyfish | Technique::UniqueRectangleType1 | Technique::WWing => {
+                TechniqueLevel::Master
+            }
+        }
+    }
 }
 
 /// Stats for difficulty analysis
@@ -265,16 +290,7 @@ pub fn analyze_difficulty(steps: &[SolvingStep]) -> DifficultyStats {
     };
 
     for step in steps {
-        let level = match step.technique.as_str() {
-            "NakedSingle" | "HiddenSingle" => TechniqueLevel::Basic,
-            "PointingPair" | "PointingTriple" | "NakedPair" | "NakedTriple" | "HiddenPair"
-            | "HiddenTriple" | "ClaimingCandidate" => TechniqueLevel::Intermediate,
-            "X-Wing" | "Swordfish" | "XY-Wing" | "XYZ-Wing" | "Skyscraper" | "TwoStringKite" => {
-                TechniqueLevel::Advanced
-            }
-            "Jellyfish" | "UniqueRectangleType1" | "W-Wing" => TechniqueLevel::Master,
-            _ => TechniqueLevel::None,
-        };
+        let level = step.technique.level();
 
         if level > stats.max_level {
             stats.max_level = level;

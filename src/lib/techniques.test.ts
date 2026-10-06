@@ -18,11 +18,11 @@
 
 import { describe, expect, it } from 'vitest'
 
-import type { SolvingStep } from '@/context/sudoku.types'
+import type { SolvingStep, Technique } from '@/context/sudoku.types'
 
 import { getHintExplanation, getStepExplanation, getTechniqueName } from './techniques'
 
-const step = (technique: string, rest: Partial<SolvingStep> = {}): SolvingStep => ({
+const step = (technique: Technique, rest: Partial<SolvingStep> = {}): SolvingStep => ({
   technique,
   placements: [],
   eliminations: [],
@@ -38,12 +38,8 @@ describe('getTechniqueName', () => {
     ['ClaimingCandidate', 'Box-Line Reduction'],
     ['TwoStringKite', 'Two-String Kite'],
     ['UniqueRectangleType1', 'Unique Rectangle Type 1'],
-  ])('names %s as %s', (id, name) => {
+  ] as const)('names %s as %s', (id, name) => {
     expect(getTechniqueName(id)).toBe(name)
-  })
-
-  it('splits an unknown id at its capitals', () => {
-    expect(getTechniqueName('FinnedSashimiFish2')).toBe('Finned Sashimi Fish 2')
   })
 })
 
@@ -182,7 +178,6 @@ describe('getStepExplanation', () => {
       /identical pair \{5, 0\}/,
     ],
     [step('Backtracking'), /A backtracking \(brute-force\) search found the solution\./],
-    [step('Magic'), /^Technique used: Magic\.$/],
   ]
 
   it.each(cases)('explains %o', (s, expected) => {

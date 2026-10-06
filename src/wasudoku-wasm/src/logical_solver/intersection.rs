@@ -17,7 +17,7 @@
 */
 
 use super::{BOX_UNITS, COL_UNITS, LogicalBoard, ROW_UNITS};
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 use std::collections::HashSet;
 
 // --- Pointing Subsets ---
@@ -124,9 +124,9 @@ where
 fn build_pointing_step(cells: &[usize], elims: Vec<Elimination>, num: u8) -> SolvingStep {
     SolvingStep {
         technique: if cells.len() == 2 {
-            "PointingPair".into()
+            Technique::PointingPair
         } else {
-            "PointingTriple".into()
+            Technique::PointingTriple
         },
         placements: vec![],
         eliminations: elims,
@@ -193,7 +193,7 @@ fn find_claiming_in_unit(
 
             if !elims.is_empty() {
                 return Some(SolvingStep {
-                    technique: "ClaimingCandidate".into(),
+                    technique: Technique::ClaimingCandidate,
                     placements: vec![],
                     eliminations: elims,
                     cause: cells

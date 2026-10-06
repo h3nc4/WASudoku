@@ -46,8 +46,30 @@ export interface CauseCell {
   candidates: number[]
 }
 
+/** Technique ids sent by the solver, plus the one the reducer appends after logic runs out. */
+export type Technique =
+  | 'NakedSingle'
+  | 'HiddenSingle'
+  | 'NakedPair'
+  | 'NakedTriple'
+  | 'HiddenPair'
+  | 'HiddenTriple'
+  | 'PointingPair'
+  | 'PointingTriple'
+  | 'ClaimingCandidate'
+  | 'X-Wing'
+  | 'Swordfish'
+  | 'Jellyfish'
+  | 'XY-Wing'
+  | 'XYZ-Wing'
+  | 'Skyscraper'
+  | 'TwoStringKite'
+  | 'UniqueRectangleType1'
+  | 'W-Wing'
+  | 'Backtracking'
+
 export interface SolvingStep {
-  technique: string
+  technique: Technique
   placements: Placement[]
   eliminations: Elimination[]
   cause: CauseCell[]

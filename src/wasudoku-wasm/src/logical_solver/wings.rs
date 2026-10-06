@@ -17,7 +17,7 @@
 */
 
 use super::{ALL_UNITS, LogicalBoard, PEER_MAP, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 // --- XY-Wing ---
 
@@ -102,7 +102,7 @@ fn check_xy_wing_pincers(
 
             if !elims.is_empty() {
                 return Some(SolvingStep {
-                    technique: "XY-Wing".to_string(),
+                    technique: Technique::XyWing,
                     placements: vec![],
                     eliminations: elims,
                     cause: vec![
@@ -241,7 +241,7 @@ fn check_xyz_wing_pincers(
 
     if !elims.is_empty() {
         return Some(SolvingStep {
-            technique: "XYZ-Wing".to_string(),
+            technique: Technique::XyzWing,
             placements: vec![],
             eliminations: elims,
             cause: vec![
@@ -346,7 +346,7 @@ fn check_w_wing_link(
                 let elims = get_common_peer_eliminations(board, idx1, idx2, elim_val);
                 if !elims.is_empty() {
                     return Some(SolvingStep {
-                        technique: "W-Wing".to_string(),
+                        technique: Technique::WWing,
                         placements: vec![],
                         eliminations: elims,
                         cause: vec![
