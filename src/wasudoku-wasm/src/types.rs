@@ -27,11 +27,38 @@ pub struct SolveResult {
     pub solution: Option<String>,
 }
 
+/// A solving technique, serialized as the id the UI expects (e.g., "NakedSingle").
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Technique {
+    NakedSingle,
+    HiddenSingle,
+    NakedPair,
+    NakedTriple,
+    HiddenPair,
+    HiddenTriple,
+    PointingPair,
+    PointingTriple,
+    ClaimingCandidate,
+    #[serde(rename = "X-Wing")]
+    XWing,
+    Swordfish,
+    Jellyfish,
+    #[serde(rename = "XY-Wing")]
+    XyWing,
+    #[serde(rename = "XYZ-Wing")]
+    XyzWing,
+    Skyscraper,
+    TwoStringKite,
+    UniqueRectangleType1,
+    #[serde(rename = "W-Wing")]
+    WWing,
+}
+
 /// A single logical step in solving the puzzle.
 #[derive(Serialize, Clone)]
 pub struct SolvingStep {
-    /// The name of the technique used (e.g., "NakedSingle").
-    pub technique: String,
+    /// The technique used.
+    pub technique: Technique,
     /// A list of numbers placed on the board in this step.
     pub placements: Vec<Placement>,
     /// A list of candidates eliminated from cells in this step.

@@ -17,7 +17,7 @@
 */
 
 use super::{ALL_UNITS, LogicalBoard, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 // --- Naked Subsets ---
 
@@ -85,7 +85,7 @@ fn check_naked_pair(
 ) -> Option<SolvingStep> {
     let mask = board.candidates[idx1];
     if mask == board.candidates[idx2] && mask.count_ones() == 2 {
-        return construct_naked_subset_step(board, &[idx1, idx2], mask, unit, "NakedPair");
+        return construct_naked_subset_step(board, &[idx1, idx2], mask, unit, Technique::NakedPair);
     }
     None
 }
@@ -127,7 +127,7 @@ fn check_naked_triple(
             &[idx1, idx2, idx3],
             union_mask,
             unit,
-            "NakedTriple",
+            Technique::NakedTriple,
         );
     }
     None
@@ -138,7 +138,7 @@ fn construct_naked_subset_step(
     indices: &[usize],
     mask: u16,
     unit: &[usize],
-    technique: &str,
+    technique: Technique,
 ) -> Option<SolvingStep> {
     let mut eliminations = Vec::new();
     let cands = mask_to_vec(mask);
@@ -161,7 +161,7 @@ fn construct_naked_subset_step(
     }
 
     Some(SolvingStep {
-        technique: technique.to_string(),
+        technique,
         placements: vec![],
         eliminations,
         cause: indices
@@ -265,7 +265,7 @@ fn check_hidden_pair(
             &cell_indices,
             keep_mask,
             &[n1 as u8, n2 as u8],
-            "HiddenPair",
+            Technique::HiddenPair,
         );
     }
     None
@@ -317,7 +317,7 @@ fn check_hidden_triple(
             &cell_indices,
             keep_mask,
             &[n1 as u8, n2 as u8, n3 as u8],
-            "HiddenTriple",
+            Technique::HiddenTriple,
         );
     }
     None
@@ -339,7 +339,7 @@ fn construct_hidden_subset_step(
     indices: &[usize],
     keep_mask: u16,
     subset_nums: &[u8],
-    technique: &str,
+    technique: Technique,
 ) -> Option<SolvingStep> {
     let mut eliminations = Vec::new();
     for &idx in indices {
@@ -359,7 +359,7 @@ fn construct_hidden_subset_step(
     }
 
     Some(SolvingStep {
-        technique: technique.to_string(),
+        technique,
         placements: vec![],
         eliminations,
         cause: indices

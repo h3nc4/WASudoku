@@ -16,11 +16,11 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { Hint, SolvingStep } from '@/context/sudoku.types'
+import type { Hint, SolvingStep, Technique } from '@/context/sudoku.types'
 
 import { formatCell } from './utils'
 
-const TECHNIQUE_NAMES: Record<string, string> = {
+const TECHNIQUE_NAMES: Record<Technique, string> = {
   NakedSingle: 'Naked Single',
   HiddenSingle: 'Hidden Single',
   NakedPair: 'Naked Pair',
@@ -42,9 +42,9 @@ const TECHNIQUE_NAMES: Record<string, string> = {
   Backtracking: 'Backtracking',
 }
 
-/** Human name of a solver technique id. Unknown ids are split at their capitals. */
-export function getTechniqueName(technique: string): string {
-  return TECHNIQUE_NAMES[technique] ?? technique.replaceAll(/([a-z])([A-Z0-9])/g, '$1 $2')
+/** Human name of a solver technique id. */
+export function getTechniqueName(technique: Technique): string {
+  return TECHNIQUE_NAMES[technique]
 }
 
 const formatNums = (nums: number[]) => `{${[...nums].sort((a, b) => a - b).join(', ')}}`
@@ -138,8 +138,6 @@ export function getStepExplanation(step: SolvingStep): string {
     }
     case 'Backtracking':
       return 'The available logical techniques were not enough to solve the puzzle. A backtracking (brute-force) search found the solution.'
-    default:
-      return `Technique used: ${getTechniqueName(technique)}.`
   }
 }
 

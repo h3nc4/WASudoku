@@ -17,7 +17,7 @@
 */
 
 use super::{ALL_UNITS, LogicalBoard, PEER_MAP, mask_to_vec};
-use crate::types::{Elimination, Placement, SolvingStep};
+use crate::types::{Elimination, Placement, SolvingStep, Technique};
 
 /// Searches for a cell with exactly one candidate.
 pub fn find_naked_single(board: &LogicalBoard) -> Option<SolvingStep> {
@@ -27,7 +27,7 @@ pub fn find_naked_single(board: &LogicalBoard) -> Option<SolvingStep> {
             let eliminations = collect_peer_eliminations(board, i, value);
 
             return Some(SolvingStep {
-                technique: "NakedSingle".to_string(),
+                technique: Technique::NakedSingle,
                 placements: vec![Placement { index: i, value }],
                 eliminations,
                 cause: vec![],
@@ -66,7 +66,7 @@ fn find_hidden_single_in_group(board: &LogicalBoard, group: &[usize]) -> Option<
             }
 
             return Some(SolvingStep {
-                technique: "HiddenSingle".to_string(),
+                technique: Technique::HiddenSingle,
                 placements: vec![Placement {
                     index: target_idx,
                     value: num,

@@ -17,7 +17,7 @@
 */
 
 use super::LogicalBoard;
-use crate::types::{CauseCell, Elimination, SolvingStep};
+use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 struct FishSearchContext<'a> {
     num: u8,
@@ -25,7 +25,7 @@ struct FishSearchContext<'a> {
     masks: &'a [u16; 9],
     size: usize,
     is_row_base: bool,
-    tech_name: &'a str,
+    tech_name: Technique,
 }
 
 pub fn find_fish_techniques(board: &LogicalBoard) -> Option<SolvingStep> {
@@ -33,7 +33,11 @@ pub fn find_fish_techniques(board: &LogicalBoard) -> Option<SolvingStep> {
     // Returns row_masks[num][row] and col_masks[num][col]
     let (row_masks, col_masks) = board.get_all_fish_masks();
 
-    const FISH_CONFIGS: [(usize, &str); 3] = [(2, "X-Wing"), (3, "Swordfish"), (4, "Jellyfish")];
+    const FISH_CONFIGS: [(usize, Technique); 3] = [
+        (2, Technique::XWing),
+        (3, Technique::Swordfish),
+        (4, Technique::Jellyfish),
+    ];
 
     for num in 1..=9 {
         for &(size, name) in &FISH_CONFIGS {
@@ -55,7 +59,7 @@ fn check_fish(
     masks: &[u16; 9],
     size: usize,
     is_row_base: bool,
-    tech_name: &str,
+    tech_name: Technique,
 ) -> Option<SolvingStep> {
     // Filter rows/cols that have 2..size occurrences of the candidate
     let valid_indices: Vec<usize> = masks
@@ -130,7 +134,7 @@ fn construct_fish_step(
     base_indices: &[usize],
     union_mask: u16,
     is_row_base: bool,
-    tech_name: &str,
+    tech_name: Technique,
 ) -> Option<SolvingStep> {
     let cand_bit = 1 << (num - 1);
     let cover_indices: Vec<usize> = (0..9).filter(|&x| (union_mask & (1 << x)) != 0).collect();
@@ -156,7 +160,7 @@ fn construct_fish_step(
         None
     } else {
         Some(SolvingStep {
-            technique: tech_name.to_string(),
+            technique: tech_name,
             placements: vec![],
             eliminations,
             cause: cause_cells,

@@ -34,6 +34,7 @@ import type {
   PersistedMetrics,
   PersistedPool,
   PuzzleData,
+  SolveResult,
   SolvingStep,
   SudokuState,
 } from './sudoku.types'
@@ -683,7 +684,7 @@ describe('sudokuReducer', () => {
 
     it('should handle SOLVE_SUCCESS', () => {
       const solvedBoardString = '1'.repeat(81)
-      const mockResult = {
+      const mockResult: SolveResult = {
         steps: [
           {
             technique: 'NakedSingle',
@@ -719,7 +720,7 @@ describe('sudokuReducer', () => {
 
     it('should handle SOLVE_SUCCESS and add a backtracking step if needed', () => {
       const solvedBoardString = '12' + '.'.repeat(79) // A full solution string
-      const mockResult = {
+      const mockResult: SolveResult = {
         steps: [
           {
             technique: 'NakedSingle',
