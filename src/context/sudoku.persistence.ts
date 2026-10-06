@@ -16,14 +16,16 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type {
-  BoardState,
-  CellState,
-  GameMetrics,
-  PersistedGame,
-  PersistedPool,
-  PuzzleData,
-  SavedGame,
+import {
+  type BoardState,
+  type CellState,
+  DIFFICULTIES,
+  type Difficulty,
+  type GameMetrics,
+  type PersistedGame,
+  type PersistedPool,
+  type PuzzleData,
+  type SavedGame,
 } from './sudoku.types'
 
 export const STORAGE_KEYS = {
@@ -123,10 +125,14 @@ function checkHistoryIndex(stack: readonly unknown[], index: unknown): number {
   return i
 }
 
-const checkDifficulty = (difficulty: unknown): string | null => {
+const isDifficulty = (value: unknown): value is Difficulty =>
+  (DIFFICULTIES as readonly unknown[]).includes(value)
+
+// An unknown name loads as a custom game rather than costing the saved board.
+const checkDifficulty = (difficulty: unknown): Difficulty | null => {
   if (difficulty === undefined || difficulty === null) return null
   if (typeof difficulty !== 'string') throw new Error('Bad difficulty')
-  return difficulty
+  return isDifficulty(difficulty) ? difficulty : null
 }
 
 export function encodeGame(game: SavedGame): PersistedGame {
@@ -208,15 +214,18 @@ function decodeMetrics(raw: unknown): GameMetrics {
   return { timer: raw.timer as number, mistakes: raw.mistakes as number }
 }
 
-function decodePool(raw: unknown): Record<string, PuzzleData[]> {
+// Keys outside DIFFICULTIES are dropped, and a missing one loads as an empty list.
+function decodePool(raw: unknown): Record<Difficulty, PuzzleData[]> {
   if (!isRecord(raw) || !isRecord(raw.puzzlePool)) throw new Error('Bad pool')
   const pool = raw.puzzlePool
   const isPuzzle = (p: unknown) =>
     isRecord(p) && typeof p.puzzleString === 'string' && typeof p.solutionString === 'string'
-  if (!Object.values(pool).every((list) => Array.isArray(list) && list.every(isPuzzle))) {
-    throw new Error('Bad pool entry')
-  }
-  return pool as Record<string, PuzzleData[]>
+  const entries = DIFFICULTIES.map((difficulty) => {
+    const list = pool[difficulty] === undefined ? [] : pool[difficulty]
+    if (!Array.isArray(list) || !list.every(isPuzzle)) throw new Error('Bad pool entry')
+    return [difficulty, list as PuzzleData[]] as const
+  })
+  return Object.fromEntries(entries) as Record<Difficulty, PuzzleData[]>
 }
 
 function write(key: string, data: unknown) {
@@ -229,7 +238,7 @@ function write(key: string, data: unknown) {
 
 export const saveGame = (game: SavedGame) => write(STORAGE_KEYS.GAME, encodeGame(game))
 export const saveMetrics = (metrics: GameMetrics) => write(STORAGE_KEYS.METRICS, metrics)
-export const savePool = (puzzlePool: Record<string, PuzzleData[]>) =>
+export const savePool = (puzzlePool: Record<Difficulty, PuzzleData[]>) =>
   write(STORAGE_KEYS.POOL, { puzzlePool } satisfies PersistedPool)
 
 function load<T>(key: string, decode: (raw: unknown) => T): T | null {
@@ -254,7 +263,7 @@ function decodeAnyGame(raw: unknown): SavedGame {
 export interface PersistedSnapshot {
   readonly game: SavedGame | null
   readonly metrics: GameMetrics | null
-  readonly puzzlePool: Record<string, PuzzleData[]> | null
+  readonly puzzlePool: Record<Difficulty, PuzzleData[]> | null
 }
 
 /** Reads every key on its own, so one corrupt entry never costs the others. */

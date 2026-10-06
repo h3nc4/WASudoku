@@ -29,12 +29,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { isBusy } from '@/context/sudoku.selectors'
+import { DIFFICULTIES, type Difficulty } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { areBoardsEqual, DIFFICULTY_LEVELS } from '@/lib/utils'
+import { areBoardsEqual, DIFFICULTY_LABELS } from '@/lib/utils'
 
 import { ConfirmDialog } from '../ConfirmDialog'
 
-type PendingChoice = { kind: 'generate'; difficulty: string } | { kind: 'custom' }
+type PendingChoice = { kind: 'generate'; difficulty: Difficulty } | { kind: 'custom' }
 
 /**
  * A button with a dropdown menu to generate a new Sudoku puzzle.
@@ -72,8 +73,8 @@ export function NewPuzzleButton() {
     }
   }
 
-  const handleSelectDifficulty = (difficulty: string) => {
-    handleChoice({ kind: 'generate', difficulty: difficulty.toLowerCase() })
+  const handleSelectDifficulty = (difficulty: Difficulty) => {
+    handleChoice({ kind: 'generate', difficulty })
   }
 
   // Effect to manage the "Generating..." label with a delay,
@@ -122,9 +123,12 @@ export function NewPuzzleButton() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {DIFFICULTY_LEVELS.map((level) => (
-            <DropdownMenuItem key={level} onSelect={() => handleSelectDifficulty(level)}>
-              {level}
+          {DIFFICULTIES.map((difficulty) => (
+            <DropdownMenuItem
+              key={DIFFICULTY_LABELS[difficulty]}
+              onSelect={() => handleSelectDifficulty(difficulty)}
+            >
+              {DIFFICULTY_LABELS[difficulty]}
             </DropdownMenuItem>
           ))}
           {solver.gameMode !== 'selecting' && (

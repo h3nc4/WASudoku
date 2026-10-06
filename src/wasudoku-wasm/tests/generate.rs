@@ -21,6 +21,30 @@ use wasudoku_wasm::logical_solver::{self, TechniqueLevel};
 use wasudoku_wasm::solver;
 
 #[test]
+fn test_difficulty_parses_each_frontend_name() {
+    let names = ["easy", "medium", "hard", "expert", "extreme"];
+    let parsed: Vec<Difficulty> = names.iter().map(|n| n.parse().unwrap()).collect();
+    assert_eq!(
+        parsed,
+        [
+            Difficulty::Easy,
+            Difficulty::Medium,
+            Difficulty::Hard,
+            Difficulty::Expert,
+            Difficulty::Extreme,
+        ]
+    );
+}
+
+#[test]
+fn test_difficulty_rejects_unknown_name() {
+    assert_eq!(
+        "Easy".parse::<Difficulty>(),
+        Err("Invalid difficulty level.".to_string())
+    );
+}
+
+#[test]
 fn test_generate_creates_valid_puzzle() {
     let (puzzle, _) = generate::generate(Difficulty::Easy);
     assert_eq!(

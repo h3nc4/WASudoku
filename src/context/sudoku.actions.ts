@@ -62,7 +62,7 @@ import type {
   ValidatePuzzleSuccessAction,
   ViewSolverStepAction,
 } from './sudoku.actions.types'
-import type { InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
 
 /** Creates an action to set the definitive value of a cell. */
 export const setCellValue = (index: number, value: number): SetCellValueAction => ({
@@ -132,7 +132,7 @@ export const solveFailure = (): SolveFailureAction => ({
 })
 
 /** Creates an action to signal the start of the puzzle generation process. */
-export const generatePuzzleStart = (difficulty: string): GeneratePuzzleStartAction => ({
+export const generatePuzzleStart = (difficulty: Difficulty): GeneratePuzzleStartAction => ({
   type: 'GENERATE_PUZZLE_START',
   difficulty,
 })
@@ -153,14 +153,14 @@ export const generatePuzzleFailure = (): GeneratePuzzleFailureAction => ({
 })
 
 /** Creates an action to note that a pool refill request has been sent to the worker. */
-export const requestPoolRefill = (difficulty: string): RequestPoolRefillAction => ({
+export const requestPoolRefill = (difficulty: Difficulty): RequestPoolRefillAction => ({
   type: 'REQUEST_POOL_REFILL',
   difficulty,
 })
 
 /** Creates an action to add a background-generated puzzle to the pool. */
 export const poolRefillSuccess = (
-  difficulty: string,
+  difficulty: Difficulty,
   puzzleString: string,
   solutionString: string,
 ): PoolRefillSuccessAction => ({
@@ -171,7 +171,7 @@ export const poolRefillSuccess = (
 })
 
 /** Creates an action to decrement the pending count if a background refill fails. */
-export const poolRefillFailure = (difficulty: string): PoolRefillFailureAction => ({
+export const poolRefillFailure = (difficulty: Difficulty): PoolRefillFailureAction => ({
   type: 'POOL_REFILL_FAILURE',
   difficulty,
 })

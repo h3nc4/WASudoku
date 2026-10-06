@@ -21,6 +21,7 @@ use crate::logical_solver;
 use crate::solver;
 use rand::rng;
 use rand::seq::SliceRandom;
+use std::str::FromStr;
 
 /// Represents the target difficulty of the generated puzzle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,6 +31,26 @@ pub enum Difficulty {
     Hard,
     Expert,
     Extreme,
+}
+
+/// Parse the lower-case name the frontend sends, such as `"easy"`.
+///
+/// ### Errors
+///
+/// Returns an `Err` for any other string.
+impl FromStr for Difficulty {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "easy" => Ok(Self::Easy),
+            "medium" => Ok(Self::Medium),
+            "hard" => Ok(Self::Hard),
+            "expert" => Ok(Self::Expert),
+            "extreme" => Ok(Self::Extreme),
+            _ => Err("Invalid difficulty level.".to_string()),
+        }
+    }
 }
 
 /// Generate a complete, solved Sudoku board.

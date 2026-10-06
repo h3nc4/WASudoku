@@ -16,12 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { SolveResult } from '@/context/sudoku.types'
+import type { Difficulty, SolveResult } from '@/context/sudoku.types'
 
 /** Payload each task type sends to the worker. */
 export interface Requests {
   solve: { boardString: string }
-  generate: { difficulty: string }
+  generate: { difficulty: Difficulty }
   validate: { boardString: string }
 }
 

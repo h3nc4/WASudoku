@@ -33,12 +33,11 @@ import {
   validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
-import type { SudokuState } from '@/context/sudoku.types'
+import { DIFFICULTIES, type SudokuState } from '@/context/sudoku.types'
 import { boardStateToString } from '@/lib/utils'
 import { Priority, WorkerPool } from '@/lib/worker-pool'
 
 const MIN_POOL_SIZE = 3
-const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']
 
 /**
  * Manages the Sudoku solver using a multi-threaded Worker Pool.
@@ -144,8 +143,8 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
     if (!poolRef.current) return
 
     DIFFICULTIES.forEach((difficulty) => {
-      const pool = puzzlePool[difficulty] || []
-      const pending = poolRequestCount[difficulty] || 0
+      const pool = puzzlePool[difficulty]
+      const pending = poolRequestCount[difficulty]
 
       if (pool.length + pending < MIN_POOL_SIZE) {
         // Optimistically increment pending count

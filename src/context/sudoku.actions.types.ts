@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
 
 /** Action to set the definitive value of a cell. */
 export interface SetCellValueAction {
@@ -84,7 +84,7 @@ export interface SolveFailureAction {
 /** Action to begin the puzzle generation process. */
 export interface GeneratePuzzleStartAction {
   type: 'GENERATE_PUZZLE_START'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action for when the generator successfully creates a puzzle. */
@@ -102,13 +102,13 @@ export interface GeneratePuzzleFailureAction {
 /** Action to signal that a pool refill request has been sent. */
 export interface RequestPoolRefillAction {
   type: 'REQUEST_POOL_REFILL'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action to store a generated puzzle in the pool. */
 export interface PoolRefillSuccessAction {
   type: 'POOL_REFILL_SUCCESS'
-  difficulty: string
+  difficulty: Difficulty
   puzzleString: string
   solutionString: string
 }
@@ -116,7 +116,7 @@ export interface PoolRefillSuccessAction {
 /** Action for when a background pool refill fails. */
 export interface PoolRefillFailureAction {
   type: 'POOL_REFILL_FAILURE'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action to begin validating a custom puzzle. */

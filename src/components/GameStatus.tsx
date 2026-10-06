@@ -21,7 +21,7 @@ import { Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { cn, formatTime } from '@/lib/utils'
+import { cn, DIFFICULTY_LABELS, formatTime } from '@/lib/utils'
 
 /** Displays the difficulty, timer and mistake count, with a pause control. */
 export function GameStatus() {
@@ -35,9 +35,7 @@ export function GameStatus() {
 
   const { timer, mistakes } = game
   const isLimitReached = mistakes >= 3
-  const difficulty = solver.difficulty
-    ? solver.difficulty.charAt(0).toUpperCase() + solver.difficulty.slice(1)
-    : 'Custom'
+  const difficulty = solver.difficulty ? DIFFICULTY_LABELS[solver.difficulty] : 'Custom'
 
   return (
     <div className="voice-mono text-muted-foreground flex w-full items-center justify-between text-sm tabular-nums">

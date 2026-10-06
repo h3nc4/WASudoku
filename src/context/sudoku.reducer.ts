@@ -53,6 +53,7 @@ import { loadPersistedState } from './sudoku.persistence'
 import { canRequestHint, isClockRunning, isWrongValue } from './sudoku.selectors'
 import type {
   BoardState,
+  Difficulty,
   Hint,
   HistoryState,
   InputMode,
@@ -386,7 +387,7 @@ const initializeGameFromPuzzle = (
   state: SudokuState,
   puzzleString: string,
   solutionString: string,
-  difficulty: string | null,
+  difficulty: Difficulty | null,
 ): SudokuState => {
   const newBoard = boardStateFromString(puzzleString)
   const solutionNumbers = parseSolution(solutionString)
@@ -418,7 +419,7 @@ const handleGeneratePuzzleStart = (
   action: GeneratePuzzleStartAction,
 ): SudokuState => {
   // Check if we have a puzzle in the pool for this difficulty
-  const pool = state.puzzlePool[action.difficulty] || []
+  const pool = state.puzzlePool[action.difficulty]
 
   if (pool.length > 0) {
     // Consume from pool: Take the first puzzle
@@ -473,7 +474,7 @@ const handleRequestPoolRefill = (
     ...state,
     poolRequestCount: {
       ...state.poolRequestCount,
-      [action.difficulty]: (state.poolRequestCount[action.difficulty] || 0) + 1,
+      [action.difficulty]: state.poolRequestCount[action.difficulty] + 1,
     },
   }
 }
@@ -482,7 +483,7 @@ const handlePoolRefillSuccess = (
   state: SudokuState,
   action: PoolRefillSuccessAction,
 ): SudokuState => {
-  const currentPool = state.puzzlePool[action.difficulty] || []
+  const currentPool = state.puzzlePool[action.difficulty]
   const newPuzzle: PuzzleData = {
     puzzleString: action.puzzleString,
     solutionString: action.solutionString,
@@ -496,7 +497,7 @@ const handlePoolRefillSuccess = (
     },
     poolRequestCount: {
       ...state.poolRequestCount,
-      [action.difficulty]: Math.max(0, (state.poolRequestCount[action.difficulty] || 0) - 1),
+      [action.difficulty]: Math.max(0, state.poolRequestCount[action.difficulty] - 1),
     },
   }
 }
@@ -509,7 +510,7 @@ const handlePoolRefillFailure = (
     ...state,
     poolRequestCount: {
       ...state.poolRequestCount,
-      [action.difficulty]: Math.max(0, (state.poolRequestCount[action.difficulty] || 0) - 1),
+      [action.difficulty]: Math.max(0, state.poolRequestCount[action.difficulty] - 1),
     },
   }
 }

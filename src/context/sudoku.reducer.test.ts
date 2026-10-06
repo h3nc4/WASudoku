@@ -771,15 +771,6 @@ describe('sudokuReducer', () => {
       expect(state.puzzlePool.hard).toHaveLength(0)
     })
 
-    it('should handle GENERATE_PUZZLE_START with missing difficulty key', () => {
-      const state = sudokuReducer(initialState, {
-        type: 'GENERATE_PUZZLE_START',
-        difficulty: 'nightmare', // Difficulty that doesn't exist in initial pool
-      })
-      expect(state.solver.isGenerating).toBe(true)
-      expect(state.solver.generationDifficulty).toBe('nightmare')
-    })
-
     it('should handle GENERATE_PUZZLE_START with available pool', () => {
       const mockPuzzle: PuzzleData = {
         puzzleString: '1'.repeat(81),
@@ -887,20 +878,6 @@ describe('sudokuReducer', () => {
       expect(state.solver.gameMode).toBe('selecting')
     })
 
-    it('should handle POOL_REFILL_SUCCESS with unknown difficulty', () => {
-      const puzzleString = '1'.repeat(81)
-      const solutionString = '2'.repeat(81)
-      const state = sudokuReducer(initialState, {
-        type: 'POOL_REFILL_SUCCESS',
-        difficulty: 'custom_diff', // Unknown difficulty
-        puzzleString,
-        solutionString,
-      })
-
-      expect(state.puzzlePool['custom_diff']).toHaveLength(1)
-      expect(state.poolRequestCount['custom_diff']).toBe(0) // Defaulted to 0 then -1 max 0
-    })
-
     it('should handle POOL_REFILL_SUCCESS gracefully when pending count is 0', () => {
       const puzzleString = '1'.repeat(81)
       const solutionString = '2'.repeat(81)
@@ -957,14 +934,6 @@ describe('sudokuReducer', () => {
         difficulty: 'hard',
       })
       expect(state.poolRequestCount.hard).toBe(1)
-    })
-
-    it('should handle REQUEST_POOL_REFILL with a new difficulty key', () => {
-      const state = sudokuReducer(initialState, {
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'insane',
-      })
-      expect(state.poolRequestCount['insane']).toBe(1)
     })
 
     it('should handle GENERATE_PUZZLE_FAILURE', () => {
