@@ -28,8 +28,7 @@ pub mod uniqueness;
 pub mod wings;
 
 use crate::board::Board;
-use crate::types::{SolvingStep, Technique};
-use std::collections::HashSet;
+use crate::types::{Elimination, SolvingStep, Technique};
 
 /// Bitmask representing all candidates (1-9) for a cell.
 pub(crate) const ALL_CANDIDATES: u16 = 0b111111111;
@@ -73,28 +72,24 @@ lazy_static::lazy_static! {
         units.extend(BOX_UNITS.iter().map(|u| &u[..]));
         units
     };
-    /// A map from a cell index to a vector of its 20 peers.
-    pub(crate) static ref PEER_MAP: [Vec<usize>; 81] = {
-        let mut map = [(); 81].map(|_| Vec::with_capacity(20));
-        for (i, peers_vec) in map.iter_mut().enumerate() {
-            let mut peers = HashSet::new();
-            let row = i / 9;
-            let col = i % 9;
-
-            for c in 0..9 { peers.insert(row * 9 + c); }
-            for r in 0..9 { peers.insert(r * 9 + col); }
-            let start_row = (row / 3) * 3;
-            let start_col = (col / 3) * 3;
-            for r_offset in 0..3 {
-                for c_offset in 0..3 {
-                    peers.insert((start_row + r_offset) * 9 + (start_col + c_offset));
-                }
+    /// An 81-bit mask of the 20 peers of each cell, bit `i` standing for cell `i`.
+    pub(crate) static ref PEER_MASKS: [u128; 81] = {
+        let mut masks = [0u128; 81];
+        for (i, mask) in masks.iter_mut().enumerate() {
+            let (row, col) = (i / 9, i % 9);
+            let (start_row, start_col) = ((row / 3) * 3, (col / 3) * 3);
+            for k in 0..9 {
+                *mask |= 1 << (row * 9 + k);
+                *mask |= 1 << (k * 9 + col);
+                *mask |= 1 << ((start_row + k / 3) * 9 + (start_col + k % 3));
             }
-            peers.remove(&i);
-            *peers_vec = peers.into_iter().collect();
+            *mask &= !(1 << i);
         }
-        map
+        masks
     };
+    /// A map from a cell index to its 20 peers in ascending order.
+    pub(crate) static ref PEER_MAP: [Vec<usize>; 81] =
+        PEER_MASKS.map(|mask| mask_indices(mask).collect());
 }
 
 /// Represents the logical difficulty of a solving technique.
@@ -145,6 +140,42 @@ pub struct DifficultyStats {
 pub(crate) fn mask_to_vec(mask: u16) -> Vec<u8> {
     (1..=9)
         .filter(|&num| (mask >> (num - 1)) & 1 == 1)
+        .collect()
+}
+
+/// Yields the cell indices set in an 81-bit cell mask, in ascending order.
+#[inline]
+fn mask_indices(mut mask: u128) -> impl Iterator<Item = usize> {
+    std::iter::from_fn(move || {
+        if mask == 0 {
+            return None;
+        }
+        let idx = mask.trailing_zeros() as usize;
+        mask &= mask - 1;
+        Some(idx)
+    })
+}
+
+/// Whether two distinct cells share a row, column or box.
+#[inline]
+pub(crate) fn are_peers(a: usize, b: usize) -> bool {
+    PEER_MASKS[a] & (1 << b) != 0
+}
+
+/// Eliminations of `digit` from every unsolved cell that sees all of `cells`, in ascending order.
+pub(crate) fn common_peer_eliminations(
+    board: &LogicalBoard,
+    cells: &[usize],
+    digit: u8,
+) -> Vec<Elimination> {
+    let common = cells.iter().fold(!0u128, |m, &c| m & PEER_MASKS[c]);
+    let bit = 1 << (digit - 1);
+    mask_indices(common)
+        .filter(|&i| board.cells[i] == 0 && board.candidates[i] & bit != 0)
+        .map(|index| Elimination {
+            index,
+            value: digit,
+        })
         .collect()
 }
 

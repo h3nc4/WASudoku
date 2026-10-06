@@ -16,8 +16,8 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{ALL_UNITS, LogicalBoard, PEER_MAP, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
+use super::{ALL_UNITS, LogicalBoard, PEER_MAP, are_peers, common_peer_eliminations, mask_to_vec};
+use crate::types::{CauseCell, SolvingStep, Technique};
 
 // --- XY-Wing ---
 
@@ -98,7 +98,7 @@ fn check_xy_wing_pincers(
         }
         if board.candidates[p2_idx] == target_mask {
             // Found a potential XY-Wing. Eliminate C from cells seen by BOTH P1 and P2
-            let elims = find_xy_wing_eliminations(board, p1_idx, p2_idx, pivot_idx, c_val);
+            let elims = common_peer_eliminations(board, &[p1_idx, p2_idx], c_val);
 
             if !elims.is_empty() {
                 return Some(SolvingStep {
@@ -124,32 +124,6 @@ fn check_xy_wing_pincers(
         }
     }
     None
-}
-
-fn find_xy_wing_eliminations(
-    board: &LogicalBoard,
-    p1_idx: usize,
-    p2_idx: usize,
-    pivot_idx: usize,
-    c_val: u8,
-) -> Vec<Elimination> {
-    let mut elims = Vec::new();
-    let c_mask = 1 << (c_val - 1);
-
-    for &target_idx in &PEER_MAP[p1_idx] {
-        if target_idx != pivot_idx
-            && target_idx != p2_idx
-            && board.cells[target_idx] == 0
-            && (board.candidates[target_idx] & c_mask) != 0
-            && PEER_MAP[p2_idx].contains(&target_idx)
-        {
-            elims.push(Elimination {
-                index: target_idx,
-                value: c_val,
-            });
-        }
-    }
-    elims
 }
 
 // --- XYZ-Wing ---
@@ -219,25 +193,9 @@ fn check_xyz_wing_pincers(
     }
 
     let elim_val = (common_mask.trailing_zeros() + 1) as u8;
-    let elim_bit = common_mask;
 
     // Find eliminations: cells that see Pivot AND P1 AND P2
-    let mut elims = Vec::new();
-
-    for &target_idx in &PEER_MAP[pivot] {
-        if target_idx != p1
-            && target_idx != p2
-            && board.cells[target_idx] == 0
-            && (board.candidates[target_idx] & elim_bit) != 0
-            && PEER_MAP[p1].contains(&target_idx)
-            && PEER_MAP[p2].contains(&target_idx)
-        {
-            elims.push(Elimination {
-                index: target_idx,
-                value: elim_val,
-            });
-        }
-    }
+    let elims = common_peer_eliminations(board, &[pivot, p1, p2], elim_val);
 
     if !elims.is_empty() {
         return Some(SolvingStep {
@@ -299,7 +257,7 @@ fn check_w_wing_pair(
         return None;
     }
 
-    if PEER_MAP[idx1].contains(&idx2) {
+    if are_peers(idx1, idx2) {
         return None;
     }
 
@@ -343,7 +301,7 @@ fn check_w_wing_link(
             if case1 || case2 {
                 // Valid W-Wing.
                 // Eliminate `elim_val` from cells seeing BOTH `idx1` and `idx2`.
-                let elims = get_common_peer_eliminations(board, idx1, idx2, elim_val);
+                let elims = common_peer_eliminations(board, &[idx1, idx2], elim_val);
                 if !elims.is_empty() {
                     return Some(SolvingStep {
                         technique: Technique::WWing,
@@ -374,47 +332,4 @@ fn check_w_wing_link(
         }
     }
     None
-}
-
-#[inline]
-fn are_peers(i1: usize, i2: usize) -> bool {
-    // Fast check using PEER_MAP is too heavy if we iterate full map.
-    // Just check row/col/box.
-    if i1 == i2 {
-        return false;
-    } // A cell doesn't see itself in this context
-    let r1 = i1 / 9;
-    let c1 = i1 % 9;
-    let r2 = i2 / 9;
-    let c2 = i2 % 9;
-    if r1 == r2 || c1 == c2 {
-        return true;
-    }
-    let b1 = (r1 / 3) * 3 + (c1 / 3);
-    let b2 = (r2 / 3) * 3 + (c2 / 3);
-    b1 == b2
-}
-
-#[inline]
-fn get_common_peer_eliminations(
-    board: &LogicalBoard,
-    idx1: usize,
-    idx2: usize,
-    val: u8,
-) -> Vec<Elimination> {
-    let mask = 1 << (val - 1);
-    let mut elims = Vec::new();
-    // Intersection of peers
-    for &peer in &PEER_MAP[idx1] {
-        if PEER_MAP[idx2].contains(&peer)
-            && board.cells[peer] == 0
-            && (board.candidates[peer] & mask) != 0
-        {
-            elims.push(Elimination {
-                index: peer,
-                value: val,
-            });
-        }
-    }
-    elims
 }

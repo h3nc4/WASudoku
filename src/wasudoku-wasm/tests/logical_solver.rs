@@ -395,8 +395,8 @@ fn test_hidden_triple_found() {
     // Set other cells in Row 0 to contain only {4, 5, 6, 7, 8} (Mask: 496)
     // {4,5,6,7,8} = 8 | 16 | 32 | 64 | 128 = 248
     let other_mask = 8 | 16 | 32 | 64 | 128;
-    for i in 3..9 {
-        board.candidates[row_indices[i]] = other_mask;
+    for &idx in &row_indices[3..9] {
+        board.candidates[idx] = other_mask;
     }
 
     // Fill the rest of the board with empty/full candidates to avoid interference
@@ -413,4 +413,58 @@ fn test_hidden_triple_found() {
     // Should eliminate '9' from cells 0, 1, 2
     assert_eq!(step.eliminations.len(), 3);
     assert!(step.eliminations.iter().all(|e| e.value == 9));
+}
+
+const GOLDEN_PUZZLES: [&str; 11] = [
+    ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....",
+    "538421769421769...769538....8.17.6.2..29........28.3..857312946...6.71...1.8...7.",
+    ".613.5.8.3.5.8.26..8..6.3.561254....8....615.5..9.....12..5...893....5..75...2.4.",
+    "4..6...95.2..95478.954..6..........2.125.7.3.3..2......417.256.26795....53..64..7",
+    "68.5172.451.2946....468351.8.67.59419.14683.5.451.986..628.14..1.89427.64..3.61..",
+    ".92..175.5..2....8....3.2...75..496.2...6..75.697...3...8.9..2.7....3.899.38...4.",
+    ".89.2....2..5.94.8...8..9.21629875..5..4.2.89948....2.79.2.83..32.6..89.8...9.2..",
+    "4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7",
+    ".....3....4.91.7..9.6....43.2......4...675...3......7.27....6.1..5.69.2....2.....",
+    "3........97..1....6..583...2.....9..5..621..3..8.....5...435..2....9..56........1",
+    "5286...4913649..257942.563....1..2....78263....25.9.6.24.3..9768.97.2413.7.9.4582",
+];
+
+fn serialize_steps(steps: &[SolvingStep]) -> String {
+    let mut out = String::new();
+    for step in steps {
+        out.push_str(&format!("{:?} p", step.technique));
+        for p in &step.placements {
+            out.push_str(&format!(" {}={}", p.index, p.value));
+        }
+        out.push_str(" e");
+        for e in &step.eliminations {
+            out.push_str(&format!(" {}={}", e.index, e.value));
+        }
+        out.push_str(" c");
+        for c in &step.cause {
+            out.push_str(&format!(" {}={:?}", c.index, c.candidates));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn golden_dump() -> String {
+    GOLDEN_PUZZLES
+        .iter()
+        .map(|puzzle| {
+            let (steps, _) = logical_solver::solve_with_steps(&puzzle.parse().unwrap());
+            format!("PUZZLE {puzzle}\n{}", serialize_steps(&steps))
+        })
+        .collect()
+}
+
+// Recorded before the peer and subset helpers were shared, so any drift in steps shows here.
+#[test]
+fn test_full_step_list_matches_golden() {
+    let actual = golden_dump();
+    if std::env::var_os("WASUDOKU_GOLDEN_WRITE").is_some() {
+        std::fs::write("tests/golden/logical_steps.txt", &actual).unwrap();
+    }
+    assert_eq!(actual, include_str!("golden/logical_steps.txt"));
 }
