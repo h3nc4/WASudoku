@@ -35,7 +35,7 @@ pub fn solve(board: &mut Board) -> bool {
 }
 
 /// Solve a Sudoku puzzle using backtracking, trying digits in the order given.
-/// Used with a shuffled order for generating a variety of solved boards.
+/// Used with a shuffled order to generate distinct solved boards.
 pub fn solve_randomized(board: &mut Board, numbers: &[u8; 9]) -> bool {
     match Search::run(board, numbers, 1) {
         (_, Some(solution)) => {
@@ -110,7 +110,7 @@ impl<'a> Search<'a> {
     }
 
     fn descend(&mut self) {
-        // Pick the empty cell with the fewest candidates, a single one being unbeatable.
+        // Pick the empty cell with the fewest candidates, stopping early at one candidate.
         let mut best: Option<(usize, u16)> = None;
         for i in 0..81 {
             if self.cells[i] != 0 {
