@@ -139,6 +139,11 @@ describe('game encoding', () => {
     expect(decodeGame(encodeGame(game))).toEqual(game)
   })
 
+  it('loads an unknown difficulty name as a custom game', () => {
+    const raw = { ...encodeGame(sampleGame()), difficulty: 'nightmare' }
+    expect(decodeGame(raw)).toEqual({ ...sampleGame(), difficulty: null })
+  })
+
   it.each([
     ['an unknown version', { ...encodeGame(sampleGame()), version: 3 }],
     ['an index past the stack', { ...encodeGame(sampleGame()), history: { stack: [], index: 0 } }],
@@ -252,7 +257,28 @@ describe('loadPersistedState', () => {
       STORAGE_KEYS.POOL,
       JSON.stringify({ puzzlePool, poolRequestCount: { easy: 3 } }),
     )
-    expect(loadPersistedState().puzzlePool).toEqual(puzzlePool)
+    expect(loadPersistedState().puzzlePool).toEqual({
+      ...puzzlePool,
+      medium: [],
+      hard: [],
+      expert: [],
+      extreme: [],
+    })
+  })
+
+  it('drops pool keys that name no difficulty', () => {
+    const hard = [{ puzzleString: 'abc', solutionString: 'def' }]
+    globalThis.localStorage.setItem(
+      STORAGE_KEYS.POOL,
+      JSON.stringify({ puzzlePool: { hard, Hard: hard, nightmare: [{ puzzleString: 1 }] } }),
+    )
+    expect(loadPersistedState().puzzlePool).toEqual({
+      easy: [],
+      medium: [],
+      hard,
+      expert: [],
+      extreme: [],
+    })
   })
 
   it('survives storage that throws on read', () => {

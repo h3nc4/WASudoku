@@ -87,6 +87,11 @@ pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
     })
 }
 
+// Mirrors `DIFFICULTIES` in src/context/sudoku.types.ts, so tsc rejects a name missing here.
+#[wasm_bindgen(typescript_custom_section)]
+const DIFFICULTY_TS: &str =
+    r#"export type Difficulty = "easy" | "medium" | "hard" | "expert" | "extreme";"#;
+
 /// Generate a new Sudoku puzzle with a unique solution.
 ///
 /// ### Arguments
@@ -102,15 +107,12 @@ pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
 ///
 /// * A `JsValue` error if the difficulty string is invalid.
 #[wasm_bindgen]
-pub fn generate_sudoku(difficulty_str: &str) -> Result<JsValue, JsValue> {
-    let difficulty = match difficulty_str {
-        "easy" => Difficulty::Easy,
-        "medium" => Difficulty::Medium,
-        "hard" => Difficulty::Hard,
-        "expert" => Difficulty::Expert,
-        "extreme" => Difficulty::Extreme,
-        _ => return Err(JsValue::from_str("Invalid difficulty level.")),
-    };
+pub fn generate_sudoku(
+    #[wasm_bindgen(unchecked_param_type = "Difficulty")] difficulty_str: &str,
+) -> Result<JsValue, JsValue> {
+    let difficulty = difficulty_str
+        .parse::<Difficulty>()
+        .map_err(|e| JsValue::from_str(&e))?;
 
     let (puzzle, solution) = generate::generate(difficulty);
     to_js(&GeneratedPuzzle {

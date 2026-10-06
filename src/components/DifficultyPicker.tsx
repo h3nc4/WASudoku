@@ -21,10 +21,11 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { isBusy } from '@/context/sudoku.selectors'
-import { cn, DIFFICULTY_LEVELS } from '@/lib/utils'
+import { DIFFICULTIES, type Difficulty } from '@/context/sudoku.types'
+import { cn, DIFFICULTY_LABELS } from '@/lib/utils'
 
 interface DifficultyPickerProps {
-  readonly onSelect: (difficulty: string) => void
+  readonly onSelect: (difficulty: Difficulty) => void
   readonly className?: string
 }
 
@@ -36,8 +37,8 @@ export function DifficultyPicker({ onSelect, className }: DifficultyPickerProps)
 
   return (
     <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-5', className)}>
-      {DIFFICULTY_LEVELS.map((level) => {
-        const value = level.toLowerCase()
+      {DIFFICULTIES.map((value) => {
+        const level = DIFFICULTY_LABELS[value]
         const isGeneratingThis = solver.isGenerating && solver.generationDifficulty === value
         return (
           <Button
@@ -45,7 +46,7 @@ export function DifficultyPicker({ onSelect, className }: DifficultyPickerProps)
             variant="outline"
             disabled={isDisabled}
             onClick={() => onSelect(value)}
-            className={cn(level === 'Extreme' && 'col-span-2 sm:col-span-1')}
+            className={cn(value === 'extreme' && 'col-span-2 sm:col-span-1')}
           >
             {isGeneratingThis && <Loader2 className="size-4 animate-spin" />}
             {level}

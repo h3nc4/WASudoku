@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { formatTime } from '@/lib/utils'
+import { DIFFICULTY_LABELS, formatTime } from '@/lib/utils'
 
 import { DifficultyPicker } from './DifficultyPicker'
 
@@ -47,9 +47,7 @@ export function WinDialog() {
     setIsDismissed(false)
   }
 
-  const difficulty = solver.difficulty
-    ? solver.difficulty.charAt(0).toUpperCase() + solver.difficulty.slice(1)
-    : 'Custom'
+  const difficulty = solver.difficulty ? DIFFICULTY_LABELS[solver.difficulty] : 'Custom'
   const mistakeText = game.mistakes === 1 ? '1 mistake' : `${game.mistakes} mistakes`
 
   return (

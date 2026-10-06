@@ -31,6 +31,10 @@ export type BoardState = readonly CellState[]
 export type InputMode = 'normal' | 'candidate' | 'center'
 export type GameMode = 'selecting' | 'customInput' | 'playing' | 'visualizing'
 
+/** Generator difficulties in the order they are offered, as the WASM generator names them. */
+export const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme'] as const
+export type Difficulty = (typeof DIFFICULTIES)[number]
+
 export interface Placement {
   index: number
   value: number
@@ -111,9 +115,9 @@ export interface SolverState {
   readonly isGenerating: boolean
   readonly isValidating: boolean
   readonly isHinting: boolean
-  readonly generationDifficulty: string | null
+  readonly generationDifficulty: Difficulty | null
   /** Difficulty of the puzzle in play, or null for a custom one. */
-  readonly difficulty: string | null
+  readonly difficulty: Difficulty | null
   readonly isSolved: boolean
   readonly solveFailed: boolean
   readonly gameMode: GameMode
@@ -158,9 +162,9 @@ export interface SudokuState {
   /** Metrics for the current game session (time, mistakes). */
   readonly game: GameMetrics
   /** Pool of pre-generated puzzles keyed by difficulty. */
-  readonly puzzlePool: Record<string, PuzzleData[]>
+  readonly puzzlePool: Record<Difficulty, PuzzleData[]>
   /** Count of pending generation requests per difficulty. */
-  readonly poolRequestCount: Record<string, number>
+  readonly poolRequestCount: Record<Difficulty, number>
 }
 
 /** Game session as written to storage, five characters per cell. */
@@ -170,7 +174,7 @@ export interface PersistedGame {
   readonly initialBoard: string
   /** The 81 solution digits as one string. */
   readonly solution: string | null
-  readonly difficulty: string | null
+  readonly difficulty: Difficulty | null
 }
 
 /** Game session as decoded from storage. */
@@ -178,10 +182,10 @@ export interface SavedGame {
   readonly history: HistoryState
   readonly initialBoard: BoardState
   readonly solution: readonly number[] | null
-  readonly difficulty: string | null
+  readonly difficulty: Difficulty | null
 }
 
 /** Data persisted for the puzzle generator pool. */
 export interface PersistedPool {
-  readonly puzzlePool: Record<string, PuzzleData[]>
+  readonly puzzlePool: Record<Difficulty, PuzzleData[]>
 }

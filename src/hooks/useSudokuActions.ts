@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 import * as actions from '@/context/sudoku.actions'
 import type { NavigateAction } from '@/context/sudoku.actions.types'
 import { useSudokuDispatch } from '@/context/sudoku.hooks'
-import type { BoardState, InputMode } from '@/context/sudoku.types'
+import type { BoardState, Difficulty, InputMode } from '@/context/sudoku.types'
 import { buildShareUrl } from '@/lib/share'
 import { boardStateToString } from '@/lib/utils'
 
@@ -83,7 +83,7 @@ export function useSudokuActions() {
       /** Starts the solver. */
       solve: () => dispatch(actions.solveStart()),
       /** Starts the puzzle generator. */
-      generatePuzzle: (difficulty: string) => {
+      generatePuzzle: (difficulty: Difficulty) => {
         dispatch(actions.generatePuzzleStart(difficulty))
       },
       /** Starts the custom puzzle validation process. */

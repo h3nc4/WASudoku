@@ -66,6 +66,7 @@ describe('useSudokuSolver', () => {
       easy: new Array(3).fill({ puzzleString: '', solutionString: '' }),
       medium: new Array(3).fill({ puzzleString: '', solutionString: '' }),
       hard: new Array(3).fill({ puzzleString: '', solutionString: '' }),
+      expert: new Array(3).fill({ puzzleString: '', solutionString: '' }),
       extreme: new Array(3).fill({ puzzleString: '', solutionString: '' }),
     },
   }
@@ -125,36 +126,6 @@ describe('useSudokuSolver', () => {
       expect.objectContaining({ type: 'REQUEST_POOL_REFILL' }),
     )
     consoleSpy.mockRestore()
-  })
-
-  it('handles missing keys in puzzlePool/poolRequestCount during refill check', async () => {
-    // Provide a state with empty/missing objects for pool data to trigger the `|| []` and `|| 0` fallbacks
-
-    const brokenPoolState: SudokuState = {
-      ...initialState,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      puzzlePool: {} as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      poolRequestCount: {} as any,
-    }
-
-    // Setup mock for runTask to avoid errors when it's called
-    mockRunTask.mockResolvedValue({ puzzleString: 'p', solutionString: 's' })
-
-    renderHook(() => useSudokuSolver(brokenPoolState, mockDispatch))
-
-    // It should iterate through DIFFICULTIES, find missing keys, use defaults (empty),
-    // see that 0 < MIN_POOL_SIZE, and request refills.
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'easy',
-      })
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REQUEST_POOL_REFILL',
-      difficulty: 'extreme',
-    })
   })
 
   it('triggers user puzzle generation (High Priority)', async () => {

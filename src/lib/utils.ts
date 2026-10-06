@@ -19,10 +19,16 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
-import type { BoardState } from '@/context/sudoku.types'
+import type { BoardState, Difficulty } from '@/context/sudoku.types'
 
-/** Difficulty labels offered to the player, lower-cased when sent to the generator. */
-export const DIFFICULTY_LEVELS = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme']
+/** Name shown to the player for each difficulty. */
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+  expert: 'Expert',
+  extreme: 'Extreme',
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
