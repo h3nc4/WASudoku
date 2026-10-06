@@ -185,16 +185,6 @@ fn test_count_solutions() {
     assert_eq!(count_solutions(&board), 0);
 }
 
-#[test]
-#[should_panic(expected = "Induced panic for testing")]
-#[cfg(feature = "test-panic")]
-fn test_induced_panic_is_triggered() {
-    let puzzle_str =
-        "123..............................................................................";
-    let mut board: Board = puzzle_str.parse().unwrap();
-    solve(&mut board);
-}
-
 // Run with `cargo test --release --test solver -- --ignored --nocapture`, deterministic unlike generation.
 #[test]
 #[ignore]

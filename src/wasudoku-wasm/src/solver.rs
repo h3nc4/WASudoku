@@ -38,12 +38,6 @@ enum FindResult {
 ///
 /// * `true` if a solution is found, `false` otherwise.
 pub fn solve(board: &mut Board) -> bool {
-    // Induce a panic for testing the panic boundary in `lib.rs`.
-    #[cfg(feature = "test-panic")]
-    if board.cells[0] == 1 && board.cells[1] == 2 && board.cells[2] == 3 {
-        panic!("Induced panic for testing");
-    }
-
     match find_most_constrained_cell(board) {
         FindResult::Solved => true,
         FindResult::Unsolvable => false,
