@@ -18,15 +18,8 @@
 
 use crate::board::Board;
 
-/// The outcome of searching for the next cell to solve.
-enum FindResult {
-    /// The board is already solved (no empty cells).
-    Solved,
-    /// The board is in an unsolvable state (an empty cell has 0 valid moves).
-    Unsolvable,
-    /// The coordinates of the most constrained empty cell to try next.
-    Cell(usize, usize),
-}
+const ALL_DIGITS: u16 = 0x1FF;
+const ASCENDING: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /// Solve the Sudoku puzzle using a backtracking algorithm with an MRV heuristic.
 ///
@@ -36,130 +29,134 @@ enum FindResult {
 ///
 /// ### Returns
 ///
-/// * `true` if a solution is found, `false` otherwise.
+/// * `true` if a solution is found, `false` otherwise, leaving `board` unchanged.
 pub fn solve(board: &mut Board) -> bool {
-    // Induce a panic for testing the panic boundary in `lib.rs`.
-    #[cfg(feature = "test-panic")]
-    if board.cells[0] == 1 && board.cells[1] == 2 && board.cells[2] == 3 {
-        panic!("Induced panic for testing");
-    }
-
-    match find_most_constrained_cell(board) {
-        FindResult::Solved => true,
-        FindResult::Unsolvable => false,
-        FindResult::Cell(row, col) => {
-            for num in 1..=9 {
-                if board.is_valid_move(row, col, num) {
-                    board.cells[row * 9 + col] = num;
-
-                    if solve(board) {
-                        return true;
-                    }
-
-                    // Backtrack if the path did not lead to a solution.
-                    board.cells[row * 9 + col] = 0;
-                }
-            }
-            // Trigger further backtracking if no number works for this cell.
-            false
-        }
-    }
+    solve_randomized(board, &ASCENDING)
 }
 
-/// Solve a Sudoku puzzle using backtracking with a randomized number order.
-/// Used for generating a variety of solved boards.
+/// Solve a Sudoku puzzle using backtracking, trying digits in the order given.
+/// Used with a shuffled order to generate distinct solved boards.
 pub fn solve_randomized(board: &mut Board, numbers: &[u8; 9]) -> bool {
-    match find_most_constrained_cell(board) {
-        FindResult::Solved => true,
-        FindResult::Unsolvable => false,
-        FindResult::Cell(row, col) => {
-            for &num in numbers {
-                if board.is_valid_move(row, col, num) {
-                    board.cells[row * 9 + col] = num;
-                    if solve_randomized(board, numbers) {
-                        return true;
-                    }
-                    board.cells[row * 9 + col] = 0; // Backtrack
-                }
-            }
-            false
+    match Search::run(board, numbers, 1) {
+        (_, Some(solution)) => {
+            *board = solution;
+            true
         }
+        (_, None) => false,
     }
 }
 
 /// Count the number of solutions for a given board. Stops counting if more than 1 solution is found.
 pub fn count_solutions(board: &Board) -> u8 {
-    let mut counter = 0;
-    let mut board_clone = *board;
-    count_solutions_recursive(&mut board_clone, &mut counter);
-    counter
+    count_and_first_solution(board).0
 }
 
-fn count_solutions_recursive(board: &mut Board, counter: &mut u8) {
-    if *counter > 1 {
-        return;
+/// Count solutions like `count_solutions`, also returning the first solution found.
+pub fn count_and_first_solution(board: &Board) -> (u8, Option<Board>) {
+    Search::run(board, &ASCENDING, 2)
+}
+
+/// Depth-first search over row, column and box masks of the digits already placed.
+struct Search<'a> {
+    cells: [u8; 81],
+    rows: [u16; 9],
+    cols: [u16; 9],
+    boxes: [u16; 9],
+    order: &'a [u8; 9],
+    limit: u8,
+    found: u8,
+    first: Option<Board>,
+}
+
+impl<'a> Search<'a> {
+    /// Search until `limit` solutions are found, a board with conflicts having none.
+    fn run(board: &Board, order: &'a [u8; 9], limit: u8) -> (u8, Option<Board>) {
+        let mut search = Search {
+            cells: board.cells,
+            rows: [0; 9],
+            cols: [0; 9],
+            boxes: [0; 9],
+            order,
+            limit,
+            found: 0,
+            first: None,
+        };
+        for (i, &digit) in board.cells.iter().enumerate() {
+            if digit == 0 {
+                continue;
+            }
+            let bit = match digit {
+                1..=9 => 1 << (digit - 1),
+                _ => return (0, None),
+            };
+            let (row, col, bx) = position(i);
+            if (search.rows[row] | search.cols[col] | search.boxes[bx]) & bit != 0 {
+                return (0, None);
+            }
+            search.toggle(row, col, bx, bit);
+        }
+        search.descend();
+        (search.found, search.first)
     }
 
-    match find_most_constrained_cell(board) {
-        FindResult::Solved => {
-            *counter += 1;
-        }
-        FindResult::Unsolvable => (),
-        FindResult::Cell(row, col) => {
-            for num in 1..=9 {
-                if board.is_valid_move(row, col, num) {
-                    board.cells[row * 9 + col] = num;
-                    count_solutions_recursive(board, counter);
+    fn toggle(&mut self, row: usize, col: usize, bx: usize, bit: u16) {
+        self.rows[row] ^= bit;
+        self.cols[col] ^= bit;
+        self.boxes[bx] ^= bit;
+    }
+
+    fn candidates(&self, row: usize, col: usize, bx: usize) -> u16 {
+        !(self.rows[row] | self.cols[col] | self.boxes[bx]) & ALL_DIGITS
+    }
+
+    fn descend(&mut self) {
+        // Pick the empty cell with the fewest candidates, stopping early at one candidate.
+        let mut best: Option<(usize, u16)> = None;
+        for i in 0..81 {
+            if self.cells[i] != 0 {
+                continue;
+            }
+            let (row, col, bx) = position(i);
+            let candidates = self.candidates(row, col, bx);
+            let count = candidates.count_ones();
+            if count == 0 {
+                return;
+            }
+            if best.is_none_or(|(_, mask)| count < mask.count_ones()) {
+                best = Some((i, candidates));
+                if count == 1 {
+                    break;
                 }
             }
-            board.cells[row * 9 + col] = 0; // Backtrack
-        }
-    }
-}
-
-/// Count the number of valid moves (1-9) for a given cell.
-fn count_possibilities(board: &Board, row: usize, col: usize) -> u8 {
-    let mut possibilities = 0;
-    for num in 1..=9 {
-        if board.is_valid_move(row, col, num) {
-            possibilities += 1;
-        }
-    }
-    possibilities
-}
-
-/// Find the empty cell with the fewest valid moves (Minimum Remaining Values heuristic).
-fn find_most_constrained_cell(board: &Board) -> FindResult {
-    let mut best_cell: Option<(usize, usize)> = None;
-    let mut min_possibilities = 10;
-
-    for i in 0..81 {
-        if board.cells[i] != 0 {
-            continue;
         }
 
-        let row = i / 9;
-        let col = i % 9;
-        let possibilities = count_possibilities(board, row, col);
+        let Some((i, candidates)) = best else {
+            self.found += 1;
+            if self.first.is_none() {
+                self.first = Some(Board { cells: self.cells });
+            }
+            return;
+        };
 
-        // An empty cell with zero possibilities means the board is unsolvable.
-        if possibilities == 0 {
-            return FindResult::Unsolvable;
-        }
-
-        // Update the best cell if the current one is more constrained.
-        if possibilities < min_possibilities {
-            min_possibilities = possibilities;
-            best_cell = Some((row, col));
-            // A cell with only one possibility is the best we can find, so stop.
-            if min_possibilities == 1 {
+        let (row, col, bx) = position(i);
+        for &digit in self.order {
+            let bit = 1 << (digit - 1);
+            if candidates & bit == 0 {
+                continue;
+            }
+            self.cells[i] = digit;
+            self.toggle(row, col, bx, bit);
+            self.descend();
+            self.toggle(row, col, bx, bit);
+            if self.found >= self.limit {
                 break;
             }
         }
+        self.cells[i] = 0;
     }
+}
 
-    match best_cell {
-        Some((row, col)) => FindResult::Cell(row, col),
-        None => FindResult::Solved,
-    }
+fn position(i: usize) -> (usize, usize, usize) {
+    let (row, col) = (i / 9, i % 9);
+    (row, col, (row / 3) * 3 + col / 3)
 }

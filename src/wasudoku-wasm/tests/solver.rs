@@ -17,7 +17,7 @@
 */
 
 use wasudoku_wasm::board::Board;
-use wasudoku_wasm::solver::{count_solutions, solve, solve_randomized};
+use wasudoku_wasm::solver::{count_and_first_solution, count_solutions, solve, solve_randomized};
 
 #[test]
 fn test_solve_easy_puzzle() {
@@ -185,12 +185,122 @@ fn test_count_solutions() {
     assert_eq!(count_solutions(&board), 0);
 }
 
+fn is_complete_solution_of(solution: &Board, puzzle: &Board) -> bool {
+    let full = (0..81).all(|i| {
+        let digit = solution.cells[i];
+        let (row, col) = (i / 9, i % 9);
+        let mut without = *solution;
+        without.cells[i] = 0;
+        digit != 0 && without.is_valid_move(row, col, digit)
+    });
+    let keeps_clues = (0..81).all(|i| puzzle.cells[i] == 0 || puzzle.cells[i] == solution.cells[i]);
+    full && keeps_clues
+}
+
 #[test]
-#[should_panic(expected = "Induced panic for testing")]
-#[cfg(feature = "test-panic")]
-fn test_induced_panic_is_triggered() {
-    let puzzle_str =
-        "123..............................................................................";
-    let mut board: Board = puzzle_str.parse().unwrap();
-    solve(&mut board);
+fn test_count_and_first_solution_unique() {
+    let puzzle: Board =
+        "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
+            .parse()
+            .unwrap();
+    let (count, first) = count_and_first_solution(&puzzle);
+    assert_eq!(count, 1);
+    assert_eq!(
+        first.unwrap().to_string(),
+        "812753649943682175675491283154237896369845721287169534521974368438526917796318452"
+    );
+}
+
+#[test]
+fn test_count_and_first_solution_multiple() {
+    let puzzle: Board =
+        ".....6....59.....82....8....45........3........6..3.54...325..6.................."
+            .parse()
+            .unwrap();
+    let (count, first) = count_and_first_solution(&puzzle);
+    assert_eq!(count, 2);
+    assert!(is_complete_solution_of(&first.unwrap(), &puzzle));
+}
+
+#[test]
+fn test_count_and_first_solution_none() {
+    let puzzle: Board =
+        "...................................123456789....................................."
+            .parse()
+            .unwrap();
+    assert!(matches!(count_and_first_solution(&puzzle), (0, None)));
+}
+
+#[test]
+fn test_conflicting_board_has_no_solution() {
+    let mut board = Board { cells: [0; 81] };
+    board.cells[0] = 5;
+    board.cells[1] = 5;
+    assert_eq!(count_solutions(&board), 0);
+    assert!(!solve(&mut board));
+}
+
+#[test]
+fn test_out_of_range_digit_has_no_solution() {
+    let mut board = Board { cells: [0; 81] };
+    board.cells[0] = 10;
+    assert_eq!(count_solutions(&board), 0);
+}
+
+#[test]
+fn test_failed_solve_leaves_board_unchanged() {
+    let puzzle: Board =
+        "...................................123456789....................................."
+            .parse()
+            .unwrap();
+    let mut board = puzzle;
+    assert!(!solve(&mut board));
+    assert!(board == puzzle);
+}
+
+#[test]
+fn test_solve_randomized_follows_digit_order() {
+    let mut ascending = Board { cells: [0; 81] };
+    let mut descending = Board { cells: [0; 81] };
+    assert!(solve_randomized(
+        &mut ascending,
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9]
+    ));
+    assert!(solve_randomized(
+        &mut descending,
+        &[9, 8, 7, 6, 5, 4, 3, 2, 1]
+    ));
+    assert_eq!(&ascending.cells[..9], &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    assert_eq!(&descending.cells[..9], &[9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    let empty = Board { cells: [0; 81] };
+    assert!(is_complete_solution_of(&ascending, &empty));
+    assert!(is_complete_solution_of(&descending, &empty));
+}
+
+// Run with `cargo test --release --test solver -- --ignored --nocapture`, deterministic unlike generation.
+#[test]
+#[ignore]
+fn bench_count_solutions_fixed_puzzles() {
+    let puzzles = [
+        "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..",
+        "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......",
+        "..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..",
+        ".....6....59.....82....8....45........3........6..3.54...325..6..................",
+        ".................................................................................",
+    ];
+    for puzzle in puzzles {
+        let board: Board = puzzle.parse().unwrap();
+        let start = std::time::Instant::now();
+        let mut count = 0;
+        for _ in 0..20 {
+            count = std::hint::black_box(count_solutions(&board));
+        }
+        let per_call = start.elapsed().as_secs_f64() * 1000.0 / 20.0;
+        println!(
+            "{}: count={} {:.3}ms per call",
+            &puzzle[..20],
+            count,
+            per_call
+        );
+    }
 }

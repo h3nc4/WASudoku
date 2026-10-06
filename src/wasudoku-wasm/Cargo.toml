@@ -10,8 +10,6 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["console_error_panic_hook"]
-# Feature to induce a panic for testing purposes.
-test-panic = []
 
 [dependencies]
 wasm-bindgen = { version = "0.2.104", features = ["serde-serialize"] }

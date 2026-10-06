@@ -33,7 +33,7 @@ fn test_generate_creates_valid_puzzle() {
         "Generated puzzle should not be empty."
     );
     assert!(
-        puzzle.cells.iter().any(|&c| c == 0),
+        puzzle.cells.contains(&0),
         "Generated puzzle should not be full."
     );
 }
@@ -136,4 +136,40 @@ fn test_generate_extreme_puzzle_difficulty() {
         !is_completely_solved,
         "Extreme puzzle must NOT be completely solvable with only logic techniques (requires backtracking)."
     );
+}
+
+// Run with `cargo test --release --test generate -- --ignored --nocapture`, N from BENCH_N.
+#[test]
+#[ignore]
+fn bench_generate_per_difficulty() {
+    let n: usize = std::env::var("BENCH_N")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+    for difficulty in [
+        Difficulty::Easy,
+        Difficulty::Medium,
+        Difficulty::Hard,
+        Difficulty::Expert,
+        Difficulty::Extreme,
+    ] {
+        let mut times: Vec<f64> = (0..n)
+            .map(|_| {
+                let start = std::time::Instant::now();
+                std::hint::black_box(generate::generate(difficulty));
+                start.elapsed().as_secs_f64() * 1000.0
+            })
+            .collect();
+        times.sort_by(f64::total_cmp);
+        let mean = times.iter().sum::<f64>() / n as f64;
+        println!(
+            "{:?}: n={} mean={:.1}ms median={:.1}ms min={:.1}ms max={:.1}ms",
+            difficulty,
+            n,
+            mean,
+            times[n / 2],
+            times[0],
+            times[n - 1]
+        );
+    }
 }

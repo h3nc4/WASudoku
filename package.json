@@ -20,7 +20,7 @@
     "typecheck": "tsc -b",
     "format:check": "prettier --check .",
     "preview": "vite preview",
-    "test:wasm": "cd src/wasudoku-wasm && cargo llvm-cov --features test-panic --cobertura --output-path ../../coverage-wasm.xml",
+    "test:wasm": "cd src/wasudoku-wasm && cargo llvm-cov --cobertura --output-path ../../coverage-wasm.xml",
     "test:ui": "vitest run --coverage; s=$?; mv coverage/lcov.info coverage-ui.lcov; rm -rf coverage; exit $s",
     "test:browser": "vitest --config vitest.config.browser.ts",
     "pretest": "npm run wasm:build:dev",

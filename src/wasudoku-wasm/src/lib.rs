@@ -134,14 +134,13 @@ pub fn generate_sudoku(difficulty_str: &str) -> Result<JsValue, JsValue> {
 /// * A `JsValue` error if the input string is invalid.
 #[wasm_bindgen]
 pub fn validate_puzzle(board_str: &str) -> Result<Option<String>, JsValue> {
-    let mut board: Board = board_str
+    let board: Board = board_str
         .parse::<Board>()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    if solver::count_solutions(&board) != 1 {
-        return Ok(None);
-    }
     // Backtracking alone, since the logical solver's steps are not needed here.
-    solver::solve(&mut board);
-    Ok(Some(board.to_string()))
+    match solver::count_and_first_solution(&board) {
+        (1, Some(solution)) => Ok(Some(solution.to_string())),
+        _ => Ok(None),
+    }
 }
