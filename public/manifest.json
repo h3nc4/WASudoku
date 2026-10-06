@@ -4,8 +4,8 @@
   "description": "A Sudoku solver that runs locally in your browser using WebAssembly.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#141414",
-  "theme_color": "#141414",
+  "background_color": "#eef0ee",
+  "theme_color": "#eef0ee",
   "icons": [
     {
       "src": "/icon-192.png",
