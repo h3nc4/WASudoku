@@ -86,8 +86,8 @@
   --ink: #1d2a4d;
   --pencil: #585d66;
   --note: #70757e;
-  --peer: rgb(120 140 170 / 0.09);
-  --same: rgb(120 140 170 / 0.2);
+  --peer: rgb(120 140 170 / 0.15);
+  --same: rgb(120 140 170 / 0.3);
   --highlighter: rgb(250 214 60 / 0.75);
   --error: #c2362c;
   --solver: #9a5c00;
@@ -120,8 +120,8 @@
   --ink: #eef1f5;
   --pencil: #a3abb6;
   --note: #7f8792;
-  --peer: rgb(150 170 200 / 0.06);
-  --same: rgb(150 170 200 / 0.14);
+  --peer: rgb(150 170 200 / 0.11);
+  --same: rgb(150 170 200 / 0.22);
   --highlighter: rgb(236 230 120 / 0.3);
   --error: #f07a6e;
   --solver: #f2a541;
@@ -140,6 +140,16 @@
       linear-gradient(var(--graph-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--graph-line) 1px, transparent 1px);
     background-size: 14px 14px;
+  }
+}
+
+/* Dialogs and menus animate through tw-animate-css, which has no reduced-motion guard of its own. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
