@@ -101,13 +101,14 @@ describe('SudokuCell component', () => {
       expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true')
     })
 
-    it('applies destructive styles when isError is true', () => {
+    it('marks a wrong digit with error text and a wavy underline, not a cell fill', () => {
       render(<SudokuCell {...defaultProps} isError cell={{ ...defaultProps.cell, value: 5 }} />)
       const textbox = screen.getByRole('textbox')
       const background = screen.getByTestId('cell-background')
 
-      expect(textbox).toHaveClass('!text-destructive')
-      expect(background).toHaveClass('!bg-destructive/20')
+      expect(textbox).toHaveClass('text-error underline decoration-wavy decoration-error')
+      expect(textbox).not.toHaveClass('text-pencil')
+      expect(background.className).not.toMatch(/bg-/)
     })
 
     it('applies transient highlight style when isTransientConflict is true', () => {
@@ -121,18 +122,19 @@ describe('SudokuCell component', () => {
       const textbox = screen.getByRole('textbox')
       const background = screen.getByTestId('cell-background')
 
-      expect(textbox).toHaveClass('!text-destructive')
-      expect(background).toHaveClass('!bg-destructive/30')
+      expect(textbox).toHaveClass('text-error underline decoration-error')
+      expect(textbox).not.toHaveClass('decoration-wavy')
+      expect(background.className).not.toMatch(/bg-/)
     })
 
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-primary font-bold')
+      expect(screen.getByRole('textbox')).toHaveClass('text-ink voice-ink')
     })
 
     it('applies correct classes for user-inputted numbers', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-blue-600 dark:text-blue-400')
+      expect(screen.getByRole('textbox')).toHaveClass('text-pencil voice-pencil')
     })
 
     it('applies correct classes for solver-added numbers', () => {
@@ -144,7 +146,7 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 7 }}
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('text-sky-600 dark:text-sky-400')
+      expect(screen.getByRole('textbox')).toHaveClass('text-pencil voice-mono')
     })
 
     it('applies correct classes for a placed cell (visualization)', () => {
@@ -152,18 +154,18 @@ describe('SudokuCell component', () => {
       const input = screen.getByRole('textbox')
       const background = screen.getByTestId('cell-background')
 
-      expect(input).toHaveClass('text-green-600 dark:text-green-400 font-bold')
-      expect(background).toHaveClass('bg-green-100 dark:bg-green-900/80')
+      expect(input).toHaveClass('text-solver voice-ink')
+      expect(background.className).not.toMatch(/bg-/)
     })
 
     it('applies correct background for an active cell', () => {
       render(<SudokuCell {...defaultProps} isActive />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-200 dark:bg-sky-700')
+      expect(screen.getByTestId('cell-background')).toHaveClass('highlighter')
     })
 
     it('applies correct background for a highlighted (but not active) cell', () => {
       render(<SudokuCell {...defaultProps} isHighlighted isActive={false} />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-50 dark:bg-sky-950/80')
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-peer')
     })
 
     it('applies correct background for a number-highlighted cell', () => {
@@ -174,48 +176,70 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 5 }}
         />,
       )
-      expect(screen.getByTestId('cell-background')).toHaveClass(
-        'bg-indigo-100 dark:bg-indigo-900/70',
-      )
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-same')
     })
 
     it('applies correct background when solving', () => {
       render(<SudokuCell {...defaultProps} isSolving />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('cursor-not-allowed bg-muted/50')
+      expect(screen.getByTestId('cell-background')).toHaveClass('cursor-not-allowed')
     })
 
-    it('applies correct background for a cause cell in visualization', () => {
-      render(<SudokuCell {...defaultProps} isCause />)
+    it('rings a cause cell in visualization and keeps its peer shading', () => {
+      render(<SudokuCell {...defaultProps} isCause isHighlighted />)
       expect(screen.getByTestId('cell-background')).toHaveClass(
-        'bg-purple-100 dark:bg-purple-800/80',
+        'ring-[1.5px] ring-inset ring-solver bg-peer',
       )
     })
 
-    it('marks a hint target with an amber background and ring, above the active highlight', () => {
+    it('marks a hint target with the solver hatch and ring, above the active highlight', () => {
       render(<SudokuCell {...defaultProps} isHintTarget isActive />)
       const background = screen.getByTestId('cell-background')
-      expect(background).toHaveClass('bg-amber-100 ring-2 ring-amber-500')
-      expect(background).not.toHaveClass('bg-blue-200')
+      expect(background).toHaveClass('solver-hatch ring-2 ring-inset ring-solver')
+      expect(background).not.toHaveClass('highlighter')
     })
 
-    it('keeps the error background on a hint target and adds the ring', () => {
-      render(<SudokuCell {...defaultProps} isHintTarget isError />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('!bg-destructive/20 ring-2')
+    it('keeps the error text on a hint target and adds the ring', () => {
+      render(
+        <SudokuCell
+          {...defaultProps}
+          isHintTarget
+          isError
+          cell={{ ...defaultProps.cell, value: 5 }}
+        />,
+      )
+      expect(screen.getByTestId('cell-background')).toHaveClass('solver-hatch ring-2')
+      expect(screen.getByRole('textbox')).toHaveClass('text-error')
     })
 
     it('colours user digits as user input when the board is not in solved display', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-blue-600')
+      expect(screen.getByRole('textbox')).toHaveClass('text-pencil')
     })
 
     it('applies correct border for right edge of a box', () => {
-      render(<SudokuCell {...defaultProps} index={2} />) // col 2
-      expect(screen.getByRole('textbox')).toHaveClass('border-r-2 border-r-primary')
+      const { container } = render(<SudokuCell {...defaultProps} index={2} />) // col 2
+      expect(container.firstChild).toHaveClass('border-r-2 border-r-grid-thick')
+      expect(container.firstChild).toHaveClass('border-b border-b-grid-thin')
     })
 
     it('applies correct border for bottom edge of a box', () => {
-      render(<SudokuCell {...defaultProps} index={18} />) // row 2
-      expect(screen.getByRole('textbox')).toHaveClass('border-b-2 border-b-primary')
+      const { container } = render(<SudokuCell {...defaultProps} index={18} />) // row 2
+      expect(container.firstChild).toHaveClass('border-b-2 border-b-grid-thick')
+    })
+
+    it('leaves the outer edge to the board frame', () => {
+      const { container } = render(<SudokuCell {...defaultProps} index={80} />)
+      expect(container.firstChild).not.toHaveClass(
+        'border-r',
+        'border-b',
+        'border-r-2',
+        'border-b-2',
+      )
+    })
+
+    it('shows an ink ring on keyboard focus', () => {
+      render(<SudokuCell {...defaultProps} />)
+      expect(screen.getByRole('textbox')).toHaveClass('focus-visible:ring-2 focus-visible:ring-ink')
     })
   })
 
