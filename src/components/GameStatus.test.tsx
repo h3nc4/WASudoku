@@ -18,83 +18,63 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { GameStatus } from './GameStatus'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('GameStatus component', () => {
-  const playingState: SudokuState = {
-    ...initialState,
-    solver: { ...initialState.solver, gameMode: 'playing' },
+  const playingState = makeState({
+    solver: { gameMode: 'playing' },
     game: { timer: 0, mistakes: 0 },
-  }
+  })
 
   const mockPauseGame = vi.fn()
   const mockResumeGame = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(playingState)
-    mockUseSudokuActions.mockReturnValue({ pauseGame: mockPauseGame, resumeGame: mockResumeGame })
+    mockSudoku({
+      state: playingState,
+      actions: { pauseGame: mockPauseGame, resumeGame: mockResumeGame },
+    })
   })
 
   it('does not render when not in playing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'selecting' } }) })
     const { container } = render(<GameStatus />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('renders timer formatted correctly', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      game: { timer: 65, mistakes: 0 },
-    })
+    mockSudoku({ state: makeState({ game: { timer: 65, mistakes: 0 } }, playingState) })
     render(<GameStatus />)
     expect(screen.getByText('01:05')).toBeInTheDocument()
   })
 
   it('renders the difficulty, or Custom for a custom puzzle', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      solver: { ...playingState.solver, difficulty: 'medium' },
-    })
+    mockSudoku({ state: makeState({ solver: { difficulty: 'medium' } }, playingState) })
     const { rerender } = render(<GameStatus />)
     expect(screen.getByText('Medium')).toBeInTheDocument()
 
-    mockUseSudokuState.mockReturnValue(playingState)
+    mockSudoku({ state: playingState })
     rerender(<GameStatus />)
     expect(screen.getByText('Custom')).toBeInTheDocument()
   })
 
   it('renders mistakes count', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      game: { timer: 0, mistakes: 2 },
-    })
+    mockSudoku({ state: makeState({ game: { timer: 0, mistakes: 2 } }, playingState) })
     render(<GameStatus />)
     expect(screen.getByText('Mistakes:')).toBeInTheDocument()
     expect(screen.getByText('2/3')).toBeInTheDocument()
   })
 
   it('highlights mistakes in the error colour when limit reached', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      game: { timer: 0, mistakes: 3 },
-    })
+    mockSudoku({ state: makeState({ game: { timer: 0, mistakes: 3 } }, playingState) })
     render(<GameStatus />)
     const countElement = screen.getByText('3/3')
     expect(countElement).toHaveClass('text-error font-bold')
@@ -106,20 +86,14 @@ describe('GameStatus component', () => {
     await user.click(screen.getByRole('button', { name: 'Pause game' }))
     expect(mockPauseGame).toHaveBeenCalledOnce()
 
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      ui: { ...playingState.ui, isPaused: true },
-    })
+    mockSudoku({ state: makeState({ ui: { isPaused: true } }, playingState) })
     rerender(<GameStatus />)
     await user.click(screen.getByRole('button', { name: 'Resume game' }))
     expect(mockResumeGame).toHaveBeenCalledOnce()
   })
 
   it('shows a solved label instead of the pause control once won', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playingState,
-      solver: { ...playingState.solver, isSolved: true },
-    })
+    mockSudoku({ state: makeState({ solver: { isSolved: true } }, playingState) })
     render(<GameStatus />)
     expect(screen.getByText('Solved')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Pause game' })).not.toBeInTheDocument()

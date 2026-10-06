@@ -18,27 +18,23 @@
 
 import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { InputModeToggle } from './InputModeToggle'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('InputModeToggle component', () => {
   const mockSetInputMode = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState) // default mode is 'normal'
-    mockUseSudokuActions.mockReturnValue({ setInputMode: mockSetInputMode })
+    // The initial input mode is 'normal'
+    mockSudoku({ state: initialState, actions: { setInputMode: mockSetInputMode } })
   })
 
   it('renders with the correct initial mode selected', () => {
@@ -60,10 +56,7 @@ describe('InputModeToggle component', () => {
   it('does not call setInputMode if the onValueChange callback receives an empty value', async () => {
     const user = userEvent.setup()
     // Start with a mode selected
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      ui: { ...initialState.ui, inputMode: 'candidate' },
-    })
+    mockSudoku({ state: makeState({ ui: { inputMode: 'candidate' } }) })
     render(<InputModeToggle />)
 
     const cornerButton = screen.getByRole('radio', { name: 'Corner' })
@@ -73,10 +66,7 @@ describe('InputModeToggle component', () => {
   })
 
   it('is disabled when in visualizing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'visualizing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }) })
     render(<InputModeToggle />)
 
     // Check that the individual buttons inside the group are disabled.

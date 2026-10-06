@@ -20,8 +20,7 @@ import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
+import { makeState } from '@/test/sudoku-state'
 
 import { useSudokuFeedback } from './useSudokuFeedback'
 
@@ -44,10 +43,7 @@ describe('useSudokuFeedback', () => {
   })
 
   it('does not show a toast or dispatch when there is no error', () => {
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, lastError: null },
-    }
+    const state = makeState({ ui: { lastError: null } })
     renderHook(() => useSudokuFeedback(state, mockDispatch))
     expect(toast.error).not.toHaveBeenCalled()
     expect(mockDispatch).not.toHaveBeenCalled()
@@ -55,10 +51,7 @@ describe('useSudokuFeedback', () => {
 
   it('shows a toast and dispatches clearError when an error is present', () => {
     const errorMessage = 'Invalid move'
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, lastError: errorMessage },
-    }
+    const state = makeState({ ui: { lastError: errorMessage } })
     const { rerender } = renderHook((props) => useSudokuFeedback(props.state, props.dispatch), {
       initialProps: { state, dispatch: mockDispatch },
     })
@@ -66,10 +59,7 @@ describe('useSudokuFeedback', () => {
     expect(toast.error).toHaveBeenCalledWith(errorMessage)
     expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_ERROR' })
 
-    const clearedState: SudokuState = {
-      ...state,
-      ui: { ...state.ui, lastError: null },
-    }
+    const clearedState = makeState({ ui: { lastError: null } }, state)
     rerender({ state: clearedState, dispatch: mockDispatch })
 
     expect(toast.error).toHaveBeenCalledOnce()
@@ -78,10 +68,7 @@ describe('useSudokuFeedback', () => {
 
   it('dispatches clearTransientConflicts after 1 second when transientConflicts is present', () => {
     const conflicts = new Set([1, 2])
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, transientConflicts: conflicts },
-    }
+    const state = makeState({ ui: { transientConflicts: conflicts } })
 
     renderHook(() => useSudokuFeedback(state, mockDispatch))
 

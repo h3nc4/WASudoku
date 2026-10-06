@@ -18,12 +18,13 @@
 
 import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as actionCreators from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
 import { SudokuProvider } from '@/context/SudokuProvider'
+import { mockSudoku } from '@/test/sudoku-state'
 
 import { useSudokuActions } from './useSudokuActions'
 
@@ -42,8 +43,6 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
   },
 }))
-
-const mockUseSudokuDispatch = useSudokuDispatch as Mock
 
 describe('useSudokuActions', () => {
   const mockDispatch = vi.fn()
@@ -70,7 +69,7 @@ describe('useSudokuActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockClipboard.writeText.mockResolvedValue(undefined)
-    mockUseSudokuDispatch.mockReturnValue(mockDispatch)
+    mockSudoku({ dispatch: mockDispatch })
   })
 
   // Helper to get the current actions from the hook
@@ -260,7 +259,7 @@ describe('useSudokuActions', () => {
     it('keeps the same actions object across a timer tick', async () => {
       const actual =
         await vi.importActual<typeof import('@/context/sudoku.hooks')>('@/context/sudoku.hooks')
-      mockUseSudokuDispatch.mockImplementation(actual.useSudokuDispatch)
+      vi.mocked(useSudokuDispatch).mockImplementation(actual.useSudokuDispatch)
       const { result } = renderHook(
         () => ({
           actions: useSudokuActions(),

@@ -21,8 +21,8 @@ import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
 import { Priority, WorkerPool } from '@/lib/worker-pool'
+import { makeState } from '@/test/sudoku-state'
 
 import { useSudokuSolver } from './useSudokuSolver'
 
@@ -60,8 +60,7 @@ vi.mock('sonner', () => ({
 describe('useSudokuSolver', () => {
   const mockDispatch = vi.fn()
 
-  const fullPoolState: SudokuState = {
-    ...initialState,
+  const fullPoolState = makeState({
     puzzlePool: {
       easy: new Array(3).fill({ puzzleString: '', solutionString: '' }),
       medium: new Array(3).fill({ puzzleString: '', solutionString: '' }),
@@ -69,7 +68,7 @@ describe('useSudokuSolver', () => {
       expert: new Array(3).fill({ puzzleString: '', solutionString: '' }),
       extreme: new Array(3).fill({ puzzleString: '', solutionString: '' }),
     },
-  }
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -98,10 +97,7 @@ describe('useSudokuSolver', () => {
 
     // Render with solving active. Since initialization throws, poolRef.current stays null.
     // The solving effect runs but should return early because !poolRef.current.
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-    }
+    const solvingState = makeState({ solver: { isSolving: true } }, fullPoolState)
 
     // Hook should not throw now due to internal try/catch
     renderHook(() => useSudokuSolver(solvingState, mockDispatch))
@@ -129,14 +125,10 @@ describe('useSudokuSolver', () => {
   })
 
   it('triggers user puzzle generation (High Priority)', async () => {
-    const generatingState: SudokuState = {
-      ...fullPoolState,
-      solver: {
-        ...initialState.solver,
-        isGenerating: true,
-        generationDifficulty: 'hard',
-      },
-    }
+    const generatingState = makeState(
+      { solver: { isGenerating: true, generationDifficulty: 'hard' } },
+      fullPoolState,
+    )
 
     mockRunTask.mockResolvedValueOnce({
       puzzleString: 'puzzle',
@@ -158,14 +150,10 @@ describe('useSudokuSolver', () => {
   })
 
   it('handles user generation failure', async () => {
-    const generatingState: SudokuState = {
-      ...fullPoolState,
-      solver: {
-        ...initialState.solver,
-        isGenerating: true,
-        generationDifficulty: 'hard',
-      },
-    }
+    const generatingState = makeState(
+      { solver: { isGenerating: true, generationDifficulty: 'hard' } },
+      fullPoolState,
+    )
     const errorMsg = 'Gen Fail'
     mockRunTask.mockRejectedValueOnce(new Error(errorMsg))
 
@@ -182,11 +170,10 @@ describe('useSudokuSolver', () => {
   })
 
   it('triggers puzzle solving (High Priority)', async () => {
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-      board: initialState.board, // all nulls
-    }
+    const solvingState = makeState(
+      { solver: { isSolving: true }, board: initialState.board }, // all nulls
+      fullPoolState,
+    )
     const mockResult = { solution: 'solved', steps: [] }
     mockRunTask.mockResolvedValueOnce(mockResult)
 
@@ -210,10 +197,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('solves the current board for a hint and reports the result', async () => {
-    const hintingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isHinting: true },
-    }
+    const hintingState = makeState({ solver: { isHinting: true } }, fullPoolState)
     const mockResult = { solution: null, steps: [] }
     mockRunTask.mockResolvedValueOnce(mockResult)
 
@@ -231,10 +215,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('reports a hint failure when the solver rejects', async () => {
-    const hintingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isHinting: true },
-    }
+    const hintingState = makeState({ solver: { isHinting: true } }, fullPoolState)
     mockRunTask.mockRejectedValueOnce(new Error('No solution found for the given puzzle.'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -247,10 +228,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('triggers puzzle validation (High Priority)', async () => {
-    const validatingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isValidating: true },
-    }
+    const validatingState = makeState({ solver: { isValidating: true } }, fullPoolState)
     mockRunTask.mockResolvedValueOnce({ isValid: true, solutionString: 'sol' })
 
     renderHook(() => useSudokuSolver(validatingState, mockDispatch))
@@ -270,10 +248,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('handles puzzle validation failure (invalid puzzle)', async () => {
-    const validatingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isValidating: true },
-    }
+    const validatingState = makeState({ solver: { isValidating: true } }, fullPoolState)
     mockRunTask.mockResolvedValueOnce({ isValid: false, solutionString: '' })
 
     renderHook(() => useSudokuSolver(validatingState, mockDispatch))
@@ -289,10 +264,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('handles puzzle validation worker error', async () => {
-    const validatingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isValidating: true },
-    }
+    const validatingState = makeState({ solver: { isValidating: true } }, fullPoolState)
     const errorMsg = 'Validation Error'
     mockRunTask.mockRejectedValueOnce(new Error(errorMsg))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -347,10 +319,7 @@ describe('useSudokuSolver', () => {
   })
 
   it('handles errors gracefully during solve', async () => {
-    const solvingState: SudokuState = {
-      ...fullPoolState,
-      solver: { ...initialState.solver, isSolving: true },
-    }
+    const solvingState = makeState({ solver: { isSolving: true } }, fullPoolState)
     mockRunTask.mockRejectedValueOnce(new Error('Fail'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 

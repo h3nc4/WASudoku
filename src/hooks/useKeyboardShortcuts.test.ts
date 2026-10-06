@@ -17,20 +17,15 @@
  */
 
 import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { useKeyboardShortcuts } from './useKeyboardShortcuts'
-import { useSudokuActions } from './useSudokuActions'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('./useSudokuActions')
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 const press = (key: string, init: KeyboardEventInit = {}) => {
   const event = new KeyboardEvent('keydown', { key, cancelable: true, ...init })
@@ -40,15 +35,11 @@ const press = (key: string, init: KeyboardEventInit = {}) => {
 
 describe('useKeyboardShortcuts', () => {
   const actions = { undo: vi.fn(), redo: vi.fn(), stepVisualization: vi.fn() }
-  const playing: SudokuState = {
-    ...initialState,
-    solver: { ...initialState.solver, gameMode: 'playing' },
-  }
+  const playing = makeState({ solver: { gameMode: 'playing' } })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(playing)
-    mockUseSudokuActions.mockReturnValue(actions)
+    mockSudoku({ state: playing, actions })
   })
 
   it('undoes on Ctrl+Z and Cmd+Z', () => {
@@ -75,25 +66,22 @@ describe('useKeyboardShortcuts', () => {
   })
 
   it.each([
-    ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
-    ['while solving', { ...playing, solver: { ...playing.solver, isSolving: true } }],
+    ['while paused', makeState({ ui: { isPaused: true } }, playing)],
+    ['while solving', makeState({ solver: { isSolving: true } }, playing)],
     [
       'while validating',
-      { ...playing, solver: { ...playing.solver, gameMode: 'customInput', isValidating: true } },
+      makeState({ solver: { gameMode: 'customInput', isValidating: true } }, playing),
     ],
-    ['while visualizing', { ...playing, solver: { ...playing.solver, gameMode: 'visualizing' } }],
+    ['while visualizing', makeState({ solver: { gameMode: 'visualizing' } }, playing)],
   ] as [string, SudokuState][])('ignores undo %s', (_, state) => {
-    mockUseSudokuState.mockReturnValue(state)
+    mockSudoku({ state })
     renderHook(() => useKeyboardShortcuts())
     press('z', { ctrlKey: true })
     expect(actions.undo).not.toHaveBeenCalled()
   })
 
   it('steps through a solution with the arrow keys while visualizing', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playing,
-      solver: { ...playing.solver, gameMode: 'visualizing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }, playing) })
     renderHook(() => useKeyboardShortcuts())
     expect(press('ArrowLeft').defaultPrevented).toBe(true)
     press('ArrowRight')

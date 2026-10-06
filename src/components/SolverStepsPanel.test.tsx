@@ -18,21 +18,16 @@
 
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import type { SolvingStep, SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import type { SolvingStep } from '@/context/sudoku.types'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SolverStepsPanel } from './SolverStepsPanel'
 
 // Mocks
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 const mockSteps: SolvingStep[] = [
   {
@@ -175,29 +170,21 @@ const mockSteps: SolvingStep[] = [
 
 describe('SolverStepsPanel component', () => {
   const mockViewSolverStep = vi.fn()
-  const defaultState: SudokuState = {
-    ...initialState,
+  const defaultState = makeState({
     solver: {
-      ...initialState.solver,
       gameMode: 'visualizing',
       steps: mockSteps,
       currentStepIndex: mockSteps.length, // Start at solution
     },
-  }
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(defaultState)
-    mockUseSudokuActions.mockReturnValue({
-      viewSolverStep: mockViewSolverStep,
-    })
+    mockSudoku({ state: defaultState, actions: { viewSolverStep: mockViewSolverStep } })
   })
 
   it('renders nothing if there are no solver steps', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, steps: [] },
-    })
+    mockSudoku({ state: makeState({ solver: { steps: [] } }, defaultState) })
     const { container } = render(<SolverStepsPanel />)
     expect(container).toBeEmptyDOMElement()
   })
@@ -239,10 +226,7 @@ describe('SolverStepsPanel component', () => {
 
   it('highlights the correct buttons based on currentStepIndex', () => {
     // When viewing step 1 (index 0), its accordion should be active
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 1 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 1 } }, defaultState) })
     const { rerender } = render(<SolverStepsPanel />)
 
     const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
@@ -252,10 +236,7 @@ describe('SolverStepsPanel component', () => {
     )
 
     // When viewing initial state
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 0 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
     rerender(<SolverStepsPanel />)
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveAttribute(
       'data-state',
@@ -267,9 +248,8 @@ describe('SolverStepsPanel component', () => {
     )
 
     // When viewing final state
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: mockSteps.length },
+    mockSudoku({
+      state: makeState({ solver: { currentStepIndex: mockSteps.length } }, defaultState),
     })
     rerender(<SolverStepsPanel />)
     expect(screen.getByRole('button', { name: 'Solution' })).toHaveAttribute('data-state', 'active')
@@ -291,10 +271,7 @@ describe('SolverStepsPanel component', () => {
   })
 
   it('tones past lines as ink, the current one as solver and later ones as notes', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 2 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 2 } }, defaultState) })
     render(<SolverStepsPanel />)
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveClass('text-ink')
     expect(screen.getByRole('button', { name: /Step 1:/ })).toHaveClass('text-ink')
@@ -308,14 +285,11 @@ describe('SolverStepsPanel component', () => {
   })
 
   it('explains the initial board and the solution', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 0 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
     const { rerender } = render(<SolverStepsPanel />)
     expect(screen.getByText(/The puzzle as given/)).toBeInTheDocument()
 
-    mockUseSudokuState.mockReturnValue(defaultState)
+    mockSudoku({ state: defaultState })
     rerender(<SolverStepsPanel />)
     expect(screen.getByText('Solved in 19 steps')).toBeInTheDocument()
     expect(screen.getByText(/backtracking \(brute-force\) search/)).toBeInTheDocument()
@@ -331,28 +305,19 @@ describe('SolverStepsPanel component', () => {
   })
 
   it('scrolls the log back to the top at the initial board', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 0 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
     const { rerender } = render(<SolverStepsPanel />)
     const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
     viewport.scrollTop = 250
-    mockUseSudokuState.mockReturnValue(defaultState)
+    mockSudoku({ state: defaultState })
     rerender(<SolverStepsPanel />)
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 0 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
     rerender(<SolverStepsPanel />)
     expect(viewport.scrollTop).toBe(0)
   })
 
   it('shows the explanation of the current step', async () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 3 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 3 } }, defaultState) })
     render(<SolverStepsPanel />)
     expect(
       await screen.findByText(/Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/),
@@ -362,10 +327,7 @@ describe('SolverStepsPanel component', () => {
   describe('step navigation', () => {
     it('moves one step back and forward with the arrow buttons', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...defaultState,
-        solver: { ...defaultState.solver, currentStepIndex: 5 },
-      })
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 5 } }, defaultState) })
       render(<SolverStepsPanel />)
 
       await user.click(screen.getByRole('button', { name: 'Previous step' }))
@@ -375,15 +337,12 @@ describe('SolverStepsPanel component', () => {
     })
 
     it('disables Previous at the initial board and Next at the solution', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...defaultState,
-        solver: { ...defaultState.solver, currentStepIndex: 0 },
-      })
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
       const { rerender } = render(<SolverStepsPanel />)
       expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Next step' })).toBeEnabled()
 
-      mockUseSudokuState.mockReturnValue(defaultState)
+      mockSudoku({ state: defaultState })
       rerender(<SolverStepsPanel />)
       expect(screen.getByRole('button', { name: 'Previous step' })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Next step' })).toBeDisabled()
@@ -400,19 +359,13 @@ describe('SolverStepsPanel component', () => {
           return this.id === 'solver-step-1' ? rect(350, 400) : rect(20, 60)
         })
 
-      mockUseSudokuState.mockReturnValue({
-        ...defaultState,
-        solver: { ...defaultState.solver, currentStepIndex: 2 },
-      })
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 2 } }, defaultState) })
       const { rerender } = render(<SolverStepsPanel />)
       const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
       expect(viewport.scrollTop).toBe(100)
 
       viewport.scrollTop = 200
-      mockUseSudokuState.mockReturnValue({
-        ...defaultState,
-        solver: { ...defaultState.solver, currentStepIndex: 1 },
-      })
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 1 } }, defaultState) })
       rerender(<SolverStepsPanel />)
       expect(viewport.scrollTop).toBe(120)
       spy.mockRestore()
@@ -422,10 +375,7 @@ describe('SolverStepsPanel component', () => {
   it('does not call viewSolverStep when the current line is clicked again', async () => {
     const user = userEvent.setup()
     // Start with an item open
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, currentStepIndex: 1 },
-    })
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: 1 } }, defaultState) })
     render(<SolverStepsPanel />)
 
     mockViewSolverStep.mockClear()

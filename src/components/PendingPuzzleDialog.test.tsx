@@ -18,37 +18,31 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { PendingPuzzleDialog } from './PendingPuzzleDialog'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('PendingPuzzleDialog component', () => {
   const puzzle = '3'.repeat(81)
   const mockLoadPuzzle = vi.fn()
   const mockDismissPuzzle = vi.fn()
-  const offered = { ...initialState, ui: { ...initialState.ui, pendingPuzzle: puzzle } }
+  const offered = makeState({ ui: { pendingPuzzle: puzzle } })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(offered)
-    mockUseSudokuActions.mockReturnValue({
-      loadPuzzle: mockLoadPuzzle,
-      dismissPuzzle: mockDismissPuzzle,
+    mockSudoku({
+      state: offered,
+      actions: { loadPuzzle: mockLoadPuzzle, dismissPuzzle: mockDismissPuzzle },
     })
   })
 
   it('stays closed without an offered puzzle', () => {
-    mockUseSudokuState.mockReturnValue(initialState)
+    mockSudoku({ state: makeState() })
     render(<PendingPuzzleDialog />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -64,10 +58,7 @@ describe('PendingPuzzleDialog component', () => {
 
   it('warns that a game in progress is replaced, and dismisses on decline', async () => {
     const user = userEvent.setup()
-    mockUseSudokuState.mockReturnValue({
-      ...offered,
-      solver: { ...offered.solver, gameMode: 'playing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing' } }, offered) })
     render(<PendingPuzzleDialog />)
     expect(screen.getByText(/replaces the current board/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Not now' }))

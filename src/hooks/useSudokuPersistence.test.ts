@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 import { GAME_FORMAT_VERSION, STORAGE_KEYS } from '@/context/sudoku.persistence'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { makeState } from '@/test/sudoku-state'
 
 import { useSudokuPersistence } from './useSudokuPersistence'
 
@@ -87,7 +88,7 @@ describe('useSudokuPersistence', () => {
 
   it('saves the puzzle difficulty with the game', () => {
     const { rerender } = renderPersistence()
-    rerender({ ...initialState, solver: { ...initialState.solver, difficulty: 'expert' } })
+    rerender(makeState({ solver: { difficulty: 'expert' } }))
     vi.runAllTimers()
     expect(storedGame().difficulty).toBe('expert')
   })
@@ -136,27 +137,28 @@ describe('useSudokuPersistence', () => {
 
   it('saves only metrics when the timer changes', () => {
     const { rerender } = renderPersistence()
-    rerender({ ...initialState, game: { timer: 5, mistakes: 1 } })
+    rerender(makeState({ game: { timer: 5, mistakes: 1 } }))
     vi.runAllTimers()
     expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS])
   })
 
   it('saves only the pool when the puzzle pool changes', () => {
     const { rerender } = renderPersistence()
-    rerender({
-      ...initialState,
-      puzzlePool: {
-        ...initialState.puzzlePool,
-        easy: [{ puzzleString: 'a', solutionString: 'b' }],
-      },
-    })
+    rerender(
+      makeState({
+        puzzlePool: {
+          ...initialState.puzzlePool,
+          easy: [{ puzzleString: 'a', solutionString: 'b' }],
+        },
+      }),
+    )
     vi.runAllTimers()
     expect(keysWritten()).toEqual([STORAGE_KEYS.POOL])
   })
 
   it('does not save when unrelated state changes', () => {
     const { rerender } = renderPersistence()
-    rerender({ ...initialState, solver: { ...initialState.solver, isSolving: true } })
+    rerender(makeState({ solver: { isSolving: true } }))
     vi.runAllTimers()
     expect(setItemSpy).not.toHaveBeenCalled()
   })

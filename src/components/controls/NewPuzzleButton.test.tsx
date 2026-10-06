@@ -18,20 +18,15 @@
 
 import { act, createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { NewPuzzleButton } from './NewPuzzleButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('NewPuzzleButton component', () => {
   const mockGeneratePuzzle = vi.fn()
@@ -39,10 +34,12 @@ describe('NewPuzzleButton component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
-    mockUseSudokuActions.mockReturnValue({
-      generatePuzzle: mockGeneratePuzzle,
-      startCustomPuzzle: mockStartCustomPuzzle,
+    mockSudoku({
+      state: initialState,
+      actions: {
+        generatePuzzle: mockGeneratePuzzle,
+        startCustomPuzzle: mockStartCustomPuzzle,
+      },
     })
   })
 
@@ -68,22 +65,16 @@ describe('NewPuzzleButton component', () => {
   })
 
   it('is disabled while solving', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, isSolving: true },
-    })
+    mockSudoku({ state: makeState({ solver: { isSolving: true } }) })
     render(<NewPuzzleButton />)
     expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeDisabled()
   })
 
   it('shows and hides "Generating..." state correctly based on isGenerating prop', () => {
     vi.useFakeTimers()
-    const generatingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, isGenerating: true },
-    }
+    const generatingState = makeState({ solver: { isGenerating: true } })
     const { rerender } = render(<NewPuzzleButton />)
-    mockUseSudokuState.mockReturnValue(generatingState)
+    mockSudoku({ state: generatingState })
     rerender(<NewPuzzleButton />)
 
     expect(screen.queryByText('Generating...')).not.toBeInTheDocument()
@@ -92,7 +83,7 @@ describe('NewPuzzleButton component', () => {
     })
     expect(screen.getByText('Generating...')).toBeInTheDocument()
 
-    mockUseSudokuState.mockReturnValue(initialState)
+    mockSudoku({ state: initialState })
     rerender(<NewPuzzleButton />)
 
     expect(screen.queryByText('Generating...')).not.toBeInTheDocument()
@@ -101,10 +92,7 @@ describe('NewPuzzleButton component', () => {
   })
 
   it('shows the "Custom" option when not in selecting mode', async () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing' } }) })
     const user = userEvent.setup()
     render(<NewPuzzleButton />)
     await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
@@ -117,10 +105,7 @@ describe('NewPuzzleButton component', () => {
   })
 
   it('hides the "Custom" option when in selecting mode', async () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'selecting' } }) })
     const user = userEvent.setup()
     render(<NewPuzzleButton />)
     await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
@@ -146,16 +131,15 @@ describe('NewPuzzleButton component', () => {
       i === 0 ? { ...c, value: 1, isGiven: true } : c,
     )
     const progress = givens.map((c, i) => (i === 1 ? { ...c, value: 2 } : c))
-    const inProgress: SudokuState = {
-      ...initialState,
+    const inProgress = makeState({
       board: progress,
       initialBoard: givens,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-    }
+      solver: { gameMode: 'playing' },
+    })
 
     it('asks before replacing the game and starts the puzzle on confirm', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue(inProgress)
+      mockSudoku({ state: inProgress })
       render(<NewPuzzleButton />)
 
       await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
@@ -169,7 +153,7 @@ describe('NewPuzzleButton component', () => {
 
     it('keeps the game when the confirmation is cancelled', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue(inProgress)
+      mockSudoku({ state: inProgress })
       render(<NewPuzzleButton />)
 
       await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
@@ -182,10 +166,8 @@ describe('NewPuzzleButton component', () => {
 
     it('starts a custom puzzle after confirming', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        solver: { ...initialState.solver, gameMode: 'customInput' },
-        derived: { ...initialState.derived, isBoardEmpty: false },
+      mockSudoku({
+        state: makeState({ solver: { gameMode: 'customInput' }, derived: { isBoardEmpty: false } }),
       })
       render(<NewPuzzleButton />)
 
@@ -197,10 +179,7 @@ describe('NewPuzzleButton component', () => {
 
     it('does not ask once the puzzle is solved', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...inProgress,
-        solver: { ...inProgress.solver, isSolved: true },
-      })
+      mockSudoku({ state: makeState({ solver: { isSolved: true } }, inProgress) })
       render(<NewPuzzleButton />)
 
       await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
@@ -210,9 +189,8 @@ describe('NewPuzzleButton component', () => {
 
     it('asks while visualizing a game that had progress', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...inProgress,
-        solver: { ...inProgress.solver, gameMode: 'visualizing', isSolved: true },
+      mockSudoku({
+        state: makeState({ solver: { gameMode: 'visualizing', isSolved: true } }, inProgress),
       })
       render(<NewPuzzleButton />)
 

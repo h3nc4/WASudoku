@@ -18,34 +18,26 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { WinDialog } from './WinDialog'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('WinDialog component', () => {
   const mockGeneratePuzzle = vi.fn()
-  const playing: SudokuState = {
-    ...initialState,
-    solver: { ...initialState.solver, gameMode: 'playing', difficulty: 'hard' },
+  const playing = makeState({
+    solver: { gameMode: 'playing', difficulty: 'hard' },
     game: { timer: 754, mistakes: 1 },
-  }
-  const won: SudokuState = { ...playing, solver: { ...playing.solver, isSolved: true } }
+  })
+  const won = makeState({ solver: { isSolved: true } }, playing)
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(won)
-    mockUseSudokuActions.mockReturnValue({ generatePuzzle: mockGeneratePuzzle })
+    mockSudoku({ state: won, actions: { generatePuzzle: mockGeneratePuzzle } })
   })
 
   it('shows the time, difficulty and mistakes once the puzzle is solved', () => {
@@ -56,10 +48,8 @@ describe('WinDialog component', () => {
   })
 
   it('names a custom puzzle and counts several mistakes', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...won,
-      solver: { ...won.solver, difficulty: null },
-      game: { timer: 5, mistakes: 2 },
+    mockSudoku({
+      state: makeState({ solver: { difficulty: null }, game: { timer: 5, mistakes: 2 } }, won),
     })
     render(<WinDialog />)
     expect(screen.getByText('Custom puzzle finished in 00:05 with 2 mistakes.')).toBeInTheDocument()
@@ -81,9 +71,9 @@ describe('WinDialog component', () => {
     rerender(<WinDialog />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    mockUseSudokuState.mockReturnValue(playing)
+    mockSudoku({ state: playing })
     rerender(<WinDialog />)
-    mockUseSudokuState.mockReturnValue(won)
+    mockSudoku({ state: won })
     rerender(<WinDialog />)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
@@ -92,10 +82,10 @@ describe('WinDialog component', () => {
     const { rerender } = render(<WinDialog />)
     for (const state of [
       playing,
-      { ...won, solver: { ...won.solver, gameMode: 'visualizing' } },
-      { ...won, ui: { ...won.ui, pendingPuzzle: '.'.repeat(81) } },
+      makeState({ solver: { gameMode: 'visualizing' } }, won),
+      makeState({ ui: { pendingPuzzle: '.'.repeat(81) } }, won),
     ]) {
-      mockUseSudokuState.mockReturnValue(state)
+      mockSudoku({ state })
       rerender(<WinDialog />)
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     }

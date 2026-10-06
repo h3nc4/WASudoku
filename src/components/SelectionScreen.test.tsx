@@ -18,19 +18,14 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SelectionScreen } from './SelectionScreen'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('SelectionScreen component', () => {
   const mockStartCustomPuzzle = vi.fn()
@@ -38,10 +33,9 @@ describe('SelectionScreen component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
-    mockUseSudokuActions.mockReturnValue({
-      startCustomPuzzle: mockStartCustomPuzzle,
-      generatePuzzle: mockGeneratePuzzle,
+    mockSudoku({
+      state: makeState(),
+      actions: { startCustomPuzzle: mockStartCustomPuzzle, generatePuzzle: mockGeneratePuzzle },
     })
   })
 

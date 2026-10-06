@@ -18,23 +18,20 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { DifficultyPicker } from './DifficultyPicker'
 
 vi.mock('@/context/sudoku.hooks')
-
-const mockUseSudokuState = useSudokuState as Mock
 
 describe('DifficultyPicker component', () => {
   const onSelect = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
+    mockSudoku({ state: makeState() })
   })
 
   it('passes the lower-cased difficulty to onSelect', async () => {
@@ -45,9 +42,8 @@ describe('DifficultyPicker component', () => {
   })
 
   it('disables every choice and marks the one being generated', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, isGenerating: true, generationDifficulty: 'medium' },
+    mockSudoku({
+      state: makeState({ solver: { isGenerating: true, generationDifficulty: 'medium' } }),
     })
     render(<DifficultyPicker onSelect={onSelect} />)
     for (const button of screen.getAllByRole('button')) {

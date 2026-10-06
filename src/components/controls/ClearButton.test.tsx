@@ -21,10 +21,8 @@ import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { areBoardsEqual } from '@/lib/utils'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { ClearButton } from './ClearButton'
 
@@ -33,14 +31,9 @@ vi.mock('@/hooks/useSudokuActions')
 vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
 vi.mock('@/lib/utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/utils')>()
-  return {
-    ...actual,
-    areBoardsEqual: vi.fn(),
-  }
+  return { ...actual, areBoardsEqual: vi.fn() }
 })
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 const mockAreBoardsEqual = areBoardsEqual as Mock
 
 describe('ClearButton component', () => {
@@ -49,15 +42,13 @@ describe('ClearButton component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuActions.mockReturnValue({ clearBoard: mockClearBoard, undo: mockUndo })
+    mockSudoku({ actions: { clearBoard: mockClearBoard, undo: mockUndo } })
     mockAreBoardsEqual.mockReturnValue(false) // Default to board not being pristine
   })
 
   it('is disabled when board is empty in customInput mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'customInput' },
-      derived: { ...initialState.derived, isBoardEmpty: true },
+    mockSudoku({
+      state: makeState({ solver: { gameMode: 'customInput' }, derived: { isBoardEmpty: true } }),
     })
     render(<ClearButton />)
     const button = screen.getByRole('button', { name: 'Clear Board' })
@@ -66,10 +57,8 @@ describe('ClearButton component', () => {
   })
 
   it('is enabled when board is not empty in customInput mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'customInput' },
-      derived: { ...initialState.derived, isBoardEmpty: false },
+    mockSudoku({
+      state: makeState({ solver: { gameMode: 'customInput' }, derived: { isBoardEmpty: false } }),
     })
     render(<ClearButton />)
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeEnabled()
@@ -77,10 +66,7 @@ describe('ClearButton component', () => {
 
   it('is disabled in playing mode if board has no user progress', () => {
     mockAreBoardsEqual.mockReturnValue(true)
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing' } }) })
     render(<ClearButton />)
     const button = screen.getByRole('button', { name: 'Clear Board' })
     expect(button).toBeDisabled()
@@ -89,47 +75,32 @@ describe('ClearButton component', () => {
 
   it('is enabled in playing mode if board has user progress', () => {
     mockAreBoardsEqual.mockReturnValue(false)
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing' } }) })
     render(<ClearButton />)
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeEnabled()
   })
 
   it('is disabled while paused, with progress to clear', () => {
     mockAreBoardsEqual.mockReturnValue(false)
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      ui: { ...initialState.ui, isPaused: true },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing' }, ui: { isPaused: true } }) })
     render(<ClearButton />)
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeDisabled()
   })
 
   it('is disabled in selecting and visualizing modes', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'selecting' } }) })
     const { rerender } = render(<ClearButton />)
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeDisabled()
 
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'visualizing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }) })
     rerender(<ClearButton />)
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeDisabled()
   })
 
   it('calls clearBoard and shows toast on click', async () => {
     const user = userEvent.setup()
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'customInput' },
-      derived: { ...initialState.derived, isBoardEmpty: false },
+    mockSudoku({
+      state: makeState({ solver: { gameMode: 'customInput' }, derived: { isBoardEmpty: false } }),
     })
     render(<ClearButton />)
 
