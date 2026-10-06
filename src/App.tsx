@@ -41,13 +41,15 @@ import { ShareMenu } from './components/ShareMenu'
 import { SolverStepsPanel } from './components/SolverStepsPanel'
 import { WinDialog } from './components/WinDialog'
 import { useSudokuState } from './context/sudoku.hooks'
+import { isGridReadOnly } from './context/sudoku.selectors'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSudokuActions } from './hooks/useSudokuActions'
 import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { cn } from './lib/utils'
 
 function App() {
-  const { ui, solver } = useSudokuState()
+  const state = useSudokuState()
+  const { ui, solver } = state
   const { eraseActiveCell } = useSudokuActions()
   useKeyboardShortcuts()
 
@@ -58,8 +60,7 @@ function App() {
   }, [eraseActiveCell])
 
   const isPlaying = solver.gameMode === 'playing'
-  const isGridInteractive = isPlaying || solver.gameMode === 'customInput'
-  const isControlDisabled = !isGridInteractive || ui.isPaused
+  const isControlDisabled = isGridReadOnly(state)
   const showSelectionScreen = solver.gameMode === 'selecting'
 
   return (

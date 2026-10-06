@@ -97,6 +97,17 @@ describe('ClearButton component', () => {
     expect(screen.getByRole('button', { name: 'Clear Board' })).toBeEnabled()
   })
 
+  it('is disabled while paused, with progress to clear', () => {
+    mockAreBoardsEqual.mockReturnValue(false)
+    mockUseSudokuState.mockReturnValue({
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, isPaused: true },
+    })
+    render(<ClearButton />)
+    expect(screen.getByRole('button', { name: 'Clear Board' })).toBeDisabled()
+  })
+
   it('is disabled in selecting and visualizing modes', () => {
     mockUseSudokuState.mockReturnValue({
       ...initialState,

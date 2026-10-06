@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { isBusy } from '@/context/sudoku.selectors'
 import { cn, DIFFICULTY_LEVELS } from '@/lib/utils'
 
 interface DifficultyPickerProps {
@@ -29,8 +30,9 @@ interface DifficultyPickerProps {
 
 /** One button per difficulty, with a spinner on the one still generating. */
 export function DifficultyPicker({ onSelect, className }: DifficultyPickerProps) {
-  const { solver } = useSudokuState()
-  const isBusy = solver.isGenerating || solver.isSolving || solver.isValidating
+  const state = useSudokuState()
+  const { solver } = state
+  const isDisabled = isBusy(state)
 
   return (
     <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-5', className)}>
@@ -41,7 +43,7 @@ export function DifficultyPicker({ onSelect, className }: DifficultyPickerProps)
           <Button
             key={level}
             variant="outline"
-            disabled={isBusy}
+            disabled={isDisabled}
             onClick={() => onSelect(value)}
             className={cn(level === 'Extreme' && 'col-span-2 sm:col-span-1')}
           >

@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { isBusy } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { areBoardsEqual, DIFFICULTY_LEVELS } from '@/lib/utils'
 
@@ -40,14 +41,15 @@ type PendingChoice = { kind: 'generate'; difficulty: string } | { kind: 'custom'
  * It shows a loading state while the puzzle is being generated in a web worker.
  */
 export function NewPuzzleButton() {
-  const { solver, board, initialBoard, derived } = useSudokuState()
+  const state = useSudokuState()
+  const { solver, board, initialBoard, derived } = state
   const { generatePuzzle, startCustomPuzzle } = useSudokuActions()
 
   const [isShowingGeneratingState, setIsShowingGeneratingState] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [pending, setPending] = useState<PendingChoice | null>(null)
 
-  const isButtonDisabled = solver.isGenerating || solver.isSolving || solver.isValidating
+  const isButtonDisabled = isBusy(state)
 
   const hasProgress =
     (solver.gameMode === 'customInput' && !derived.isBoardEmpty) ||

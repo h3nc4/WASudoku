@@ -1397,6 +1397,7 @@ describe('sudokuReducer', () => {
       ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
       ['while hinting', { ...playing, solver: { ...playing.solver, isHinting: true } }],
       ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+      ['while solving', { ...playing, solver: { ...playing.solver, isSolving: true } }],
     ] as [string, SudokuState][])('does nothing %s', (_, state) => {
       expect(sudokuReducer(state, { type: 'REQUEST_HINT' })).toBe(state)
     })

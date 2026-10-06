@@ -33,13 +33,18 @@ vi.mock('@/hooks/useSudokuActions')
 const mockUseSudokuState = useSudokuState as Mock
 const mockUseSudokuActions = useSudokuActions as Mock
 
+const playingState: SudokuState = {
+  ...initialState,
+  solver: { ...initialState.solver, gameMode: 'playing' },
+}
+
 describe('UndoRedo component', () => {
   const mockUndo = vi.fn()
   const mockRedo = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
+    mockUseSudokuState.mockReturnValue(playingState)
     mockUseSudokuActions.mockReturnValue({
       undo: mockUndo,
       redo: mockRedo,
@@ -54,7 +59,7 @@ describe('UndoRedo component', () => {
 
   it('enables Undo button when history.index > 0', () => {
     mockUseSudokuState.mockReturnValue({
-      ...initialState,
+      ...playingState,
       history: {
         index: 1,
         stack: [initialState.board, initialState.board], // 2 states
@@ -67,7 +72,7 @@ describe('UndoRedo component', () => {
 
   it('enables Redo button when not at the end of history', () => {
     mockUseSudokuState.mockReturnValue({
-      ...initialState,
+      ...playingState,
       history: {
         index: 0,
         stack: [initialState.board, initialState.board], // 2 states
@@ -80,7 +85,7 @@ describe('UndoRedo component', () => {
 
   it('disables both buttons when in visualizing mode, even if history exists', () => {
     const state: SudokuState = {
-      ...initialState,
+      ...playingState,
       history: {
         index: 1,
         stack: [initialState.board, initialState.board, initialState.board],
@@ -93,10 +98,42 @@ describe('UndoRedo component', () => {
     expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
   })
 
+  it.each([
+    ['while paused', { ui: { ...initialState.ui, isPaused: true } }],
+    ['while solving', { solver: { ...initialState.solver, gameMode: 'playing', isSolving: true } }],
+    [
+      'while validating',
+      { solver: { ...initialState.solver, gameMode: 'customInput', isValidating: true } },
+    ],
+    ['while selecting', { solver: initialState.solver }],
+  ] as [string, Partial<SudokuState>][])(
+    'disables both buttons %s, like the shortcuts',
+    (_, patch) => {
+      mockUseSudokuState.mockReturnValue({
+        ...playingState,
+        history: { index: 1, stack: [initialState.board, initialState.board, initialState.board] },
+        ...patch,
+      })
+      render(<UndoRedo />)
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+    },
+  )
+
+  it('keeps undo available once the puzzle is solved', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...playingState,
+      history: { index: 1, stack: [initialState.board, initialState.board] },
+      solver: { ...playingState.solver, isSolved: true },
+    })
+    render(<UndoRedo />)
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
+  })
+
   it('calls undo on click', async () => {
     const user = userEvent.setup()
     mockUseSudokuState.mockReturnValue({
-      ...initialState,
+      ...playingState,
       history: {
         index: 1,
         stack: [initialState.board, initialState.board],
@@ -111,7 +148,7 @@ describe('UndoRedo component', () => {
   it('calls redo on click', async () => {
     const user = userEvent.setup()
     mockUseSudokuState.mockReturnValue({
-      ...initialState,
+      ...playingState,
       history: {
         index: 0,
         stack: [initialState.board, initialState.board],

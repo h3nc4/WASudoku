@@ -33,13 +33,18 @@ vi.mock('@/hooks/useSudokuActions')
 const mockUseSudokuState = useSudokuState as Mock
 const mockUseSudokuActions = useSudokuActions as Mock
 
+const playingState: SudokuState = {
+  ...initialState,
+  solver: { ...initialState.solver, gameMode: 'playing' },
+}
+
 describe('NumberPad component', () => {
   const mockInputValue = vi.fn()
   const mockSetHighlightedValue = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
+    mockUseSudokuState.mockReturnValue(playingState)
     mockUseSudokuActions.mockReturnValue({
       inputValue: mockInputValue,
       setHighlightedValue: mockSetHighlightedValue,
@@ -77,7 +82,7 @@ describe('NumberPad component', () => {
       ...initialState.board[0],
       value: 3,
     }))
-    const state: SudokuState = { ...initialState, board: fullBoard }
+    const state: SudokuState = { ...playingState, board: fullBoard }
     mockUseSudokuState.mockReturnValue(state)
     render(<NumberPad />)
 
@@ -98,12 +103,35 @@ describe('NumberPad component', () => {
     }
   })
 
+  it.each([
+    ['while selecting', { ...initialState }],
+    ['while paused', { ...playingState, ui: { ...playingState.ui, isPaused: true } }],
+    ['while solving', { ...playingState, solver: { ...playingState.solver, isSolving: true } }],
+    [
+      'while validating',
+      {
+        ...playingState,
+        solver: { ...playingState.solver, gameMode: 'customInput', isValidating: true },
+      },
+    ],
+  ] as [string, SudokuState][])(
+    'disables all number buttons %s, as the grid is read-only',
+    (_, state) => {
+      mockUseSudokuState.mockReturnValue(state)
+      render(<NumberPad />)
+
+      for (let i = 1; i <= 9; i++) {
+        expect(screen.getByRole('button', { name: `Enter number ${i}` })).toBeDisabled()
+      }
+    },
+  )
+
   it('displays the remaining count for an incomplete number', () => {
     const partialBoard = createEmptyBoard().map((cell, i) => ({
       ...cell,
       value: i < 7 ? 3 : null,
     }))
-    const state: SudokuState = { ...initialState, board: partialBoard }
+    const state: SudokuState = { ...playingState, board: partialBoard }
     mockUseSudokuState.mockReturnValue(state)
     render(<NumberPad />)
 
@@ -118,7 +146,7 @@ describe('NumberPad component', () => {
       ...initialState.board[0],
       value: 3,
     }))
-    const state: SudokuState = { ...initialState, board: fullBoard }
+    const state: SudokuState = { ...playingState, board: fullBoard }
     mockUseSudokuState.mockReturnValue(state)
     render(<NumberPad />)
 
