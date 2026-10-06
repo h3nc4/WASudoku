@@ -25,14 +25,27 @@ mod utils;
 
 use board::Board;
 use generate::Difficulty;
-use std::panic;
+use serde::{Deserialize, Serialize};
 use types::SolveResult;
 use wasm_bindgen::prelude::*;
+
+/// A generated puzzle together with the solution it was carved from.
+#[derive(Serialize, Deserialize)]
+pub struct GeneratedPuzzle {
+    /// The 81-character puzzle, with `.` for empty cells.
+    pub puzzle: String,
+    /// The 81-character solved board.
+    pub solution: String,
+}
 
 /// Set the panic hook to forward Rust panics to the browser console.
 #[wasm_bindgen(start)]
 pub fn main() {
     utils::set_panic_hook();
+}
+
+fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
+    serde_wasm_bindgen::to_value(value).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Solve a Sudoku puzzle and return the logical steps and solution.
@@ -54,41 +67,24 @@ pub fn main() {
 ///
 /// ### Errors
 ///
-/// * A `JsValue` error if the input is invalid, the puzzle is unsolvable,
-///   or a panic occurs in the underlying solver.
+/// * A `JsValue` error if the input is invalid or the puzzle is unsolvable.
 #[wasm_bindgen]
 pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
     let initial_board: Board = board_str
         .parse::<Board>()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    // Use `catch_unwind` to contain any panics within the solver logic,
-    // preventing the WASM module from crashing and allowing a graceful error return.
-    let solve_result = panic::catch_unwind(move || {
-        let (steps, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
+    let (steps, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
 
-        // If logic was not sufficient, fall back to the backtracking algorithm.
-        let end_solution = if board_after_logic.cells.contains(&0) {
-            if solver::solve(&mut board_after_logic) {
-                Some(board_after_logic.to_string())
-            } else {
-                return None;
-            }
-        } else {
-            Some(board_after_logic.to_string())
-        };
-
-        Some(SolveResult {
-            steps,
-            solution: end_solution,
-        })
-    });
-
-    match solve_result {
-        Ok(Some(result)) => Ok(serde_wasm_bindgen::to_value(&result).unwrap()),
-        Ok(None) => Err(JsValue::from_str("No solution found for the given puzzle.")),
-        Err(_) => Err(JsValue::from_str("Solver crashed due to a critical error.")),
+    // If logic was not sufficient, fall back to the backtracking algorithm.
+    if board_after_logic.cells.contains(&0) && !solver::solve(&mut board_after_logic) {
+        return Err(JsValue::from_str("No solution found for the given puzzle."));
     }
+
+    to_js(&SolveResult {
+        steps,
+        solution: Some(board_after_logic.to_string()),
+    })
 }
 
 /// Generate a new Sudoku puzzle with a unique solution.
@@ -100,14 +96,13 @@ pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
 ///
 /// ### Returns
 ///
-/// * A `String` containing the 81-character puzzle.
+/// * A `JsValue` containing the serialized `GeneratedPuzzle`.
 ///
 /// ### Errors
 ///
-/// * A `JsValue` error if the difficulty string is invalid or if the
-///   generator panics.
+/// * A `JsValue` error if the difficulty string is invalid.
 #[wasm_bindgen]
-pub fn generate_sudoku(difficulty_str: &str) -> Result<String, JsValue> {
+pub fn generate_sudoku(difficulty_str: &str) -> Result<JsValue, JsValue> {
     let difficulty = match difficulty_str {
         "easy" => Difficulty::Easy,
         "medium" => Difficulty::Medium,
@@ -117,17 +112,14 @@ pub fn generate_sudoku(difficulty_str: &str) -> Result<String, JsValue> {
         _ => return Err(JsValue::from_str("Invalid difficulty level.")),
     };
 
-    let result = panic::catch_unwind(|| generate::generate(difficulty));
-
-    match result {
-        Ok(board) => Ok(board.to_string()),
-        Err(_) => Err(JsValue::from_str(
-            "Generator crashed due to a critical error.",
-        )),
-    }
+    let (puzzle, solution) = generate::generate(difficulty);
+    to_js(&GeneratedPuzzle {
+        puzzle: puzzle.to_string(),
+        solution: solution.to_string(),
+    })
 }
 
-/// Validate a Sudoku puzzle to ensure it has exactly one unique solution.
+/// Validate a Sudoku puzzle and return its solution when it is unique.
 ///
 /// ### Arguments
 ///
@@ -135,24 +127,21 @@ pub fn generate_sudoku(difficulty_str: &str) -> Result<String, JsValue> {
 ///
 /// ### Returns
 ///
-/// * A `bool` indicating if the puzzle has a unique solution.
+/// * The 81-character solution if the puzzle has exactly one, `None` otherwise.
 ///
 /// ### Errors
 ///
-/// * A `JsValue` error if the input string is invalid or if the
-///   validation logic panics.
+/// * A `JsValue` error if the input string is invalid.
 #[wasm_bindgen]
-pub fn validate_puzzle(board_str: &str) -> Result<bool, JsValue> {
-    let board: Board = board_str
+pub fn validate_puzzle(board_str: &str) -> Result<Option<String>, JsValue> {
+    let mut board: Board = board_str
         .parse::<Board>()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    let result = panic::catch_unwind(move || solver::count_solutions(&board));
-
-    match result {
-        Ok(count) => Ok(count == 1),
-        Err(_) => Err(JsValue::from_str(
-            "Validation crashed due to a critical error.",
-        )),
+    if solver::count_solutions(&board) != 1 {
+        return Ok(None);
     }
+    // Backtracking alone, since the logical solver's steps are not needed here.
+    solver::solve(&mut board);
+    Ok(Some(board.to_string()))
 }

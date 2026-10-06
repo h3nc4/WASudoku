@@ -22,7 +22,7 @@ use wasudoku_wasm::solver;
 
 #[test]
 fn test_generate_creates_valid_puzzle() {
-    let puzzle = generate::generate(Difficulty::Easy);
+    let (puzzle, _) = generate::generate(Difficulty::Easy);
     assert_eq!(
         solver::count_solutions(&puzzle),
         1,
@@ -39,8 +39,24 @@ fn test_generate_creates_valid_puzzle() {
 }
 
 #[test]
+fn test_generate_returns_solution_of_puzzle() {
+    let (puzzle, solution) = generate::generate(Difficulty::Extreme);
+    let mut solved = puzzle;
+    assert!(solver::solve(&mut solved));
+    assert_eq!(solved.cells, solution.cells);
+    assert!(
+        puzzle
+            .cells
+            .iter()
+            .zip(solution.cells.iter())
+            .all(|(&p, &s)| p == 0 || p == s),
+        "Every clue must match the solution."
+    );
+}
+
+#[test]
 fn test_generate_easy_puzzle_difficulty() {
-    let puzzle = generate::generate(Difficulty::Easy);
+    let (puzzle, _) = generate::generate(Difficulty::Easy);
     let (steps, _) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -54,7 +70,7 @@ fn test_generate_easy_puzzle_difficulty() {
 
 #[test]
 fn test_generate_medium_puzzle_difficulty() {
-    let puzzle = generate::generate(Difficulty::Medium);
+    let (puzzle, _) = generate::generate(Difficulty::Medium);
     let (steps, _) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -68,7 +84,7 @@ fn test_generate_medium_puzzle_difficulty() {
 
 #[test]
 fn test_generate_hard_puzzle_difficulty() {
-    let puzzle = generate::generate(Difficulty::Hard);
+    let (puzzle, _) = generate::generate(Difficulty::Hard);
     let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -87,7 +103,7 @@ fn test_generate_hard_puzzle_difficulty() {
 
 #[test]
 fn test_generate_expert_puzzle_difficulty() {
-    let puzzle = generate::generate(Difficulty::Expert);
+    let (puzzle, _) = generate::generate(Difficulty::Expert);
     let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -106,7 +122,7 @@ fn test_generate_expert_puzzle_difficulty() {
 
 #[test]
 fn test_generate_extreme_puzzle_difficulty() {
-    let puzzle = generate::generate(Difficulty::Extreme);
+    let (puzzle, _) = generate::generate(Difficulty::Extreme);
     assert_eq!(
         solver::count_solutions(&puzzle),
         1,

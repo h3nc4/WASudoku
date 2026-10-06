@@ -122,8 +122,8 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
     }
 }
 
-/// Generates a puzzle of a specific difficulty.
-pub fn generate(difficulty: Difficulty) -> Board {
+/// Generates a puzzle of a specific difficulty, returned as `(puzzle, solution)`.
+pub fn generate(difficulty: Difficulty) -> (Board, Board) {
     // For Easy puzzles, we stop minimizing around 32-36 clues to keep it approachable.
     // Standard min is 17, typical easy is 36+.
     let min_clues = if difficulty == Difficulty::Easy {
@@ -139,7 +139,7 @@ pub fn generate(difficulty: Difficulty) -> Board {
         let puzzle = create_minimal_puzzle_symmetric(&solution, min_clues);
 
         if matches_difficulty(&puzzle, difficulty) {
-            return puzzle;
+            return (puzzle, solution);
         }
     }
 }
