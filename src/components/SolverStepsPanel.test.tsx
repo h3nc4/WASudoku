@@ -207,7 +207,7 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByRole('heading', { name: 'Solving Steps' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 1: NakedSingle/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Step 1: Naked Single/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Step 19: Backtracking/ })).toBeInTheDocument()
   })
 
@@ -230,7 +230,7 @@ describe('SolverStepsPanel component', () => {
     render(<SolverStepsPanel />)
 
     // Click step 2 (index 1)
-    const step2Button = screen.getByRole('button', { name: /Step 2: HiddenSingle/ })
+    const step2Button = screen.getByRole('button', { name: /Step 2: Hidden Single/ })
     await user.click(step2Button)
 
     // Should dispatch index + 1
@@ -245,7 +245,7 @@ describe('SolverStepsPanel component', () => {
     })
     const { rerender } = render(<SolverStepsPanel />)
 
-    const step1Button = screen.getByRole('button', { name: /Step 1: NakedSingle/ })
+    const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
     expect(step1Button).toHaveAttribute('data-state', 'open')
 
     // When viewing initial state
@@ -276,144 +276,74 @@ describe('SolverStepsPanel component', () => {
     )
   })
 
-  describe('Step Explanations', () => {
-    const testCases: {
-      stepIndex: number
-      expectedText: RegExp
-    }[] = [
-      { stepIndex: 1, expectedText: /Cell R1C1 had only one possible candidate/ },
-      {
-        stepIndex: 2,
-        expectedText:
-          /Within its row, column, or box, the number 3 could only be placed in cell R2C2. This is a Hidden Single./,
-      },
-      {
-        stepIndex: 3,
-        expectedText: /Naked Pair: Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/,
-      },
-      {
-        stepIndex: 4,
-        expectedText:
-          /Hidden Pair: In their shared unit, the candidates \{7, 8\} only appear in cells R3C3, R3C4/,
-      },
-      {
-        stepIndex: 5,
-        expectedText:
-          /Naked Triple: Cells R4C4, R4C5, R4C6 form a triple with candidates \{1, 2, 3\}/,
-      },
-      {
-        stepIndex: 6,
-        expectedText:
-          /Hidden Triple: In their shared unit, the candidates \{5, 6, 9\} only appear in cells R5C5, R5C6, R5C7/,
-      },
-      {
-        stepIndex: 7,
-        expectedText: /Pointing Subgroup: The candidates \{8\} in one box are confined/,
-      },
-      {
-        stepIndex: 8,
-        expectedText: /Pointing Subgroup: The candidates \{1\} in one box are confined/,
-      },
-      {
-        stepIndex: 9,
-        expectedText:
-          /Box-Line Reduction \(Claiming\): The candidates \{2\} in a row or column are confined to a single box/,
-      },
-      {
-        stepIndex: 10,
-        expectedText:
-          /X-Wing: The candidate 5 appears in only two positions in two rows \(or columns\)/,
-      },
-      {
-        stepIndex: 11,
-        expectedText:
-          /Swordfish: The candidate 7 appears in only two or three positions in three rows/,
-      },
-      {
-        stepIndex: 12,
-        expectedText: /XY-Wing: Pivot R1C1 and pincers R1C2, R2C1 form a Y-Wing pattern/,
-      },
-      {
-        stepIndex: 13,
-        expectedText: /XYZ-Wing: Pivot R1C1 and pincers R1C2, R2C1 form a bent triple connection/,
-      },
-      {
-        stepIndex: 14,
-        expectedText:
-          /Skyscraper: Two rows \(or columns\) have the candidate 5 in only two positions/,
-      },
-      {
-        stepIndex: 15,
-        expectedText:
-          /Two-String Kite: A row and a column each have exactly two positions for candidate 7/,
-      },
-      {
-        stepIndex: 16,
-        expectedText:
-          /Jellyfish: The candidate 4 appears in specific positions across four rows \(or columns\)/,
-      },
-      {
-        stepIndex: 17,
-        expectedText:
-          /Unique Rectangle \(Type 1\): A "deadly pattern" of candidates \{2, 8\} was detected in two boxes.*removed from cell R2C2/,
-      },
-      {
-        stepIndex: 18,
-        expectedText: /W-Wing: Two cells contain the identical pair \{5, 9\}/,
-      },
-      {
-        stepIndex: 19,
-        expectedText:
-          /The available logical techniques were not sufficient to solve the puzzle. A backtracking \(brute-force\) algorithm was used to find the solution./,
-      },
-    ]
+  it('shows the explanation of the open step', async () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, currentStepIndex: 3 },
+    })
+    render(<SolverStepsPanel />)
+    expect(
+      await screen.findByText(/Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/),
+    ).toBeInTheDocument()
+  })
 
-    for (const { stepIndex, expectedText } of testCases) {
-      it(`shows the correct explanation for step ${stepIndex}`, async () => {
-        mockUseSudokuState.mockReturnValue({
-          ...defaultState,
-          solver: { ...defaultState.solver, currentStepIndex: stepIndex },
-        })
-        render(<SolverStepsPanel />)
-        expect(await screen.findByText(expectedText)).toBeInTheDocument()
-      })
-    }
-
-    it('shows the correct explanation for a default/unknown case', async () => {
-      const magicSteps = [{ technique: 'Magic', placements: [], eliminations: [], cause: [] }]
+  describe('step navigation', () => {
+    it('moves one step back and forward with the arrow buttons', async () => {
+      const user = userEvent.setup()
       mockUseSudokuState.mockReturnValue({
         ...defaultState,
-        solver: {
-          ...defaultState.solver,
-          steps: magicSteps,
-          currentStepIndex: 1,
-        },
+        solver: { ...defaultState.solver, currentStepIndex: 5 },
       })
       render(<SolverStepsPanel />)
-      expect(await screen.findByText('Technique used: Magic.')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Previous step' }))
+      expect(mockViewSolverStep).toHaveBeenLastCalledWith(4)
+      await user.click(screen.getByRole('button', { name: 'Next step' }))
+      expect(mockViewSolverStep).toHaveBeenLastCalledWith(6)
     })
 
-    it('handles malformed W-Wing data gracefully (coverage for fallback)', async () => {
-      const malformedStep: SolvingStep = {
-        technique: 'W-Wing',
-        placements: [],
-        eliminations: [{ index: 20, value: 5 }],
-        cause: [{ index: 0, candidates: [5] }], // Missing the second candidate
-      }
+    it('disables Previous at the initial board and Next at the solution', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, currentStepIndex: 0 },
+      })
+      const { rerender } = render(<SolverStepsPanel />)
+      expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Next step' })).toBeEnabled()
+
+      mockUseSudokuState.mockReturnValue(defaultState)
+      rerender(<SolverStepsPanel />)
+      expect(screen.getByRole('button', { name: 'Previous step' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Next step' })).toBeDisabled()
+    })
+
+    it('scrolls the open step into the list viewport', () => {
+      const rect = (top: number, bottom: number) => ({ top, bottom }) as DOMRect
+      const spy = vi
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.dataset.slot === 'scroll-area-viewport') {
+            return rect(100, 300)
+          }
+          return this.id === 'solver-step-1' ? rect(350, 400) : rect(20, 60)
+        })
 
       mockUseSudokuState.mockReturnValue({
         ...defaultState,
-        solver: {
-          ...defaultState.solver,
-          steps: [malformedStep],
-          currentStepIndex: 1,
-        },
+        solver: { ...defaultState.solver, currentStepIndex: 2 },
       })
-      render(<SolverStepsPanel />)
-      // valB should fall back to 0 because find() returns undefined for 5 (valX)
-      expect(
-        await screen.findByText(/W-Wing: Two cells contain the identical pair \{5, 0\}/),
-      ).toBeInTheDocument()
+      const { rerender } = render(<SolverStepsPanel />)
+      const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
+      expect(viewport.scrollTop).toBe(100)
+
+      viewport.scrollTop = 200
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, currentStepIndex: 1 },
+      })
+      rerender(<SolverStepsPanel />)
+      expect(viewport.scrollTop).toBe(120)
+      spy.mockRestore()
     })
   })
 
@@ -429,7 +359,7 @@ describe('SolverStepsPanel component', () => {
     mockViewSolverStep.mockClear()
 
     // Click the already-open trigger to close it
-    const step1Button = screen.getByRole('button', { name: /Step 1: NakedSingle/ })
+    const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
     await user.click(step1Button)
 
     // No new action should have been called

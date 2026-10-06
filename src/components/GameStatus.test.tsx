@@ -17,17 +17,21 @@
  */
 
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 import { GameStatus } from './GameStatus'
 
 vi.mock('@/context/sudoku.hooks')
+vi.mock('@/hooks/useSudokuActions')
 
 const mockUseSudokuState = useSudokuState as Mock
+const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('GameStatus component', () => {
   const playingState: SudokuState = {
@@ -36,9 +40,13 @@ describe('GameStatus component', () => {
     game: { timer: 0, mistakes: 0 },
   }
 
+  const mockPauseGame = vi.fn()
+  const mockResumeGame = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseSudokuState.mockReturnValue(playingState)
+    mockUseSudokuActions.mockReturnValue({ pauseGame: mockPauseGame, resumeGame: mockResumeGame })
   })
 
   it('does not render when not in playing mode', () => {
@@ -77,5 +85,30 @@ describe('GameStatus component', () => {
     render(<GameStatus />)
     const countElement = screen.getByText('3/3')
     expect(countElement).toHaveClass('text-red-500 font-bold')
+  })
+
+  it('pauses and resumes the game', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<GameStatus />)
+    await user.click(screen.getByRole('button', { name: 'Pause game' }))
+    expect(mockPauseGame).toHaveBeenCalledOnce()
+
+    mockUseSudokuState.mockReturnValue({
+      ...playingState,
+      ui: { ...playingState.ui, isPaused: true },
+    })
+    rerender(<GameStatus />)
+    await user.click(screen.getByRole('button', { name: 'Resume game' }))
+    expect(mockResumeGame).toHaveBeenCalledOnce()
+  })
+
+  it('shows a solved label instead of the pause control once won', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...playingState,
+      solver: { ...playingState.solver, isSolved: true },
+    })
+    render(<GameStatus />)
+    expect(screen.getByText('Solved')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pause game' })).not.toBeInTheDocument()
   })
 })

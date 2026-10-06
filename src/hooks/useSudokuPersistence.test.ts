@@ -108,6 +108,24 @@ describe('useSudokuPersistence', () => {
     expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.GAME, expect.any(String))
   })
 
+  it('should save the puzzle difficulty with the game', () => {
+    const updatedState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, difficulty: 'expert' },
+    }
+    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
+      initialProps: initialState,
+    })
+
+    setItemSpy.mockClear()
+    rerender(updatedState)
+
+    expect(setItemSpy).toHaveBeenCalledTimes(1)
+    const [key, json] = setItemSpy.mock.calls[0]
+    expect(key).toBe(STORAGE_KEYS.GAME)
+    expect(JSON.parse(json as string).difficulty).toBe('expert')
+  })
+
   it('should save only METRICS when timer changes', () => {
     const updatedState: SudokuState = {
       ...initialState,

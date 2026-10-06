@@ -45,10 +45,11 @@ const mockAreBoardsEqual = areBoardsEqual as Mock
 
 describe('ClearButton component', () => {
   const mockClearBoard = vi.fn()
+  const mockUndo = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuActions.mockReturnValue({ clearBoard: mockClearBoard })
+    mockUseSudokuActions.mockReturnValue({ clearBoard: mockClearBoard, undo: mockUndo })
     mockAreBoardsEqual.mockReturnValue(false) // Default to board not being pristine
   })
 
@@ -123,6 +124,8 @@ describe('ClearButton component', () => {
 
     await user.click(screen.getByRole('button', { name: 'Clear Board' }))
     expect(mockClearBoard).toHaveBeenCalled()
-    expect(toast.info).toHaveBeenCalledWith('Board cleared.')
+    expect(toast.info).toHaveBeenCalledWith('Board cleared.', {
+      action: { label: 'Undo', onClick: mockUndo },
+    })
   })
 })

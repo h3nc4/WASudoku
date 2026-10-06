@@ -232,8 +232,47 @@ describe('useSudokuSolver', () => {
         type: 'SOLVE_SUCCESS',
         result: mockResult,
       })
-      expect(toast.success).toHaveBeenCalledWith('Sudoku solved successfully!')
+      expect(toast.success).toHaveBeenCalledWith(
+        'Solver finished. Step through its solution beside the board.',
+      )
     })
+  })
+
+  it('solves the current board for a hint and reports the result', async () => {
+    const hintingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isHinting: true },
+    }
+    const mockResult = { solution: null, steps: [] }
+    mockRunTask.mockResolvedValueOnce(mockResult)
+
+    renderHook(() => useSudokuSolver(hintingState, mockDispatch))
+
+    expect(mockRunTask).toHaveBeenCalledWith(
+      'solve',
+      { boardString: '.'.repeat(81) },
+      Priority.HIGH,
+    )
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'HINT_SUCCESS', result: mockResult })
+    })
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('reports a hint failure when the solver rejects', async () => {
+    const hintingState: SudokuState = {
+      ...fullPoolState,
+      solver: { ...initialState.solver, isHinting: true },
+    }
+    mockRunTask.mockRejectedValueOnce(new Error('No solution found for the given puzzle.'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderHook(() => useSudokuSolver(hintingState, mockDispatch))
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'HINT_FAILURE' })
+    })
+    consoleSpy.mockRestore()
   })
 
   it('triggers puzzle validation (High Priority)', async () => {

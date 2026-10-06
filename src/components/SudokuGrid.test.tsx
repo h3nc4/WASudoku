@@ -43,6 +43,8 @@ interface MockSudokuCellProps {
   isCause: boolean
   isPlaced: boolean
   isError?: boolean
+  isHintTarget?: boolean
+  isSolved: boolean
   cell: CellState
   eliminatedCandidates?: ReadonlySet<number>
 }
@@ -79,6 +81,9 @@ describe('SudokuGrid component', () => {
     eraseActiveCell: vi.fn(),
     navigate: vi.fn(),
     setHighlightedValue: vi.fn(),
+    cycleInputMode: vi.fn(),
+    offerPuzzle: vi.fn(),
+    resumeGame: vi.fn(),
   }
   const defaultState: SudokuState = {
     ...initialState,
@@ -300,6 +305,35 @@ describe('SudokuGrid component', () => {
       expect(event.preventDefault).toHaveBeenCalled()
     })
 
+    it('erases the active cell on 0', () => {
+      render(<SudokuGrid />)
+      fireEvent.keyDown(screen.getByRole('grid'), { key: '0' })
+      expect(mockActions.eraseActiveCell).toHaveBeenCalledWith('delete')
+      expect(mockActions.inputValue).not.toHaveBeenCalled()
+    })
+
+    it.each([' ', 'n', 'N'])('cycles the input mode on %j', (key) => {
+      render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      const event = createEvent.keyDown(grid, { key })
+      event.preventDefault = vi.fn()
+      fireEvent(grid, event)
+      expect(mockActions.cycleInputMode).toHaveBeenCalledOnce()
+      expect(event.preventDefault).toHaveBeenCalled()
+    })
+
+    it('leaves modified keys to the browser and global shortcuts', () => {
+      render(<SudokuGrid />)
+      const grid = screen.getByRole('grid')
+      for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) {
+        const event = createEvent.keyDown(grid, { key: '5', [modifier]: true })
+        event.preventDefault = vi.fn()
+        fireEvent(grid, event)
+        expect(event.preventDefault).not.toHaveBeenCalled()
+      }
+      expect(mockActions.inputValue).not.toHaveBeenCalled()
+    })
+
     it('does not call preventDefault for unhandled keys', () => {
       render(<SudokuGrid />)
       const grid = screen.getByRole('grid')
@@ -314,6 +348,10 @@ describe('SudokuGrid component', () => {
 
   describe('Clipboard (Paste) Interactions', () => {
     const validBoardString = '.'.repeat(81)
+    const paste = (text: string) => {
+      const grid = screen.getByRole('grid')
+      fireEvent.paste(grid, { clipboardData: { getData: () => text } })
+    }
 
     beforeEach(() => {
       mockUseSudokuState.mockReturnValue({
@@ -325,67 +363,148 @@ describe('SudokuGrid component', () => {
       })
     })
 
-    it('dispatches importBoard action on valid paste in customInput mode', async () => {
-      const readTextSpy = vi
-        .spyOn(navigator.clipboard, 'readText')
-        .mockResolvedValue(validBoardString)
-
+    it('reads the event data rather than the clipboard API', () => {
+      const readTextSpy = vi.spyOn(navigator.clipboard, 'readText')
       render(<SudokuGrid />)
-      const grid = screen.getByRole('grid')
-      fireEvent.paste(grid)
-      await act(async () => await Promise.resolve())
+      paste(validBoardString)
 
-      expect(readTextSpy).toHaveBeenCalled()
+      expect(readTextSpy).not.toHaveBeenCalled()
       expect(mockDispatch).toHaveBeenCalledWith(sudokuActions.importBoard(validBoardString))
       expect(toast.success).toHaveBeenCalledWith('Board imported from clipboard.')
       readTextSpy.mockRestore()
     })
 
-    it('does not handle paste when not in customInput mode', async () => {
-      mockUseSudokuState.mockReturnValue({
-        ...defaultState,
-        solver: { ...defaultState.solver, gameMode: 'playing' },
-      })
-      const readTextSpy = vi.spyOn(navigator.clipboard, 'readText')
+    it('ignores whitespace and line breaks around the pasted puzzle', () => {
       render(<SudokuGrid />)
-      const grid = screen.getByRole('grid')
-
-      fireEvent.paste(grid)
-      await act(async () => await Promise.resolve())
-
-      expect(readTextSpy).not.toHaveBeenCalled()
-      expect(mockDispatch).not.toHaveBeenCalled()
-      readTextSpy.mockRestore()
+      paste(`  ${'1........\n'.repeat(9)}  `)
+      expect(mockDispatch).toHaveBeenCalledWith(sudokuActions.importBoard('1........'.repeat(9)))
     })
 
-    it('shows an error toast for invalid paste string', async () => {
-      const invalidString = 'abc'
-      const readTextSpy = vi.spyOn(navigator.clipboard, 'readText').mockResolvedValue(invalidString)
-
+    it('offers the pasted puzzle instead of importing it during play', () => {
+      mockUseSudokuState.mockReturnValue(defaultState)
       render(<SudokuGrid />)
-      const grid = screen.getByRole('grid')
-      fireEvent.paste(grid)
-      await act(async () => await Promise.resolve())
+      paste(validBoardString)
+
+      expect(mockActions.offerPuzzle).toHaveBeenCalledWith(validBoardString)
+      expect(mockDispatch).not.toHaveBeenCalled()
+    })
+
+    it('does not handle paste while visualizing', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, gameMode: 'visualizing' },
+      })
+      render(<SudokuGrid />)
+      paste(validBoardString)
+
+      expect(mockDispatch).not.toHaveBeenCalled()
+      expect(mockActions.offerPuzzle).not.toHaveBeenCalled()
+    })
+
+    it('shows an error toast for invalid paste string', () => {
+      render(<SudokuGrid />)
+      paste('abc')
 
       expect(mockDispatch).not.toHaveBeenCalled()
       expect(toast.error).toHaveBeenCalledWith('Invalid board format in clipboard.')
-      readTextSpy.mockRestore()
     })
+  })
 
-    it('shows an error toast if clipboard read fails', async () => {
-      const readTextSpy = vi
-        .spyOn(navigator.clipboard, 'readText')
-        .mockRejectedValue(new Error('Read failed'))
+  describe('Hints', () => {
+    const lastPropsFor = (index: number): MockSudokuCellProps =>
+      mockSudokuCellRender.mock.calls
+        .map(([p]) => p as MockSudokuCellProps)
+        .filter((p) => p.index === index)
+        .at(-1)!
 
+    it('marks the cause cells and the placement of a step hint', () => {
+      const step: SolvingStep = {
+        technique: 'HiddenSingle',
+        placements: [{ index: 4, value: 7 }],
+        eliminations: [{ index: 5, value: 7 }],
+        cause: [{ index: 9, candidates: [7] }],
+      }
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, hint: { kind: 'step', step } },
+      })
       render(<SudokuGrid />)
-      const grid = screen.getByRole('grid')
-      fireEvent.paste(grid)
-      await act(async () => await Promise.resolve())
 
-      expect(mockDispatch).not.toHaveBeenCalled()
-      expect(toast.error).toHaveBeenCalledWith('Could not read from clipboard.')
-      readTextSpy.mockRestore()
+      expect(lastPropsFor(4).isHintTarget).toBe(true)
+      expect(lastPropsFor(5).isHintTarget).toBe(false)
+      expect(lastPropsFor(9).isCause).toBe(true)
+      expect(lastPropsFor(5).eliminatedCandidates).toEqual(new Set([7]))
     })
+
+    it('marks the eliminated cells when a step places nothing', () => {
+      const step: SolvingStep = {
+        technique: 'PointingPair',
+        placements: [],
+        eliminations: [
+          { index: 6, value: 3 },
+          { index: 6, value: 4 },
+        ],
+        cause: [],
+      }
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, hint: { kind: 'step', step } },
+      })
+      render(<SudokuGrid />)
+
+      expect(lastPropsFor(6).isHintTarget).toBe(true)
+      expect(lastPropsFor(6).eliminatedCandidates).toEqual(new Set([3, 4]))
+    })
+
+    it('marks the single cell of a mistake hint', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, hint: { kind: 'mistake', index: 12 } },
+      })
+      render(<SudokuGrid />)
+      expect(lastPropsFor(12).isHintTarget).toBe(true)
+      expect(lastPropsFor(13).isHintTarget).toBe(false)
+    })
+
+    it('ignores a hint outside play', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, gameMode: 'customInput' },
+        ui: { ...defaultState.ui, hint: { kind: 'mistake', index: 12 } },
+      })
+      render(<SudokuGrid />)
+      expect(lastPropsFor(12).isHintTarget).toBe(false)
+    })
+  })
+
+  describe('Pause', () => {
+    it('hides the board behind a resume overlay and ignores keys', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, isPaused: true },
+      })
+      render(<SudokuGrid />)
+
+      const grid = screen.getByRole('grid', { hidden: true })
+      expect(grid).toHaveClass('invisible')
+      fireEvent.keyDown(grid, { key: '5' })
+      expect(mockActions.inputValue).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: 'Resume' }))
+      expect(mockActions.resumeGame).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('shows a won board with user colours by passing isSolved only while visualizing', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, isSolved: true },
+    })
+    render(<SudokuGrid />)
+    expect(mockSudokuCellRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({ isSolved: false }),
+    )
   })
 
   describe('when in visualizing mode', () => {

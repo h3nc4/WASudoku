@@ -22,7 +22,26 @@ import { toast } from 'sonner'
 import * as actions from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import type { InputMode } from '@/context/sudoku.types'
+import { buildShareUrl } from '@/lib/share'
 import { boardStateToString, getConflictingPeers, isMoveValid } from '@/lib/utils'
+
+const INPUT_MODES: readonly InputMode[] = ['normal', 'candidate', 'center']
+
+/** Copies text to the clipboard, reporting the outcome in a toast. */
+function copyToClipboard(text: string, successMessage: string) {
+  if (!navigator.clipboard) {
+    toast.error('Clipboard API not available in this browser or context.')
+    return
+  }
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      toast.success(successMessage)
+    })
+    .catch(() => {
+      toast.error('Failed to copy to clipboard.')
+    })
+}
 
 /**
  * Provides a stable, memoized API for dispatching all Sudoku actions.
@@ -39,7 +58,12 @@ export function useSudokuActions() {
   return useMemo(() => {
     const handleNormalInput = (index: number, value: number) => {
       dispatch(actions.setCellValue(index, value))
-      if (isMoveValid(state.board, index, value) && index < 80) {
+      // Advancing helps while typing in a puzzle, but during play it jumps off the cell just filled.
+      if (
+        state.solver.gameMode === 'customInput' &&
+        isMoveValid(state.board, index, value) &&
+        index < 80
+      ) {
         dispatch(actions.setActiveCell(index + 1))
       }
     }
@@ -127,19 +151,13 @@ export function useSudokuActions() {
       autoFillCandidates: () => dispatch(actions.autoFillCandidates()),
       /** Exports the current board state to the clipboard. */
       exportBoard: () => {
-        if (!navigator.clipboard) {
-          toast.error('Clipboard API not available in this browser or context.')
-          return
-        }
-        const boardString = boardStateToString(state.board)
-        navigator.clipboard
-          .writeText(boardString)
-          .then(() => {
-            toast.success('Board exported to clipboard.')
-          })
-          .catch(() => {
-            toast.error('Failed to copy board to clipboard.')
-          })
+        copyToClipboard(boardStateToString(state.board), 'Board exported to clipboard.')
+      },
+      /** Copies a link that opens the current puzzle, without the player's progress. */
+      sharePuzzleLink: () => {
+        const puzzle = state.solver.gameMode === 'customInput' ? state.board : state.initialBoard
+        const url = buildShareUrl(boardStateToString(puzzle), globalThis.location.href)
+        copyToClipboard(url, 'Puzzle link copied to clipboard.')
       },
       /** Undoes the last move. */
       undo: () => dispatch(actions.undo()),
@@ -163,6 +181,34 @@ export function useSudokuActions() {
       setHighlightedValue: (value: number | null) => dispatch(actions.setHighlightedValue(value)),
       /** Jumps to a specific step in the solver visualization. */
       viewSolverStep: (index: number) => dispatch(actions.viewSolverStep(index)),
+      /** Moves the solver visualization one step back or forward. */
+      stepVisualization: (delta: -1 | 1) => {
+        const { gameMode, currentStepIndex, steps } = state.solver
+        if (gameMode !== 'visualizing' || currentStepIndex === null) return
+        const next = currentStepIndex + delta
+        if (next >= 0 && next <= steps.length) {
+          dispatch(actions.viewSolverStep(next))
+        }
+      },
+      /** Switches to the next input mode, wrapping from Center back to Normal. */
+      cycleInputMode: () => {
+        const next = (INPUT_MODES.indexOf(state.ui.inputMode) + 1) % INPUT_MODES.length
+        dispatch(actions.setInputMode(INPUT_MODES[next]))
+      },
+      /** Asks the solver for the next move on the current board. */
+      requestHint: () => dispatch(actions.requestHint()),
+      /** Dismisses the current hint. */
+      clearHint: () => dispatch(actions.clearHint()),
+      /** Pauses the game, hiding the board. */
+      pauseGame: () => dispatch(actions.pauseGame()),
+      /** Resumes a paused game. */
+      resumeGame: () => dispatch(actions.resumeGame()),
+      /** Asks the player whether to load a puzzle string. */
+      offerPuzzle: (boardString: string) => dispatch(actions.offerPuzzle(boardString)),
+      /** Declines the offered puzzle. */
+      dismissPuzzle: () => dispatch(actions.dismissPuzzle()),
+      /** Validates and starts a puzzle from a string. */
+      loadPuzzle: (boardString: string) => dispatch(actions.loadPuzzle(boardString)),
     }
   }, [state, dispatch])
 }

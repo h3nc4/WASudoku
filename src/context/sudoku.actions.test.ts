@@ -210,4 +210,24 @@ describe('Sudoku Action Creators', () => {
     const expectedAction: SudokuAction = { type: 'CLEAR_TRANSIENT_CONFLICTS' }
     expect(actions.clearTransientConflicts()).toEqual(expectedAction)
   })
+
+  it('should create the hint actions', () => {
+    const result: SolveResult = { steps: [], solution: null }
+    expect(actions.requestHint()).toEqual({ type: 'REQUEST_HINT' })
+    expect(actions.hintSuccess(result)).toEqual({ type: 'HINT_SUCCESS', result })
+    expect(actions.hintFailure()).toEqual({ type: 'HINT_FAILURE' })
+    expect(actions.clearHint()).toEqual({ type: 'CLEAR_HINT' })
+  })
+
+  it('should create the pause actions', () => {
+    expect(actions.pauseGame()).toEqual({ type: 'PAUSE_GAME' })
+    expect(actions.resumeGame()).toEqual({ type: 'RESUME_GAME' })
+  })
+
+  it('should create the shared puzzle actions', () => {
+    const boardString = '.'.repeat(81)
+    expect(actions.offerPuzzle(boardString)).toEqual({ type: 'OFFER_PUZZLE', boardString })
+    expect(actions.dismissPuzzle()).toEqual({ type: 'DISMISS_PUZZLE' })
+    expect(actions.loadPuzzle(boardString)).toEqual({ type: 'LOAD_PUZZLE', boardString })
+  })
 })

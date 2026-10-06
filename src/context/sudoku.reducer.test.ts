@@ -18,7 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { areBoardsEqual, calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
+import { calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
 
 import type { SudokuAction } from './sudoku.actions.types'
 import {
@@ -475,7 +475,7 @@ describe('sudokuReducer', () => {
   })
 
   describe('CLEAR_BOARD', () => {
-    it('should clear user progress in playing mode and reset game metrics', () => {
+    it('should clear user progress in playing mode as an undoable step, keeping metrics', () => {
       const initialBoard = createEmptyBoard().map((c, i) =>
         i === 0 ? { ...c, value: 5, isGiven: true } : c,
       )
@@ -486,15 +486,18 @@ describe('sudokuReducer', () => {
         ...initialState,
         board: boardWithProgress,
         initialBoard,
+        history: { stack: [initialBoard, boardWithProgress], index: 1 },
         solver: { ...initialState.solver, gameMode: 'playing' },
         game: { timer: 100, mistakes: 2 },
       }
       const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
       expect(newState.board).toEqual(initialBoard)
-      expect(newState.history.stack).toHaveLength(1)
-      expect(areBoardsEqual(newState.history.stack[0], initialBoard)).toBe(true)
-      expect(newState.game.timer).toBe(0)
-      expect(newState.game.mistakes).toBe(0)
+      expect(newState.history.stack).toHaveLength(3)
+      expect(newState.history.index).toBe(2)
+      expect(newState.game).toEqual({ timer: 100, mistakes: 2 })
+
+      const undone = sudokuReducer(newState, { type: 'UNDO' })
+      expect(undone.board).toBe(boardWithProgress)
     })
 
     it('should return the same state instance if there is no progress to clear', () => {
@@ -521,9 +524,11 @@ describe('sudokuReducer', () => {
       }
       const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
       expect(newState.board).toEqual(createEmptyBoard())
-      expect(newState.history.stack).toHaveLength(1)
+      expect(newState.history.stack).toHaveLength(2)
       expect(newState.solver.solution).toBeNull()
-      expect(newState.game.timer).toBe(0)
+
+      const undone = sudokuReducer(newState, { type: 'UNDO' })
+      expect(undone.history.index).toBe(0)
     })
 
     it('should do nothing if board is empty in customInput mode', () => {
@@ -1331,6 +1336,254 @@ describe('sudokuReducer', () => {
     })
   })
 
+  describe('Hints', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing', solution },
+    }
+    const step: SolvingStep = {
+      technique: 'NakedSingle',
+      placements: [{ index: 3, value: 4 }],
+      eliminations: [],
+      cause: [],
+    }
+
+    it('points at the first wrong user digit without asking the solver', () => {
+      const board = createEmptyBoard().map((c, i) => {
+        if (i === 0) return { ...c, value: 9, isGiven: true }
+        if (i === 2) return { ...c, value: 8 }
+        return c
+      })
+      const state = sudokuReducer({ ...playing, board }, { type: 'REQUEST_HINT' })
+      expect(state.ui.hint).toEqual({ kind: 'mistake', index: 2 })
+      expect(state.solver.isHinting).toBe(false)
+    })
+
+    it('asks the solver when every digit is right', () => {
+      const state = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      expect(state.solver.isHinting).toBe(true)
+      expect(state.ui.hint).toBeNull()
+    })
+
+    it('asks the solver when no solution is known', () => {
+      const board = createEmptyBoard().map((c, i) => (i === 2 ? { ...c, value: 8 } : c))
+      const state = sudokuReducer(
+        { ...playing, board, solver: { ...playing.solver, solution: null } },
+        { type: 'REQUEST_HINT' },
+      )
+      expect(state.solver.isHinting).toBe(true)
+    })
+
+    it.each([
+      ['outside play', { ...playing, solver: { ...playing.solver, gameMode: 'customInput' } }],
+      ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
+      ['while hinting', { ...playing, solver: { ...playing.solver, isHinting: true } }],
+      ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+    ] as [string, SudokuState][])('does nothing %s', (_, state) => {
+      expect(sudokuReducer(state, { type: 'REQUEST_HINT' })).toBe(state)
+    })
+
+    it('keeps only the first solver step', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const second = { ...step, placements: [{ index: 4, value: 5 }] }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [step, second], solution: null },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'step', step })
+      expect(state.solver.isHinting).toBe(false)
+      expect(state.board).toBe(hinting.board)
+    })
+
+    it('reveals the first empty cell when logic finds no step', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: null },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'reveal', index: 0, value: 1 })
+    })
+
+    it('falls back to the solver solution when none is stored', () => {
+      const hinting: SudokuState = {
+        ...playing,
+        solver: { ...playing.solver, solution: null, isHinting: true },
+      }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: '7'.repeat(81) },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'reveal', index: 0, value: 7 })
+    })
+
+    it('reports an error when nothing can be hinted', () => {
+      const hinting: SudokuState = {
+        ...playing,
+        solver: { ...playing.solver, solution: null, isHinting: true },
+      }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: null },
+      })
+      expect(state.ui.hint).toBeNull()
+      expect(state.ui.lastError).toBe('No hint is available for this board.')
+    })
+
+    it('ignores a late result once the hint was abandoned', () => {
+      const state = sudokuReducer(playing, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [step], solution: null },
+      })
+      expect(state).toBe(playing)
+    })
+
+    it('handles HINT_FAILURE', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const state = sudokuReducer(hinting, { type: 'HINT_FAILURE' })
+      expect(state.solver.isHinting).toBe(false)
+      expect(state.ui.lastError).toBe('No hint is available for this board.')
+    })
+
+    it('clears the hint on CLEAR_HINT, on any board edit and when solving starts', () => {
+      const withHint: SudokuState = {
+        ...playing,
+        ui: { ...playing.ui, hint: { kind: 'step', step } },
+      }
+      expect(sudokuReducer(withHint, { type: 'CLEAR_HINT' }).ui.hint).toBeNull()
+      expect(sudokuReducer(withHint, { type: 'SOLVE_START' }).ui.hint).toBeNull()
+      const edited = sudokuReducer(withHint, { type: 'SET_CELL_VALUE', index: 3, value: 4 })
+      expect(edited.ui.hint).toBeNull()
+    })
+
+    it('abandons a running hint when the board changes', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const edited = sudokuReducer(hinting, { type: 'SET_CELL_VALUE', index: 3, value: 4 })
+      expect(edited.solver.isHinting).toBe(false)
+    })
+  })
+
+  describe('Pause', () => {
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, activeCellIndex: 4, highlightedValue: 2 },
+    }
+
+    it('pauses play and drops the selection', () => {
+      const state = sudokuReducer(playing, { type: 'PAUSE_GAME' })
+      expect(state.ui.isPaused).toBe(true)
+      expect(state.ui.activeCellIndex).toBeNull()
+      expect(state.ui.highlightedValue).toBeNull()
+      expect(sudokuReducer(state, { type: 'RESUME_GAME' }).ui.isPaused).toBe(false)
+    })
+
+    it.each([
+      ['outside play', { ...playing, solver: { ...playing.solver, gameMode: 'visualizing' } }],
+      ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
+      ['when already paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+    ] as [string, SudokuState][])('does not pause %s', (_, state) => {
+      expect(sudokuReducer(state, { type: 'PAUSE_GAME' })).toBe(state)
+    })
+  })
+
+  describe('Shared puzzles', () => {
+    const puzzle = '1' + '.'.repeat(80)
+
+    it('offers and dismisses a puzzle', () => {
+      const offered = sudokuReducer(initialState, { type: 'OFFER_PUZZLE', boardString: puzzle })
+      expect(offered.ui.pendingPuzzle).toBe(puzzle)
+      expect(sudokuReducer(offered, { type: 'DISMISS_PUZZLE' }).ui.pendingPuzzle).toBeNull()
+    })
+
+    it('loads a puzzle into validation, keeping the pool', () => {
+      const pool = {
+        ...initialState.puzzlePool,
+        easy: [{ puzzleString: 'a', solutionString: 'b' }],
+      }
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          puzzlePool: pool,
+          game: { timer: 50, mistakes: 1 },
+          ui: { ...initialState.ui, pendingPuzzle: puzzle },
+        },
+        { type: 'LOAD_PUZZLE', boardString: puzzle },
+      )
+      expect(state.board[0]).toMatchObject({ value: 1, isGiven: true })
+      expect(state.solver.gameMode).toBe('customInput')
+      expect(state.solver.isValidating).toBe(true)
+      expect(state.ui.pendingPuzzle).toBeNull()
+      expect(state.game).toEqual({ timer: 0, mistakes: 0 })
+      expect(state.puzzlePool).toBe(pool)
+      expect(state.derived.isBoardEmpty).toBe(false)
+    })
+  })
+
+  describe('Win detection', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const solvedBoard = createEmptyBoard().map((c, i) => ({ ...c, value: solution[i] }))
+
+    it('marks the game solved when the last correct digit lands', () => {
+      const board = solvedBoard.map((c, i) => (i === 80 ? { ...c, value: null } : c))
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          board,
+          solver: { ...initialState.solver, gameMode: 'playing', solution },
+        },
+        { type: 'SET_CELL_VALUE', index: 80, value: 9 },
+      )
+      expect(state.solver.isSolved).toBe(true)
+    })
+
+    it('restores the solved flag when redo returns to the winning board', () => {
+      const before = solvedBoard.map((c, i) => (i === 80 ? { ...c, value: null } : c))
+      const state: SudokuState = {
+        ...initialState,
+        board: before,
+        history: { stack: [before, solvedBoard], index: 0 },
+        solver: { ...initialState.solver, gameMode: 'playing', solution },
+      }
+      expect(sudokuReducer(state, { type: 'REDO' }).solver.isSolved).toBe(true)
+    })
+
+    it('records the difficulty of a generated puzzle', () => {
+      const fromPool = sudokuReducer(
+        {
+          ...initialState,
+          puzzlePool: {
+            ...initialState.puzzlePool,
+            hard: [{ puzzleString: '.'.repeat(81), solutionString: '1'.repeat(81) }],
+          },
+        },
+        { type: 'GENERATE_PUZZLE_START', difficulty: 'hard' },
+      )
+      expect(fromPool.solver.difficulty).toBe('hard')
+
+      const generated = sudokuReducer(
+        { ...initialState, solver: { ...initialState.solver, generationDifficulty: 'expert' } },
+        {
+          type: 'GENERATE_PUZZLE_SUCCESS',
+          puzzleString: '.'.repeat(81),
+          solutionString: '1'.repeat(81),
+        },
+      )
+      expect(generated.solver.difficulty).toBe('expert')
+    })
+
+    it('treats a validated custom puzzle as having no difficulty', () => {
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'customInput', difficulty: 'hard' },
+        },
+        { type: 'VALIDATE_PUZZLE_SUCCESS', solutionString: '1'.repeat(81) },
+      )
+      expect(state.solver.difficulty).toBeNull()
+    })
+  })
+
   describe('Default Case', () => {
     it('should return the same state for an unknown action', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1371,6 +1624,24 @@ describe('loadInitialState', () => {
     localStorageMock.getItem.mockReturnValue(null)
     const state = loadInitialState()
     expect(state).toEqual(initialState)
+  })
+
+  it('restores the difficulty and the solved flag of a finished game', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const solvedBoard = createEmptyBoard().map((c, i) => ({ ...c, value: solution[i] }))
+    const persistedGame: PersistedGameState = {
+      history: { stack: [solvedBoard], index: 0 },
+      initialBoard: createEmptyBoard(),
+      solution,
+      difficulty: 'medium',
+    }
+    localStorageMock.getItem.mockImplementation((key) =>
+      key === STORAGE_KEYS.GAME ? JSON.stringify(persistedGame) : null,
+    )
+
+    const state = loadInitialState()
+    expect(state.solver.difficulty).toBe('medium')
+    expect(state.solver.isSolved).toBe(true)
   })
 
   it('should load state from new split keys', () => {

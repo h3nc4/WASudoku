@@ -39,9 +39,6 @@ describe('SolveButton component', () => {
   const mockExitVisualization = vi.fn()
   const mockValidatePuzzle = vi.fn()
 
-  let getItemSpy: ReturnType<typeof vi.spyOn>
-  let setItemSpy: ReturnType<typeof vi.spyOn>
-
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseSudokuState.mockReturnValue(initialState)
@@ -50,14 +47,10 @@ describe('SolveButton component', () => {
       exitVisualization: mockExitVisualization,
       validatePuzzle: mockValidatePuzzle,
     })
-
-    getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
-    setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    getItemSpy.mockRestore()
-    setItemSpy.mockRestore()
+    vi.useRealTimers()
   })
 
   describe('in "playing" mode', () => {
@@ -67,7 +60,7 @@ describe('SolveButton component', () => {
         derived: { ...initialState.derived, isBoardEmpty: true },
       })
       render(<SolveButton />)
-      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
+      const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
       expect(button).toHaveAttribute('title', 'Board is empty.')
     })
@@ -82,7 +75,7 @@ describe('SolveButton component', () => {
         },
       })
       render(<SolveButton />)
-      expect(screen.getByRole('button', { name: 'Solve Puzzle' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Solve' })).toBeEnabled()
     })
 
     it('is disabled and shows conflict title when there are conflicts', () => {
@@ -95,7 +88,7 @@ describe('SolveButton component', () => {
         },
       })
       render(<SolveButton />)
-      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
+      const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
       expect(button).toHaveAttribute('title', 'Cannot solve with conflicts.')
     })
@@ -106,7 +99,7 @@ describe('SolveButton component', () => {
         derived: { ...initialState.derived, isBoardFull: true },
       })
       render(<SolveButton />)
-      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
+      const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
       expect(button).toHaveAttribute('title', 'Board is already full.')
     })
@@ -118,7 +111,7 @@ describe('SolveButton component', () => {
         solver: { ...initialState.solver, solveFailed: true },
       })
       render(<SolveButton />)
-      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
+      const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
       expect(button).toHaveAttribute(
         'title',
@@ -138,80 +131,68 @@ describe('SolveButton component', () => {
       })
       render(<SolveButton />)
 
-      await user.click(screen.getByRole('button', { name: 'Solve Puzzle' }))
+      await user.click(screen.getByRole('button', { name: 'Solve' }))
       expect(mockSolve).toHaveBeenCalled()
     })
 
-    it('renders guiding tooltip for first-time users when valid', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
-        solver: { ...initialState.solver, gameMode: 'playing' },
-      })
-      render(<SolveButton />)
-      expect(screen.getByText(/Click me!/i)).toBeInTheDocument()
-    })
-
-    it('hides guiding tooltip after clicking solve and sets localStorage', async () => {
+    it('asks for confirmation before revealing the solution during play', async () => {
       const user = userEvent.setup()
       mockUseSudokuState.mockReturnValue({
         ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
+        derived: { ...initialState.derived, isBoardEmpty: false },
         solver: { ...initialState.solver, gameMode: 'playing' },
       })
       render(<SolveButton />)
 
-      expect(screen.getByText(/Click me!/i)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Solve' }))
+      expect(mockSolve).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog', { name: 'Reveal the solution?' })).toBeInTheDocument()
 
-      await user.click(screen.getByRole('button', { name: 'Solve Puzzle' }))
-
-      expect(mockSolve).toHaveBeenCalled()
-      expect(setItemSpy).toHaveBeenCalledWith('wasudoku_has_seen_solve', 'true')
-      expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Reveal solution' }))
+      expect(mockSolve).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    it('does not render guiding tooltip if user has already clicked solve', () => {
-      getItemSpy.mockReturnValue('true')
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
-        solver: { ...initialState.solver, gameMode: 'playing' },
-      })
-      render(<SolveButton />)
-      expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
-    })
-
-    it('does not update localStorage if user has already clicked solve previously', async () => {
-      getItemSpy.mockReturnValue('true')
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
-        solver: { ...initialState.solver, gameMode: 'playing' },
-      })
+    it('does not solve when the confirmation is cancelled', async () => {
       const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: { ...initialState.derived, isBoardEmpty: false },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
       render(<SolveButton />)
 
-      const button = screen.getByRole('button', { name: 'Solve Puzzle' })
-      await user.click(button)
+      await user.click(screen.getByRole('button', { name: 'Solve' }))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(mockSolve).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
 
-      expect(mockSolve).toHaveBeenCalled()
-      expect(setItemSpy).not.toHaveBeenCalled()
+    it('is disabled once the puzzle is solved, while a hint runs, or while paused', () => {
+      const base = {
+        ...initialState,
+        derived: { ...initialState.derived, isBoardEmpty: false },
+      }
+      const { rerender } = render(<SolveButton />)
+      for (const state of [
+        { ...base, solver: { ...base.solver, gameMode: 'playing', isSolved: true } },
+        { ...base, solver: { ...base.solver, isHinting: true } },
+        { ...base, ui: { ...base.ui, isPaused: true } },
+      ]) {
+        mockUseSudokuState.mockReturnValue(state)
+        rerender(<SolveButton />)
+        expect(screen.getByRole('button', { name: 'Solve' })).toBeDisabled()
+      }
+    })
+
+    it('shows no guiding tooltip', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        derived: { ...initialState.derived, isBoardEmpty: false },
+        solver: { ...initialState.solver, gameMode: 'playing' },
+      })
+      render(<SolveButton />)
+      expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
     })
 
     it('shows and hides "Solving..." state correctly based on isSolving prop', () => {
@@ -242,7 +223,7 @@ describe('SolveButton component', () => {
 
       // Should disappear immediately
       expect(screen.queryByText('Solving...')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Solve Puzzle' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Solve' })).toBeInTheDocument()
 
       vi.useRealTimers()
     })
@@ -258,7 +239,7 @@ describe('SolveButton component', () => {
       mockUseSudokuState.mockReturnValue(visualizingState)
       render(<SolveButton />)
       expect(screen.getByRole('button', { name: /exit visualization/i })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /solve puzzle/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^solve$/i })).not.toBeInTheDocument()
     })
 
     it('calls exitVisualization on click', async () => {

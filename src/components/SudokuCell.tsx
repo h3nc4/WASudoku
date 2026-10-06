@@ -55,6 +55,8 @@ interface SudokuCellProps {
   readonly eliminatedCandidates?: ReadonlySet<number>
   /** Whether this cell is part of a momentary conflict highlight. */
   readonly isTransientConflict?: boolean
+  /** Whether a hint points at this cell. */
+  readonly isHintTarget?: boolean
 }
 
 /**
@@ -71,6 +73,7 @@ const getBackgroundStyles = ({
   isNumberHighlighted,
   isHighlighted,
   isTransientConflict,
+  isHintTarget,
 }: Pick<
   SudokuCellProps,
   | 'isConflict'
@@ -82,15 +85,18 @@ const getBackgroundStyles = ({
   | 'isNumberHighlighted'
   | 'isHighlighted'
   | 'isTransientConflict'
+  | 'isHintTarget'
 >) => {
+  const hintRing = isHintTarget ? ' ring-2 ring-inset ring-amber-500 dark:ring-amber-400' : ''
   if (isTransientConflict) return '!bg-destructive/30 transition-colors duration-200'
-  if (isConflict || isError) return '!bg-destructive/20'
-  if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
+  if (isConflict || isError) return '!bg-destructive/20' + hintRing
+  if (isHintTarget) return 'bg-amber-100 dark:bg-amber-900/60' + hintRing
+  if (isActive) return 'bg-blue-200 dark:bg-sky-700'
   if (isSolving) return 'cursor-not-allowed bg-muted/50'
   if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
   if (isPlaced) return 'bg-green-100 dark:bg-green-900/80'
-  if (isNumberHighlighted) return 'bg-blue-100 dark:bg-sky-900/80'
-  if (isHighlighted) return 'bg-blue-50 dark:bg-sky-900/60'
+  if (isNumberHighlighted) return 'bg-indigo-100 dark:bg-indigo-900/70'
+  if (isHighlighted) return 'bg-blue-50 dark:bg-sky-950/80'
   return ''
 }
 

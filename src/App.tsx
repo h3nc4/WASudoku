@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ChevronDown, Eraser, Share2 } from 'lucide-react'
+import { ChevronDown, Eraser } from 'lucide-react'
 import { useCallback } from 'react'
 import { SiGithub } from 'react-icons/si'
 
@@ -27,21 +27,28 @@ import { Button } from '@/components/ui/button'
 
 import { AutoFillButton } from './components/controls/AutoFillButton'
 import { ClearButton } from './components/controls/ClearButton'
+import { HintButton } from './components/controls/HintButton'
 import { InputModeToggle } from './components/controls/InputModeToggle'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
 import { SolveButton } from './components/controls/SolveButton'
 import { UndoRedo } from './components/controls/UndoRedo'
 import { GameStatus } from './components/GameStatus'
+import { HintPanel } from './components/HintPanel'
+import { PendingPuzzleDialog } from './components/PendingPuzzleDialog'
 import { SelectionScreen } from './components/SelectionScreen'
+import { ShareMenu } from './components/ShareMenu'
 import { SolverStepsPanel } from './components/SolverStepsPanel'
+import { WinDialog } from './components/WinDialog'
 import { useSudokuState } from './context/sudoku.hooks'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSudokuActions } from './hooks/useSudokuActions'
 import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { cn } from './lib/utils'
 
 function App() {
   const { ui, solver } = useSudokuState()
-  const { eraseActiveCell, exportBoard } = useSudokuActions()
+  const { eraseActiveCell } = useSudokuActions()
+  useKeyboardShortcuts()
 
   const { sourceRef, targetRef } = useSynchronizedHeight(solver.gameMode === 'visualizing')
 
@@ -49,8 +56,9 @@ function App() {
     eraseActiveCell('delete')
   }, [eraseActiveCell])
 
-  const isGridInteractive = solver.gameMode === 'playing' || solver.gameMode === 'customInput'
-  const isControlDisabled = !isGridInteractive
+  const isPlaying = solver.gameMode === 'playing'
+  const isGridInteractive = isPlaying || solver.gameMode === 'customInput'
+  const isControlDisabled = !isGridInteractive || ui.isPaused
   const showSelectionScreen = solver.gameMode === 'selecting'
 
   return (
@@ -58,9 +66,7 @@ function App() {
       <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
         <h1 className="text-2xl font-bold md:text-3xl">WASudoku</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={exportBoard} title="Export Board">
-            <Share2 className="size-5" />
-          </Button>
+          <ShareMenu />
           <Button variant="outline" size="icon" asChild>
             <a
               href="https://github.com/h3nc4/WASudoku"
@@ -85,6 +91,7 @@ function App() {
           {/* Main content: Grid + Controls */}
           <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
             <GameStatus />
+            <HintPanel />
             <SudokuGrid />
             <div className="flex flex-col gap-4">
               <div className="grid w-full grid-cols-4 place-items-center gap-2">
@@ -103,12 +110,11 @@ function App() {
               </div>
               <NumberPad />
               <InputModeToggle />
-              <div className="flex flex-col gap-2">
-                <div className="flex w-full flex-row gap-2">
-                  <NewPuzzleButton />
-                  <SolveButton />
-                </div>
-                <ClearButton />
+              <div className="grid w-full grid-cols-2 gap-2">
+                <NewPuzzleButton />
+                {isPlaying ? <HintButton /> : <SolveButton />}
+                {isPlaying && <SolveButton />}
+                <ClearButton className={cn(!isPlaying && 'col-span-2')} />
               </div>
 
               {/* Mobile visual cue for solving steps */}
@@ -131,6 +137,8 @@ function App() {
       </main>
 
       {showSelectionScreen && <SelectionScreen />}
+      <WinDialog />
+      <PendingPuzzleDialog />
 
       <footer className="text-muted-foreground container mx-auto p-4 text-center text-sm">
         <a

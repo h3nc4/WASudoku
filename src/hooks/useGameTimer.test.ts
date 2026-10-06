@@ -19,7 +19,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { tickTimer } from '@/context/sudoku.actions'
+import { pauseGame, tickTimer } from '@/context/sudoku.actions'
 import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
 
@@ -82,5 +82,39 @@ describe('useGameTimer', () => {
       vi.advanceTimersByTime(5000)
     })
     expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('should not tick while paused', () => {
+    const pausedState: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, isPaused: true },
+    }
+
+    renderHook(() => useGameTimer(pausedState, mockDispatch))
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('should pause the game when the tab is hidden, and not when it is shown', () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get')
+    const { unmount } = renderHook(() => useGameTimer(initialState, mockDispatch))
+
+    visibility.mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).not.toHaveBeenCalled()
+
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).toHaveBeenCalledWith(pauseGame())
+
+    unmount()
+    mockDispatch.mockClear()
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).not.toHaveBeenCalled()
+    visibility.mockRestore()
   })
 })

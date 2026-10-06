@@ -35,7 +35,7 @@ interface ClearButtonProps {
  */
 export function ClearButton({ className }: ClearButtonProps) {
   const { solver, derived, board, initialBoard } = useSudokuState()
-  const { clearBoard } = useSudokuActions()
+  const { clearBoard, undo } = useSudokuActions()
 
   const isPristineInPlay = solver.gameMode === 'playing' && areBoardsEqual(board, initialBoard)
   const isEmptyInCustom = solver.gameMode === 'customInput' && derived.isBoardEmpty
@@ -56,12 +56,12 @@ export function ClearButton({ className }: ClearButtonProps) {
 
   const handleClear = () => {
     clearBoard()
-    toast.info('Board cleared.')
+    toast.info('Board cleared.', { action: { label: 'Undo', onClick: undo } })
   }
 
   return (
     <Button
-      variant="secondary"
+      variant="outline"
       onClick={handleClear}
       className={cn('w-full', className)}
       disabled={isClearDisabled}

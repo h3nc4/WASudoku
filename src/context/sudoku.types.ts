@@ -58,6 +58,12 @@ export interface SolveResult {
   solution: string | null
 }
 
+/** A hint for the next move on the player's board. */
+export type Hint =
+  | { readonly kind: 'step'; readonly step: SolvingStep }
+  | { readonly kind: 'mistake'; readonly index: number }
+  | { readonly kind: 'reveal'; readonly index: number; readonly value: number }
+
 export interface HistoryState {
   readonly stack: readonly BoardState[]
   readonly index: number
@@ -70,13 +76,22 @@ export interface UiState {
   readonly lastError: string | null
   /** Set of cell indices that are momentarily conflicting with a user action. */
   readonly transientConflicts: ReadonlySet<number> | null
+  /** The hint currently shown on the board, if any. */
+  readonly hint: Hint | null
+  /** Whether the game is paused, which hides the board and stops the timer. */
+  readonly isPaused: boolean
+  /** A puzzle string waiting for the player to confirm loading it. */
+  readonly pendingPuzzle: string | null
 }
 
 export interface SolverState {
   readonly isSolving: boolean
   readonly isGenerating: boolean
   readonly isValidating: boolean
+  readonly isHinting: boolean
   readonly generationDifficulty: string | null
+  /** Difficulty of the puzzle in play, or null for a custom one. */
+  readonly difficulty: string | null
   readonly isSolved: boolean
   readonly solveFailed: boolean
   readonly gameMode: GameMode
@@ -134,6 +149,7 @@ export interface PersistedGameState {
   }
   initialBoard: BoardState
   solution: number[] | null
+  difficulty?: string | null
 }
 
 /** Data persisted for game metrics. */

@@ -24,6 +24,7 @@ import App from './App'
 import { useSudokuState } from './context/sudoku.hooks'
 import { initialState } from './context/sudoku.reducer'
 import type { SudokuState } from './context/sudoku.types'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSudokuActions } from './hooks/useSudokuActions'
 
 vi.mock('./context/sudoku.hooks')
@@ -66,6 +67,22 @@ vi.mock('./components/mode-toggle', () => ({
 vi.mock('./components/SolverStepsPanel', () => ({
   SolverStepsPanel: vi.fn(() => <div data-testid="solver-steps-panel" />),
 }))
+vi.mock('./components/controls/HintButton', () => ({
+  HintButton: vi.fn(() => <button>Hint</button>),
+}))
+vi.mock('./components/ShareMenu', () => ({
+  ShareMenu: vi.fn(() => <button>Share puzzle</button>),
+}))
+vi.mock('./components/HintPanel', () => ({
+  HintPanel: vi.fn(() => <div data-testid="hint-panel" />),
+}))
+vi.mock('./components/WinDialog', () => ({
+  WinDialog: vi.fn(() => <div data-testid="win-dialog" />),
+}))
+vi.mock('./components/PendingPuzzleDialog', () => ({
+  PendingPuzzleDialog: vi.fn(() => <div data-testid="pending-puzzle-dialog" />),
+}))
+vi.mock('./hooks/useKeyboardShortcuts', () => ({ useKeyboardShortcuts: vi.fn() }))
 vi.mock('./components/SelectionScreen', () => ({
   SelectionScreen: vi.fn(() => <div data-testid="selection-screen" />),
 }))
@@ -75,7 +92,6 @@ const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('App component', () => {
   const mockEraseActiveCell = vi.fn()
-  const mockExportBoard = vi.fn()
   const defaultState: SudokuState = {
     ...initialState,
     solver: {
@@ -93,7 +109,6 @@ describe('App component', () => {
     mockUseSudokuState.mockReturnValue(defaultState)
     mockUseSudokuActions.mockReturnValue({
       eraseActiveCell: mockEraseActiveCell,
-      exportBoard: mockExportBoard,
     })
   })
 
@@ -105,17 +120,32 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: 'NumberPad' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solve' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Export Board' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share puzzle' })).toBeInTheDocument()
+    expect(screen.getByTestId('hint-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('win-dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('pending-puzzle-dialog')).toBeInTheDocument()
+    expect(useKeyboardShortcuts).toHaveBeenCalled()
     expect(screen.getByRole('link', { name: /github repository/i })).toBeInTheDocument()
   })
 
-  it('calls exportBoard when export button is clicked', async () => {
-    const user = userEvent.setup()
+  it('replaces the hint with the solve control outside play', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      solver: { ...defaultState.solver, gameMode: 'customInput' },
+    })
     render(<App />)
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Solve' })).toHaveLength(1)
+  })
 
-    const exportButton = screen.getByRole('button', { name: 'Export Board' })
-    await user.click(exportButton)
-    expect(mockExportBoard).toHaveBeenCalledOnce()
+  it('disables the erase button while paused', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...defaultState,
+      ui: { ...defaultState.ui, isPaused: true },
+    })
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
   it('does not render the SolverStepsPanel in playing mode', () => {

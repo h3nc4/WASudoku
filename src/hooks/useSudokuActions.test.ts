@@ -98,7 +98,11 @@ describe('useSudokuActions', () => {
   }
 
   describe('inputValue', () => {
-    it('dispatches setCellValue and advances focus in normal mode on a valid move', () => {
+    it('dispatches setCellValue and advances focus on a valid move in customInput mode', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, gameMode: 'customInput' },
+      })
       const actions = getActions()
       act(() => actions.inputValue(5))
 
@@ -106,7 +110,19 @@ describe('useSudokuActions', () => {
       expect(mockDispatch).toHaveBeenCalledWith(actionCreators.setActiveCell(1))
     })
 
+    it('stays on the cell after a valid move during play', () => {
+      const actions = getActions()
+      act(() => actions.inputValue(5))
+
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.setCellValue(0, 5))
+      expect(mockDispatch).toHaveBeenCalledTimes(1)
+    })
+
     it('dispatches setCellValue but does not advance focus on an invalid move', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        solver: { ...defaultState.solver, gameMode: 'customInput' },
+      })
       mockIsMoveValid.mockReturnValue(false)
       const actions = getActions()
       act(() => actions.inputValue(5))
@@ -333,7 +349,7 @@ describe('useSudokuActions', () => {
       await act(async () => {
         actions.exportBoard()
       })
-      expect(toast.error).toHaveBeenCalledWith('Failed to copy board to clipboard.')
+      expect(toast.error).toHaveBeenCalledWith('Failed to copy to clipboard.')
     })
 
     it('shows an error toast if clipboard API is not available', async () => {
@@ -354,7 +370,133 @@ describe('useSudokuActions', () => {
     })
   })
 
+  describe('sharePuzzleLink', () => {
+    const givens = initialState.board.map((cell, index) =>
+      index === 0 ? { ...cell, value: 5, isGiven: true } : cell,
+    )
+    const progress = givens.map((cell, index) => (index === 1 ? { ...cell, value: 3 } : cell))
+
+    it('copies a link carrying the puzzle without the player progress', async () => {
+      mockUseSudokuState.mockReturnValue({ ...defaultState, initialBoard: givens, board: progress })
+      const actions = getActions()
+      await act(async () => {
+        actions.sharePuzzleLink()
+      })
+      const url = new URL(mockClipboard.writeText.mock.calls[0][0])
+      expect(url.origin + url.pathname).toBe(
+        globalThis.location.origin + globalThis.location.pathname,
+      )
+      expect(url.searchParams.get('p')).toBe('5' + '.'.repeat(80))
+      expect(toast.success).toHaveBeenCalledWith('Puzzle link copied to clipboard.')
+    })
+
+    it('shares the board being typed in customInput mode', async () => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        board: progress,
+        solver: { ...defaultState.solver, gameMode: 'customInput' },
+      })
+      const actions = getActions()
+      await act(async () => {
+        actions.sharePuzzleLink()
+      })
+      const url = new URL(mockClipboard.writeText.mock.calls[0][0])
+      expect(url.searchParams.get('p')).toBe('53' + '.'.repeat(79))
+    })
+  })
+
+  describe('stepVisualization', () => {
+    const visualizing: SudokuState = {
+      ...defaultState,
+      solver: {
+        ...defaultState.solver,
+        gameMode: 'visualizing',
+        steps: [
+          { technique: 'NakedSingle', placements: [], eliminations: [], cause: [] },
+          { technique: 'NakedSingle', placements: [], eliminations: [], cause: [] },
+        ],
+        currentStepIndex: 1,
+      },
+    }
+
+    it('moves one step in either direction', () => {
+      mockUseSudokuState.mockReturnValue(visualizing)
+      const actions = getActions()
+      act(() => actions.stepVisualization(-1))
+      act(() => actions.stepVisualization(1))
+      expect(mockDispatch).toHaveBeenNthCalledWith(1, actionCreators.viewSolverStep(0))
+      expect(mockDispatch).toHaveBeenNthCalledWith(2, actionCreators.viewSolverStep(2))
+    })
+
+    it('stops at the initial board and at the solution', () => {
+      mockUseSudokuState.mockReturnValue({
+        ...visualizing,
+        solver: { ...visualizing.solver, currentStepIndex: 2 },
+      })
+      {
+        const actions = getActions()
+        act(() => actions.stepVisualization(1))
+      }
+      mockUseSudokuState.mockReturnValue({
+        ...visualizing,
+        solver: { ...visualizing.solver, currentStepIndex: 0 },
+      })
+      {
+        const actions = getActions()
+        act(() => actions.stepVisualization(-1))
+      }
+      expect(mockDispatch).not.toHaveBeenCalled()
+    })
+
+    it('does nothing outside visualization', () => {
+      {
+        const actions = getActions()
+        act(() => actions.stepVisualization(1))
+      }
+      expect(mockDispatch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('cycleInputMode', () => {
+    it.each([
+      ['normal', 'candidate'],
+      ['candidate', 'center'],
+      ['center', 'normal'],
+    ] as const)('goes from %s to %s', (from, to) => {
+      mockUseSudokuState.mockReturnValue({
+        ...defaultState,
+        ui: { ...defaultState.ui, inputMode: from },
+      })
+      {
+        const actions = getActions()
+        act(() => actions.cycleInputMode())
+      }
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.setInputMode(to))
+    })
+  })
+
   describe('Direct Actions', () => {
+    it.each([
+      ['requestHint', actionCreators.requestHint()],
+      ['clearHint', actionCreators.clearHint()],
+      ['pauseGame', actionCreators.pauseGame()],
+      ['resumeGame', actionCreators.resumeGame()],
+      ['dismissPuzzle', actionCreators.dismissPuzzle()],
+    ] as const)('%s dispatches its action', (name, expected) => {
+      const actions = getActions()
+      act(() => actions[name]())
+      expect(mockDispatch).toHaveBeenCalledWith(expected)
+    })
+
+    it('offerPuzzle and loadPuzzle carry the puzzle string', () => {
+      const actions = getActions()
+      const puzzle = '.'.repeat(81)
+      act(() => actions.offerPuzzle(puzzle))
+      act(() => actions.loadPuzzle(puzzle))
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.offerPuzzle(puzzle))
+      expect(mockDispatch).toHaveBeenCalledWith(actionCreators.loadPuzzle(puzzle))
+    })
+
     it('setActiveCell dispatches SET_ACTIVE_CELL', () => {
       const actions = getActions()
       act(() => actions.setActiveCell(10))

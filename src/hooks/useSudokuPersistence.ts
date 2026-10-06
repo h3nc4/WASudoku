@@ -71,9 +71,10 @@ export function useSudokuPersistence(state: SudokuState) {
       },
       initialBoard: state.initialBoard,
       solution: state.solver.solution as number[] | null,
+      difficulty: state.solver.difficulty,
     }
     saveToStorage(STORAGE_KEYS.GAME, data)
-  }, [state.history, state.initialBoard, state.solver.solution])
+  }, [state.history, state.initialBoard, state.solver.solution, state.solver.difficulty])
 
   // 2. Persist Metrics (Timer, Mistakes)
   // This updates every second when the timer ticks. The payload is tiny.

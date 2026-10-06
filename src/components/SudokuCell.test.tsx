@@ -158,12 +158,12 @@ describe('SudokuCell component', () => {
 
     it('applies correct background for an active cell', () => {
       render(<SudokuCell {...defaultProps} isActive />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-100 dark:bg-sky-800/80')
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-200 dark:bg-sky-700')
     })
 
     it('applies correct background for a highlighted (but not active) cell', () => {
       render(<SudokuCell {...defaultProps} isHighlighted isActive={false} />)
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-50 dark:bg-sky-900/60')
+      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-50 dark:bg-sky-950/80')
     })
 
     it('applies correct background for a number-highlighted cell', () => {
@@ -174,7 +174,9 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 5 }}
         />,
       )
-      expect(screen.getByTestId('cell-background')).toHaveClass('bg-blue-100 dark:bg-sky-900/80')
+      expect(screen.getByTestId('cell-background')).toHaveClass(
+        'bg-indigo-100 dark:bg-indigo-900/70',
+      )
     })
 
     it('applies correct background when solving', () => {
@@ -187,6 +189,23 @@ describe('SudokuCell component', () => {
       expect(screen.getByTestId('cell-background')).toHaveClass(
         'bg-purple-100 dark:bg-purple-800/80',
       )
+    })
+
+    it('marks a hint target with an amber background and ring, above the active highlight', () => {
+      render(<SudokuCell {...defaultProps} isHintTarget isActive />)
+      const background = screen.getByTestId('cell-background')
+      expect(background).toHaveClass('bg-amber-100 ring-2 ring-amber-500')
+      expect(background).not.toHaveClass('bg-blue-200')
+    })
+
+    it('keeps the error background on a hint target and adds the ring', () => {
+      render(<SudokuCell {...defaultProps} isHintTarget isError />)
+      expect(screen.getByTestId('cell-background')).toHaveClass('!bg-destructive/20 ring-2')
+    })
+
+    it('colours user digits as user input when the board is not in solved display', () => {
+      render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
+      expect(screen.getByRole('textbox')).toHaveClass('text-blue-600')
     })
 
     it('applies correct border for right edge of a box', () => {

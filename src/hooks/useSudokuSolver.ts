@@ -22,6 +22,8 @@ import { toast } from 'sonner'
 import {
   generatePuzzleFailure,
   generatePuzzleSuccess,
+  hintFailure,
+  hintSuccess,
   poolRefillFailure,
   poolRefillSuccess,
   requestPoolRefill,
@@ -47,7 +49,7 @@ const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']
  */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
   const poolRef = useRef<WorkerPool | null>(null)
-  const { isSolving, isGenerating, isValidating, generationDifficulty } = state.solver
+  const { isSolving, isGenerating, isValidating, isHinting, generationDifficulty } = state.solver
   const { board, puzzlePool, poolRequestCount } = state
 
   // Initialize Worker Pool
@@ -73,7 +75,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
       .then((result) => {
         dispatch(solveSuccess(result))
-        toast.success('Sudoku solved successfully!')
+        toast.success('Solver finished. Step through its solution beside the board.')
       })
       .catch((error) => {
         console.error('Solve error:', error)
@@ -129,7 +131,23 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isValidating, board, dispatch])
 
-  // 4. Handle Background Pool Refill (Low Priority)
+  // 4. Handle Hints, which solve the player's current board and keep only the first step
+  useEffect(() => {
+    if (!isHinting || !poolRef.current) return
+
+    const boardString = boardStateToString(board)
+    poolRef.current
+      .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
+      .then((result) => {
+        dispatch(hintSuccess(result))
+      })
+      .catch((error) => {
+        console.error('Hint error:', error)
+        dispatch(hintFailure())
+      })
+  }, [isHinting, board, dispatch])
+
+  // 5. Handle Background Pool Refill (Low Priority)
   useEffect(() => {
     if (!poolRef.current) return
 

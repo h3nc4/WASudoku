@@ -18,6 +18,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* next-themes toggles a .dark class, so dark: must follow it rather than the OS scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

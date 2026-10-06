@@ -29,7 +29,9 @@ import type {
   EraseCellAction,
   GeneratePuzzleStartAction,
   GeneratePuzzleSuccessAction,
+  HintSuccessAction,
   ImportBoardAction,
+  LoadPuzzleAction,
   PoolRefillFailureAction,
   PoolRefillSuccessAction,
   RequestPoolRefillAction,
@@ -44,6 +46,7 @@ import type {
 } from './sudoku.actions.types'
 import type {
   BoardState,
+  Hint,
   HistoryState,
   PersistedGameState,
   PersistedMetrics,
@@ -61,6 +64,9 @@ export const STORAGE_KEYS = {
   METRICS: 'wasudoku.state.metrics',
   POOL: 'wasudoku.state.pool',
 }
+
+const isBoardSolved = (board: BoardState, solution: readonly number[] | null): boolean =>
+  solution !== null && board.every((cell, i) => cell.value === solution[i])
 
 export const createEmptyBoard = (): BoardState =>
   new Array(BOARD_SIZE).fill(null).map(() => ({
@@ -95,12 +101,17 @@ export const initialState: SudokuState = {
     inputMode: 'normal',
     lastError: null,
     transientConflicts: null,
+    hint: null,
+    isPaused: false,
+    pendingPuzzle: null,
   },
   solver: {
     isSolving: false,
     isGenerating: false,
     isValidating: false,
+    isHinting: false,
     generationDifficulty: null,
+    difficulty: null,
     isSolved: false,
     solveFailed: false,
     gameMode: 'selecting',
@@ -179,6 +190,7 @@ function resolveGameState(game: PersistedGameState | null) {
       history: game.history,
       gameMode: 'playing' as const,
       solution: game.solution ?? null,
+      difficulty: game.difficulty ?? null,
     }
   }
 
@@ -188,6 +200,7 @@ function resolveGameState(game: PersistedGameState | null) {
     history: initialState.history,
     gameMode: 'selecting' as const,
     solution: null,
+    difficulty: null,
   }
 }
 
@@ -201,7 +214,7 @@ export function loadInitialState(): SudokuState {
       return initialState
     }
 
-    const { board, initialBoard, history, gameMode, solution } = resolveGameState(game)
+    const { board, initialBoard, history, gameMode, solution, difficulty } = resolveGameState(game)
 
     return {
       ...initialState,
@@ -212,6 +225,8 @@ export function loadInitialState(): SudokuState {
         ...initialState.solver,
         gameMode,
         solution,
+        difficulty,
+        isSolved: gameMode === 'playing' && isBoardSolved(board, solution),
       },
       derived: getDerivedBoardState(board),
       game: metrics ?? initialState.game,
@@ -274,8 +289,8 @@ const handleSetCellValue = (state: SudokuState, action: SetCellValueAction): Sud
   if (state.solver.gameMode === 'playing' && state.solver.solution) {
     if (state.solver.solution[index] !== value) {
       mistakes += 1
-    } else if (newBoard.every((cell, i) => cell.value === state.solver.solution![i])) {
-      isSolved = true
+    } else {
+      isSolved = isBoardSolved(newBoard, state.solver.solution)
     }
   }
 
@@ -368,17 +383,14 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
     if (areBoardsEqual(state.board, state.initialBoard)) {
       return state
     }
+    // Kept in history so the clear can be undone, and metrics stay so undo is not a reset.
     const newBoard = state.initialBoard
     return {
       ...state,
       board: newBoard,
-      history: {
-        stack: [newBoard],
-        index: 0,
-      },
+      history: updateHistory(state.history, newBoard),
       solver: { ...state.solver, isSolved: false, solveFailed: false },
       ui: { ...state.ui, activeCellIndex: null, highlightedValue: null, transientConflicts: null },
-      game: { timer: 0, mistakes: 0 },
     }
   }
 
@@ -391,14 +403,9 @@ const handleClearBoard = (state: SudokuState): SudokuState => {
     return {
       ...state,
       board: newBoard,
-      history: {
-        stack: [newBoard],
-        index: 0,
-      },
-      // Clear solution as well since we are resetting
+      history: updateHistory(state.history, newBoard),
       solver: { ...state.solver, solution: null },
       ui: { ...state.ui, activeCellIndex: null, highlightedValue: null, transientConflicts: null },
-      game: { timer: 0, mistakes: 0 },
     }
   }
 
@@ -472,6 +479,7 @@ const initializeGameFromPuzzle = (
   state: SudokuState,
   puzzleString: string,
   solutionString: string,
+  difficulty: string | null,
 ): SudokuState => {
   const newBoard = boardStateFromString(puzzleString)
   const solutionNumbers = solutionString.split('').map((c) => {
@@ -491,6 +499,7 @@ const initializeGameFromPuzzle = (
       isGenerating: false,
       gameMode: 'playing',
       solution: solutionNumbers,
+      difficulty,
     },
     game: { timer: 0, mistakes: 0 },
     // Preserve existing pool data
@@ -516,6 +525,7 @@ const handleGeneratePuzzleStart = (
       state,
       nextPuzzle.puzzleString,
       nextPuzzle.solutionString,
+      action.difficulty,
     )
 
     return {
@@ -542,7 +552,12 @@ const handleGeneratePuzzleSuccess = (
   state: SudokuState,
   action: GeneratePuzzleSuccessAction,
 ): SudokuState => {
-  return initializeGameFromPuzzle(state, action.puzzleString, action.solutionString)
+  return initializeGameFromPuzzle(
+    state,
+    action.puzzleString,
+    action.solutionString,
+    state.solver.generationDifficulty,
+  )
 }
 
 const handleRequestPoolRefill = (
@@ -614,6 +629,12 @@ const handleRedo = (state: SudokuState): SudokuState => {
       ...state,
       history: { ...state.history, index: newHistoryIndex },
       board: state.history.stack[newHistoryIndex],
+      solver: {
+        ...state.solver,
+        isSolved:
+          state.solver.gameMode === 'playing' &&
+          isBoardSolved(state.history.stack[newHistoryIndex], state.solver.solution),
+      },
     }
   }
   return state
@@ -827,6 +848,7 @@ const handleValidatePuzzleSuccess = (
       isValidating: false,
       gameMode: 'playing',
       solution: solutionNumbers,
+      difficulty: null,
     },
     game: { timer: 0, mistakes: 0 },
   }
@@ -846,6 +868,77 @@ const handleValidatePuzzleFailure = (
     lastError: action.error,
   },
 })
+
+const handleRequestHint = (state: SudokuState): SudokuState => {
+  const { gameMode, isSolved, isHinting, solution } = state.solver
+  if (gameMode !== 'playing' || isSolved || isHinting || state.ui.isPaused) {
+    return state
+  }
+
+  // A wrong digit makes every later deduction unreliable, so point it out first.
+  const mistakeIndex = solution
+    ? state.board.findIndex(
+        (cell, i) => !cell.isGiven && cell.value !== null && cell.value !== solution[i],
+      )
+    : -1
+  if (mistakeIndex !== -1) {
+    return { ...state, ui: { ...state.ui, hint: { kind: 'mistake', index: mistakeIndex } } }
+  }
+
+  return {
+    ...state,
+    solver: { ...state.solver, isHinting: true },
+    ui: { ...state.ui, hint: null },
+  }
+}
+
+const handleHintSuccess = (state: SudokuState, action: HintSuccessAction): SudokuState => {
+  if (!state.solver.isHinting) return state
+
+  const [firstStep] = action.result.steps
+  let hint: Hint | null = null
+  if (firstStep) {
+    hint = { kind: 'step', step: firstStep }
+  } else {
+    // Logic alone is stuck, so reveal one empty cell from the solution.
+    const solution =
+      state.solver.solution ??
+      action.result.solution?.split('').map((c) => Number.parseInt(c, 10)) ??
+      null
+    const index = state.board.findIndex((cell) => cell.value === null)
+    if (solution && index !== -1) {
+      hint = { kind: 'reveal', index, value: solution[index] }
+    }
+  }
+
+  return {
+    ...state,
+    solver: { ...state.solver, isHinting: false },
+    ui: { ...state.ui, hint, lastError: hint ? null : 'No hint is available for this board.' },
+  }
+}
+
+const handlePauseGame = (state: SudokuState): SudokuState => {
+  if (state.solver.gameMode !== 'playing' || state.solver.isSolved || state.ui.isPaused) {
+    return state
+  }
+  return {
+    ...state,
+    ui: { ...state.ui, isPaused: true, activeCellIndex: null, highlightedValue: null },
+  }
+}
+
+const handleLoadPuzzle = (state: SudokuState, action: LoadPuzzleAction): SudokuState => {
+  const newBoard = boardStateFromString(action.boardString)
+  return {
+    ...initialState,
+    board: newBoard,
+    history: { stack: [newBoard], index: 0 },
+    solver: { ...initialState.solver, gameMode: 'customInput', isValidating: true },
+    puzzlePool: state.puzzlePool,
+    poolRequestCount: state.poolRequestCount,
+  }
+}
 
 export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {
   let newState: SudokuState
@@ -879,6 +972,7 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       newState = {
         ...state,
         solver: { ...state.solver, isSolving: true },
+        ui: { ...state.ui, hint: null },
       }
       break
     case 'SOLVE_SUCCESS':
@@ -956,14 +1050,50 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
     case 'CLEAR_TRANSIENT_CONFLICTS':
       newState = { ...state, ui: { ...state.ui, transientConflicts: null } }
       break
+    case 'REQUEST_HINT':
+      newState = handleRequestHint(state)
+      break
+    case 'HINT_SUCCESS':
+      newState = handleHintSuccess(state, action)
+      break
+    case 'HINT_FAILURE':
+      newState = {
+        ...state,
+        solver: { ...state.solver, isHinting: false },
+        ui: { ...state.ui, lastError: 'No hint is available for this board.' },
+      }
+      break
+    case 'CLEAR_HINT':
+      newState = { ...state, ui: { ...state.ui, hint: null } }
+      break
+    case 'PAUSE_GAME':
+      newState = handlePauseGame(state)
+      break
+    case 'RESUME_GAME':
+      newState = { ...state, ui: { ...state.ui, isPaused: false } }
+      break
+    case 'OFFER_PUZZLE':
+      newState = { ...state, ui: { ...state.ui, pendingPuzzle: action.boardString } }
+      break
+    case 'DISMISS_PUZZLE':
+      newState = { ...state, ui: { ...state.ui, pendingPuzzle: null } }
+      break
+    case 'LOAD_PUZZLE':
+      newState = handleLoadPuzzle(state, action)
+      break
     default:
       newState = state
   }
 
   if (newState.board !== state.board) {
+    // A hint describes the board it was computed for. Any edit clears it.
     return {
       ...newState,
       derived: getDerivedBoardState(newState.board),
+      solver: newState.solver.isHinting
+        ? { ...newState.solver, isHinting: false }
+        : newState.solver,
+      ui: newState.ui.hint ? { ...newState.ui, hint: null } : newState.ui,
     }
   }
 

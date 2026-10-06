@@ -191,6 +191,54 @@ export interface ClearTransientConflictsAction {
   type: 'CLEAR_TRANSIENT_CONFLICTS'
 }
 
+/** Action to look for the next move on the current board. */
+export interface RequestHintAction {
+  type: 'REQUEST_HINT'
+}
+
+/** Action for when the solver returns the steps for a hint. */
+export interface HintSuccessAction {
+  type: 'HINT_SUCCESS'
+  result: SolveResult
+}
+
+/** Action for when the solver cannot produce a hint. */
+export interface HintFailureAction {
+  type: 'HINT_FAILURE'
+}
+
+/** Action to dismiss the current hint. */
+export interface ClearHintAction {
+  type: 'CLEAR_HINT'
+}
+
+/** Action to pause the game. */
+export interface PauseGameAction {
+  type: 'PAUSE_GAME'
+}
+
+/** Action to resume a paused game. */
+export interface ResumeGameAction {
+  type: 'RESUME_GAME'
+}
+
+/** Action to ask the player whether to load a puzzle from a link or the clipboard. */
+export interface OfferPuzzleAction {
+  type: 'OFFER_PUZZLE'
+  boardString: string
+}
+
+/** Action to decline the offered puzzle. */
+export interface DismissPuzzleAction {
+  type: 'DISMISS_PUZZLE'
+}
+
+/** Action to start a puzzle from a string, validating it first. */
+export interface LoadPuzzleAction {
+  type: 'LOAD_PUZZLE'
+  boardString: string
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -223,3 +271,12 @@ export type SudokuAction =
   | TickTimerAction
   | SetTransientConflictsAction
   | ClearTransientConflictsAction
+  | RequestHintAction
+  | HintSuccessAction
+  | HintFailureAction
+  | ClearHintAction
+  | PauseGameAction
+  | ResumeGameAction
+  | OfferPuzzleAction
+  | DismissPuzzleAction
+  | LoadPuzzleAction

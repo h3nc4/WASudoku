@@ -16,20 +16,17 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Pause, Play } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { cn } from '@/lib/utils'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { cn, formatTime } from '@/lib/utils'
 
-function formatTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
-
-/**
- * Displays the current game timer and mistake count.
- */
+/** Displays the game timer and mistake count, with a pause control. */
 export function GameStatus() {
-  const { game, solver } = useSudokuState()
+  const { game, solver, ui } = useSudokuState()
+  const { pauseGame, resumeGame } = useSudokuActions()
 
   // Only show in playing mode
   if (solver.gameMode !== 'playing') {
@@ -45,7 +42,24 @@ export function GameStatus() {
         <span>Mistakes:</span>
         <span className={cn(isLimitReached && 'font-bold text-red-500')}>{mistakes}/3</span>
       </div>
-      <div>{formatTime(timer)}</div>
+      <div className="flex items-center gap-2">
+        {solver.isSolved && (
+          <span className="font-semibold text-green-600 dark:text-green-400">Solved</span>
+        )}
+        <span>{formatTime(timer)}</span>
+        {!solver.isSolved && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={ui.isPaused ? resumeGame : pauseGame}
+            aria-label={ui.isPaused ? 'Resume game' : 'Pause game'}
+            title={ui.isPaused ? 'Resume game' : 'Pause game'}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {ui.isPaused ? <Play /> : <Pause />}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

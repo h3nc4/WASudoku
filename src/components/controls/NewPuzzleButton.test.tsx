@@ -140,4 +140,86 @@ describe('NewPuzzleButton component', () => {
 
     expect(event.preventDefault).toHaveBeenCalled()
   })
+
+  describe('with a game in progress', () => {
+    const givens = initialState.board.map((c, i) =>
+      i === 0 ? { ...c, value: 1, isGiven: true } : c,
+    )
+    const progress = givens.map((c, i) => (i === 1 ? { ...c, value: 2 } : c))
+    const inProgress: SudokuState = {
+      ...initialState,
+      board: progress,
+      initialBoard: givens,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+    }
+
+    it('asks before replacing the game and starts the puzzle on confirm', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue(inProgress)
+      render(<NewPuzzleButton />)
+
+      await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Hard' }))
+      expect(mockGeneratePuzzle).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog', { name: 'Abandon current game?' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Start new puzzle' }))
+      expect(mockGeneratePuzzle).toHaveBeenCalledWith('hard')
+    })
+
+    it('keeps the game when the confirmation is cancelled', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue(inProgress)
+      render(<NewPuzzleButton />)
+
+      await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+      await user.click(await screen.findByRole('menuitem', { name: /Custom/ }))
+      expect(screen.getByRole('button', { name: 'Create puzzle' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(mockStartCustomPuzzle).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('starts a custom puzzle after confirming', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...initialState,
+        solver: { ...initialState.solver, gameMode: 'customInput' },
+        derived: { ...initialState.derived, isBoardEmpty: false },
+      })
+      render(<NewPuzzleButton />)
+
+      await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+      await user.click(await screen.findByRole('menuitem', { name: /Custom/ }))
+      await user.click(screen.getByRole('button', { name: 'Create puzzle' }))
+      expect(mockStartCustomPuzzle).toHaveBeenCalledOnce()
+    })
+
+    it('does not ask once the puzzle is solved', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...inProgress,
+        solver: { ...inProgress.solver, isSolved: true },
+      })
+      render(<NewPuzzleButton />)
+
+      await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Easy' }))
+      expect(mockGeneratePuzzle).toHaveBeenCalledWith('easy')
+    })
+
+    it('asks while visualizing a game that had progress', async () => {
+      const user = userEvent.setup()
+      mockUseSudokuState.mockReturnValue({
+        ...inProgress,
+        solver: { ...inProgress.solver, gameMode: 'visualizing', isSolved: true },
+      })
+      render(<NewPuzzleButton />)
+
+      await user.click(screen.getByRole('button', { name: 'New Puzzle' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Easy' }))
+      expect(mockGeneratePuzzle).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+  })
 })

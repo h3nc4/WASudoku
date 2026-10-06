@@ -16,7 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useCallback } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCallback, useEffect } from 'react'
 
 import {
   Accordion,
@@ -27,112 +28,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSudokuState } from '@/context/sudoku.hooks'
-import type { SolvingStep } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { formatCell } from '@/lib/utils'
-
-/**
- * Generates a human-readable explanation for a given solving step.
- * @param step - The `SolvingStep` object from the solver.
- * @returns A string explaining the step's logic.
- */
-const getStepExplanation = (step: SolvingStep): string => {
-  const { technique, placements, cause } = step
-
-  // Helper to format a list of numbers (e.g., {1, 2, 3})
-  const formatNums = (nums: number[]) => `{${[...nums].sort((a, b) => a - b).join(', ')}}`
-  // Helper to format a list of cell coordinates
-  const formatCells = (indices: number[]) => indices.map(formatCell).join(', ')
-
-  switch (technique) {
-    case 'NakedSingle': {
-      const { index, value } = placements[0]
-      return `Cell ${formatCell(index)} had only one possible candidate remaining: ${value}. This is a Naked Single.`
-    }
-    case 'HiddenSingle': {
-      const { index, value } = placements[0]
-      return `Within its row, column, or box, the number ${value} could only be placed in cell ${formatCell(index)}. This is a Hidden Single.`
-    }
-    case 'NakedPair': {
-      const cells = formatCells(cause.map((c) => c.index))
-      const candidates = formatNums(cause[0].candidates)
-      return `Naked Pair: Cells ${cells} can only contain the candidates ${candidates}. Therefore, these candidates were removed from other cells in the same unit.`
-    }
-    case 'HiddenPair': {
-      const cells = formatCells(cause.map((c) => c.index))
-      const candidates = formatNums(cause[0].candidates)
-      return `Hidden Pair: In their shared unit, the candidates ${candidates} only appear in cells ${cells}. Therefore, all other candidates were removed from these two cells.`
-    }
-    case 'NakedTriple': {
-      const cells = formatCells(cause.map((c) => c.index))
-      const candidates = formatNums(cause[0].candidates)
-      return `Naked Triple: Cells ${cells} form a triple with candidates ${candidates}. Therefore, these candidates were removed from other cells in the same unit.`
-    }
-    case 'HiddenTriple': {
-      const cells = formatCells(cause.map((c) => c.index))
-      const candidates = formatNums(cause[0].candidates)
-      return `Hidden Triple: In their shared unit, the candidates ${candidates} only appear in cells ${cells}. Therefore, all other candidates were removed from these three cells.`
-    }
-    case 'PointingPair':
-    case 'PointingTriple': {
-      const candidates = formatNums(cause[0].candidates)
-      return `Pointing Subgroup: The candidates ${candidates} in one box are confined to a single row or column. They were eliminated from the rest of that line.`
-    }
-    case 'ClaimingCandidate': {
-      const candidates = formatNums(cause[0].candidates)
-      return `Box-Line Reduction (Claiming): The candidates ${candidates} in a row or column are confined to a single box. They were eliminated from the rest of that box.`
-    }
-    case 'X-Wing': {
-      const candidate = cause[0].candidates[0]
-      return `X-Wing: The candidate ${candidate} appears in only two positions in two rows (or columns), and these positions share the same columns (or rows). This forms a rectangle, eliminating ${candidate} from the rest of the covering columns (or rows).`
-    }
-    case 'Swordfish': {
-      const candidate = cause[0].candidates[0]
-      return `Swordfish: The candidate ${candidate} appears in only two or three positions in three rows (or columns), and these positions align perfectly within three columns (or rows). This eliminates ${candidate} from other cells in those covering lines.`
-    }
-    case 'XY-Wing': {
-      const pivot = formatCell(cause[0].index)
-      const pincer1 = formatCell(cause[1].index)
-      const pincer2 = formatCell(cause[2].index)
-      const eliminationVal = step.eliminations[0].value
-      return `XY-Wing: Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a Y-Wing pattern. No matter what value the pivot takes, one of the pincers must be ${eliminationVal}. Therefore, ${eliminationVal} can be removed from any cell seen by both pincers.`
-    }
-    case 'XYZ-Wing': {
-      const pivot = formatCell(cause[0].index)
-      const pincer1 = formatCell(cause[1].index)
-      const pincer2 = formatCell(cause[2].index)
-      const eliminationVal = step.eliminations[0].value
-      return `XYZ-Wing: Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a bent triple connection. The pivot has 3 candidates, and the pincers have 2. The value ${eliminationVal} is common to all three. Any cell seeing all three can no longer be ${eliminationVal}.`
-    }
-    case 'Skyscraper': {
-      const candidate = cause[0].candidates[0]
-      return `Skyscraper: Two rows (or columns) have the candidate ${candidate} in only two positions. One end of each line aligns in the same column (or row). The other two ends (the "roof") eliminate ${candidate} from any cell that sees both of them.`
-    }
-    case 'TwoStringKite': {
-      const candidate = cause[0].candidates[0]
-      return `Two-String Kite: A row and a column each have exactly two positions for candidate ${candidate}. One end of the row and one end of the column meet inside the same box. This connection implies that ${candidate} must be in one of the outer ends, eliminating it from their intersection.`
-    }
-    case 'Jellyfish': {
-      const candidate = cause[0].candidates[0]
-      return `Jellyfish: The candidate ${candidate} appears in specific positions across four rows (or columns) that align within four columns (or rows). This large fish pattern eliminates ${candidate} from the rest of the covering lines.`
-    }
-    case 'UniqueRectangleType1': {
-      const candidates = formatNums(cause[0].candidates)
-      const targetCell = formatCell(step.eliminations[0].index)
-      return `Unique Rectangle (Type 1): A "deadly pattern" of candidates ${candidates} was detected in two boxes. To avoid an ambiguous puzzle with multiple solutions, the candidates ${candidates} must be removed from cell ${targetCell}, which contains extra possibilities.`
-    }
-    case 'W-Wing': {
-      const valX = step.eliminations[0].value
-      // Usually cause[0] and cause[1] are the bivalue cells
-      const valB = cause[0].candidates.find((c) => c !== valX) ?? 0
-      return `W-Wing: Two cells contain the identical pair {${valX}, ${valB}} but do not see each other. They are connected by a "Strong Link" on ${valB} (where ${valB} is only possible in two places in a unit). This forces one of the two cells to be ${valX}, eliminating ${valX} from any cell that sees both.`
-    }
-    case 'Backtracking':
-      return 'The available logical techniques were not sufficient to solve the puzzle. A backtracking (brute-force) algorithm was used to find the solution.'
-    default:
-      return `Technique used: ${technique}.`
-  }
-}
+import { getStepExplanation, getTechniqueName } from '@/lib/techniques'
 
 /**
  * A panel that displays the step-by-step logical solution from the solver.
@@ -149,6 +46,21 @@ export function SolverStepsPanel() {
     },
     [viewSolverStep],
   )
+
+  // Stepping can open an item outside the list, scrolled here since scrollIntoView moves the page too.
+  useEffect(() => {
+    if (currentStepIndex === null || currentStepIndex === 0) return
+    const item = document.getElementById(`solver-step-${currentStepIndex - 1}`)
+    const viewport = item?.closest('[data-slot="scroll-area-viewport"]')
+    if (!item || !viewport) return
+    const itemRect = item.getBoundingClientRect()
+    const viewRect = viewport.getBoundingClientRect()
+    if (itemRect.top < viewRect.top) {
+      viewport.scrollTop -= viewRect.top - itemRect.top
+    } else if (itemRect.bottom > viewRect.bottom) {
+      viewport.scrollTop += itemRect.bottom - viewRect.bottom
+    }
+  }, [currentStepIndex])
 
   const handleAccordionChange = (value: string) => {
     // Only dispatch when an item is opened, not when closed (value is empty string).
@@ -169,7 +81,31 @@ export function SolverStepsPanel() {
 
   return (
     <div className="bg-card text-card-foreground flex h-full flex-col gap-2 rounded-lg border p-4 shadow-sm">
-      <h2 className="text-lg font-semibold">Solving Steps</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Solving Steps</h2>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => handleStepSelect((currentStepIndex ?? 0) - 1)}
+            disabled={currentStepIndex === null || currentStepIndex <= 0}
+            title="Previous step (Left arrow)"
+            aria-label="Previous step"
+          >
+            <ChevronLeft />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => handleStepSelect((currentStepIndex ?? 0) + 1)}
+            disabled={currentStepIndex === null || currentStepIndex >= steps.length}
+            title="Next step (Right arrow)"
+            aria-label="Next step"
+          >
+            <ChevronRight />
+          </Button>
+        </div>
+      </div>
       <Button
         variant={currentStepIndex === 0 ? 'secondary' : 'ghost'}
         data-state={currentStepIndex === 0 ? 'active' : 'inactive'}
@@ -187,9 +123,13 @@ export function SolverStepsPanel() {
           className="pr-4"
         >
           {steps.map((step, index) => (
-            <AccordionItem key={`step-${index}-${step.technique}`} value={index.toString()}>
+            <AccordionItem
+              key={`step-${index}-${step.technique}`}
+              id={`solver-step-${index}`}
+              value={index.toString()}
+            >
               <AccordionTrigger>
-                Step {index + 1}: {step.technique}
+                Step {index + 1}: {getTechniqueName(step.technique)}
               </AccordionTrigger>
               <AccordionContent>{getStepExplanation(step)}</AccordionContent>
             </AccordionItem>

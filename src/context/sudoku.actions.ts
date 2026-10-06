@@ -20,17 +20,26 @@ import type {
   AutoFillCandidatesAction,
   ClearBoardAction,
   ClearErrorAction,
+  ClearHintAction,
   ClearTransientConflictsAction,
+  DismissPuzzleAction,
   EraseCellAction,
   ExitVisualizationAction,
   GeneratePuzzleFailureAction,
   GeneratePuzzleStartAction,
   GeneratePuzzleSuccessAction,
+  HintFailureAction,
+  HintSuccessAction,
   ImportBoardAction,
+  LoadPuzzleAction,
+  OfferPuzzleAction,
+  PauseGameAction,
   PoolRefillFailureAction,
   PoolRefillSuccessAction,
   RedoAction,
+  RequestHintAction,
   RequestPoolRefillAction,
+  ResumeGameAction,
   SetActiveCellAction,
   SetCellValueAction,
   SetHighlightedValueAction,
@@ -232,4 +241,52 @@ export const setTransientConflicts = (indices: Set<number>): SetTransientConflic
 /** Creates an action to clear any transient conflict highlights. */
 export const clearTransientConflicts = (): ClearTransientConflictsAction => ({
   type: 'CLEAR_TRANSIENT_CONFLICTS',
+})
+
+/** Creates an action to look for the next move on the current board. */
+export const requestHint = (): RequestHintAction => ({
+  type: 'REQUEST_HINT',
+})
+
+/** Creates an action with the solver result for a hint. */
+export const hintSuccess = (result: SolveResult): HintSuccessAction => ({
+  type: 'HINT_SUCCESS',
+  result,
+})
+
+/** Creates an action for when no hint could be produced. */
+export const hintFailure = (): HintFailureAction => ({
+  type: 'HINT_FAILURE',
+})
+
+/** Creates an action to dismiss the current hint. */
+export const clearHint = (): ClearHintAction => ({
+  type: 'CLEAR_HINT',
+})
+
+/** Creates an action to pause the game. */
+export const pauseGame = (): PauseGameAction => ({
+  type: 'PAUSE_GAME',
+})
+
+/** Creates an action to resume a paused game. */
+export const resumeGame = (): ResumeGameAction => ({
+  type: 'RESUME_GAME',
+})
+
+/** Creates an action offering a puzzle to the player. */
+export const offerPuzzle = (boardString: string): OfferPuzzleAction => ({
+  type: 'OFFER_PUZZLE',
+  boardString,
+})
+
+/** Creates an action to decline the offered puzzle. */
+export const dismissPuzzle = (): DismissPuzzleAction => ({
+  type: 'DISMISS_PUZZLE',
+})
+
+/** Creates an action to validate and start a puzzle from a string. */
+export const loadPuzzle = (boardString: string): LoadPuzzleAction => ({
+  type: 'LOAD_PUZZLE',
+  boardString,
 })
