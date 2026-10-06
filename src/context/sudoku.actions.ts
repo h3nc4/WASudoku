@@ -22,7 +22,9 @@ import type {
   ClearErrorAction,
   ClearHintAction,
   ClearTransientConflictsAction,
+  CycleInputModeAction,
   DismissPuzzleAction,
+  EraseActiveCellAction,
   EraseCellAction,
   ExitVisualizationAction,
   GeneratePuzzleFailureAction,
@@ -31,7 +33,9 @@ import type {
   HintFailureAction,
   HintSuccessAction,
   ImportBoardAction,
+  InputValueAction,
   LoadPuzzleAction,
+  NavigateAction,
   OfferPuzzleAction,
   PauseGameAction,
   PoolRefillFailureAction,
@@ -49,6 +53,7 @@ import type {
   SolveStartAction,
   SolveSuccessAction,
   StartCustomPuzzleAction,
+  StepVisualizationAction,
   TickTimerAction,
   TogglePencilMarkAction,
   UndoAction,
@@ -289,4 +294,33 @@ export const dismissPuzzle = (): DismissPuzzleAction => ({
 export const loadPuzzle = (boardString: string): LoadPuzzleAction => ({
   type: 'LOAD_PUZZLE',
   boardString,
+})
+
+/** Creates an action to input a value into the active cell. */
+export const inputValue = (value: number): InputValueAction => ({
+  type: 'INPUT_VALUE',
+  value,
+})
+
+/** Creates an action to move the active cell one step in a direction. */
+export const navigate = (direction: NavigateAction['direction']): NavigateAction => ({
+  type: 'NAVIGATE',
+  direction,
+})
+
+/** Creates an action to erase the active cell. */
+export const eraseActiveCell = (mode: EraseActiveCellAction['mode']): EraseActiveCellAction => ({
+  type: 'ERASE_ACTIVE_CELL',
+  mode,
+})
+
+/** Creates an action to switch to the next input mode. */
+export const cycleInputMode = (): CycleInputModeAction => ({
+  type: 'CYCLE_INPUT_MODE',
+})
+
+/** Creates an action to move the solver visualization one step back or forward. */
+export const stepVisualization = (delta: -1 | 1): StepVisualizationAction => ({
+  type: 'STEP_VISUALIZATION',
+  delta,
 })

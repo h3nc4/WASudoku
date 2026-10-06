@@ -20,12 +20,11 @@ import { useMemo } from 'react'
 import { toast } from 'sonner'
 
 import * as actions from '@/context/sudoku.actions'
-import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
-import type { InputMode } from '@/context/sudoku.types'
+import type { NavigateAction } from '@/context/sudoku.actions.types'
+import { useSudokuDispatch } from '@/context/sudoku.hooks'
+import type { BoardState, InputMode } from '@/context/sudoku.types'
 import { buildShareUrl } from '@/lib/share'
-import { boardStateToString, getConflictingPeers, isMoveValid } from '@/lib/utils'
-
-const INPUT_MODES: readonly InputMode[] = ['normal', 'candidate', 'center']
+import { boardStateToString } from '@/lib/utils'
 
 /** Copies text to the clipboard, reporting the outcome in a toast. */
 function copyToClipboard(text: string, successMessage: string) {
@@ -43,50 +42,12 @@ function copyToClipboard(text: string, successMessage: string) {
     })
 }
 
-/**
- * Provides a stable, memoized API for dispatching all Sudoku actions.
- * This hook acts as the "intent interpretation" layer, translating high-level
- * user actions into the specific low-level mutations sent to the reducer.
- *
- * @returns An object containing functions to dispatch all possible user intents.
- */
+/** Provides a stable API for every user intent, and the reducer resolves those that read state. */
 export function useSudokuActions() {
-  const state = useSudokuState()
   const dispatch = useSudokuDispatch()
 
-  // The returned object has a stable identity, preventing unnecessary re-renders.
+  // Depending on dispatch alone keeps memoized cells from re-rendering on every timer tick.
   return useMemo(() => {
-    const handleNormalInput = (index: number, value: number) => {
-      dispatch(actions.setCellValue(index, value))
-      // Advancing helps while typing in a puzzle, but during play it jumps off the cell just filled.
-      if (
-        state.solver.gameMode === 'customInput' &&
-        isMoveValid(state.board, index, value) &&
-        index < 80
-      ) {
-        dispatch(actions.setActiveCell(index + 1))
-      }
-    }
-
-    const handlePencilMarkInput = (index: number, value: number, mode: 'candidate' | 'center') => {
-      const cell = state.board[index]
-      const hasMark = mode === 'candidate' ? cell.candidates.has(value) : cell.centers.has(value)
-
-      if (hasMark) {
-        // Toggling off is always allowed
-        dispatch(actions.togglePencilMark(index, value, mode))
-      } else {
-        // Toggling on requires validation against peers
-        const conflicts = getConflictingPeers(state.board, index, value)
-        if (conflicts.size === 0) {
-          dispatch(actions.togglePencilMark(index, value, mode))
-        } else {
-          // Invalid move: highlight conflicts instead of toggling
-          dispatch(actions.setTransientConflicts(conflicts))
-        }
-      }
-    }
-
     return {
       /** Sets the active cell and updates the highlighted value. */
       setActiveCell: (index: number | null) => {
@@ -94,68 +55,24 @@ export function useSudokuActions() {
       },
 
       /** Inputs a value, respecting the current input mode. */
-      inputValue: (value: number) => {
-        const { activeCellIndex, inputMode } = state.ui
-        if (activeCellIndex === null) return
-
-        // Prevent modification of "given" cells in playing mode.
-        if (state.solver.gameMode === 'playing' && state.board[activeCellIndex].isGiven) {
-          return
-        }
-
-        if (inputMode === 'normal') {
-          handleNormalInput(activeCellIndex, value)
-        } else {
-          handlePencilMarkInput(activeCellIndex, value, inputMode)
-        }
-      },
+      inputValue: (value: number) => dispatch(actions.inputValue(value)),
 
       /** Navigates the grid from the active cell. */
-      navigate: (direction: 'up' | 'down' | 'left' | 'right') => {
-        if (state.ui.activeCellIndex === null) return
-        let nextIndex = -1
-        const { activeCellIndex } = state.ui
-
-        if (direction === 'right' && activeCellIndex < 80) nextIndex = activeCellIndex + 1
-        else if (direction === 'left' && activeCellIndex > 0) nextIndex = activeCellIndex - 1
-        else if (direction === 'down' && activeCellIndex < 72) nextIndex = activeCellIndex + 9
-        else if (direction === 'up' && activeCellIndex > 8) nextIndex = activeCellIndex - 9
-
-        if (nextIndex !== -1) {
-          dispatch(actions.setActiveCell(nextIndex))
-        }
-      },
+      navigate: (direction: NavigateAction['direction']) => dispatch(actions.navigate(direction)),
 
       /** Erases the active cell's content. */
-      eraseActiveCell: (mode: 'delete' | 'backspace') => {
-        if (state.ui.activeCellIndex === null) return
-
-        // Prevent erasing "given" cells, but still allow backspace to navigate away.
-        if (state.solver.gameMode === 'playing' && state.board[state.ui.activeCellIndex].isGiven) {
-          if (mode === 'backspace' && state.ui.activeCellIndex > 0) {
-            dispatch(actions.setActiveCell(state.ui.activeCellIndex - 1))
-          }
-          return
-        }
-
-        dispatch(actions.eraseCell(state.ui.activeCellIndex))
-
-        if (mode === 'backspace' && state.ui.activeCellIndex > 0) {
-          dispatch(actions.setActiveCell(state.ui.activeCellIndex - 1))
-        }
-      },
+      eraseActiveCell: (mode: 'delete' | 'backspace') => dispatch(actions.eraseActiveCell(mode)),
 
       /** Clears the entire board. */
       clearBoard: () => dispatch(actions.clearBoard()),
       /** Automatically fills candidates for all empty cells. */
       autoFillCandidates: () => dispatch(actions.autoFillCandidates()),
-      /** Exports the current board state to the clipboard. */
-      exportBoard: () => {
-        copyToClipboard(boardStateToString(state.board), 'Board exported to clipboard.')
+      /** Copies a board to the clipboard as an 81-character string. */
+      exportBoard: (board: BoardState) => {
+        copyToClipboard(boardStateToString(board), 'Board exported to clipboard.')
       },
-      /** Copies a link that opens the current puzzle, without the player's progress. */
-      sharePuzzleLink: () => {
-        const puzzle = state.solver.gameMode === 'customInput' ? state.board : state.initialBoard
+      /** Copies a link that opens this puzzle. */
+      sharePuzzleLink: (puzzle: BoardState) => {
         const url = buildShareUrl(boardStateToString(puzzle), globalThis.location.href)
         copyToClipboard(url, 'Puzzle link copied to clipboard.')
       },
@@ -182,19 +99,9 @@ export function useSudokuActions() {
       /** Jumps to a specific step in the solver visualization. */
       viewSolverStep: (index: number) => dispatch(actions.viewSolverStep(index)),
       /** Moves the solver visualization one step back or forward. */
-      stepVisualization: (delta: -1 | 1) => {
-        const { gameMode, currentStepIndex, steps } = state.solver
-        if (gameMode !== 'visualizing' || currentStepIndex === null) return
-        const next = currentStepIndex + delta
-        if (next >= 0 && next <= steps.length) {
-          dispatch(actions.viewSolverStep(next))
-        }
-      },
+      stepVisualization: (delta: -1 | 1) => dispatch(actions.stepVisualization(delta)),
       /** Switches to the next input mode, wrapping from Center back to Normal. */
-      cycleInputMode: () => {
-        const next = (INPUT_MODES.indexOf(state.ui.inputMode) + 1) % INPUT_MODES.length
-        dispatch(actions.setInputMode(INPUT_MODES[next]))
-      },
+      cycleInputMode: () => dispatch(actions.cycleInputMode()),
       /** Asks the solver for the next move on the current board. */
       requestHint: () => dispatch(actions.requestHint()),
       /** Dismisses the current hint. */
@@ -210,5 +117,5 @@ export function useSudokuActions() {
       /** Validates and starts a puzzle from a string. */
       loadPuzzle: (boardString: string) => dispatch(actions.loadPuzzle(boardString)),
     }
-  }, [state, dispatch])
+  }, [dispatch])
 }

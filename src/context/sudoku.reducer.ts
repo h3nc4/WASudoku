@@ -16,28 +16,33 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { clearCell, parseSolution, placeValue, toggleMark } from '@/lib/board'
 import {
   areBoardsEqual,
   boardStateFromString,
   calculateCandidates,
-  getRelatedCellIndices,
+  getConflictingPeers,
   isMoveValid,
   validateBoard,
 } from '@/lib/utils'
 
 import type {
+  EraseActiveCellAction,
   EraseCellAction,
   GeneratePuzzleStartAction,
   GeneratePuzzleSuccessAction,
   HintSuccessAction,
   ImportBoardAction,
+  InputValueAction,
   LoadPuzzleAction,
+  NavigateAction,
   PoolRefillFailureAction,
   PoolRefillSuccessAction,
   RequestPoolRefillAction,
   SetActiveCellAction,
   SetCellValueAction,
   SolveSuccessAction,
+  StepVisualizationAction,
   SudokuAction,
   TogglePencilMarkAction,
   ValidatePuzzleFailureAction,
@@ -48,6 +53,7 @@ import type {
   BoardState,
   Hint,
   HistoryState,
+  InputMode,
   PersistedGameState,
   PersistedMetrics,
   PersistedPool,
@@ -58,6 +64,7 @@ import type {
 
 const BOARD_SIZE = 81
 const MAX_HISTORY_ENTRIES = 100
+const INPUT_MODES: readonly InputMode[] = ['normal', 'candidate', 'center']
 
 export const STORAGE_KEYS = {
   GAME: 'wasudoku.state.game',
@@ -255,32 +262,17 @@ function updateHistory(historyState: HistoryState, newBoard: BoardState): Histor
   }
 }
 
+/** Puzzle clues are fixed while playing, and only editable while typing in a puzzle. */
+const isLockedGiven = (state: SudokuState, index: number): boolean =>
+  state.solver.gameMode === 'playing' && state.board[index].isGiven
+
 const handleSetCellValue = (state: SudokuState, action: SetCellValueAction): SudokuState => {
   const { index, value } = action
-  if (
-    state.board[index].value === value ||
-    (state.solver.gameMode === 'playing' && state.board[index].isGiven)
-  ) {
+  if (state.board[index].value === value || isLockedGiven(state, index)) {
     return state
   }
 
-  const newBoard = state.board.map((cell) => ({
-    ...cell,
-    candidates: new Set(cell.candidates),
-    centers: new Set(cell.centers),
-  }))
-
-  newBoard[index] = {
-    ...newBoard[index],
-    value: value,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }
-
-  getRelatedCellIndices(index).forEach((relatedIndex) => {
-    newBoard[relatedIndex].candidates.delete(value)
-    newBoard[relatedIndex].centers.delete(value)
-  })
+  const newBoard = placeValue(state.board, index, value)
 
   // Track mistakes if solution is known
   let mistakes = state.game.mistakes
@@ -307,38 +299,13 @@ const handleTogglePencilMark = (
   state: SudokuState,
   action: TogglePencilMarkAction,
 ): SudokuState => {
-  if (
-    state.board[action.index].value !== null ||
-    (state.solver.gameMode === 'playing' && state.board[action.index].isGiven)
-  ) {
+  if (state.board[action.index].value !== null || isLockedGiven(state, action.index)) {
     return state
   }
 
-  const newBoard = state.board.map((c) => ({
-    ...c,
-    candidates: new Set(c.candidates),
-    centers: new Set(c.centers),
-  }))
-  const targetCell = newBoard[action.index]
-
-  if (action.mode === 'candidate') {
-    if (targetCell.candidates.has(action.value)) {
-      targetCell.candidates.delete(action.value)
-    } else if (isMoveValid(state.board, action.index, action.value)) {
-      targetCell.candidates.add(action.value)
-    } else {
-      return state // Do not add conflicting candidate
-    }
-  } else {
-    // Center mode
-    targetCell.candidates.clear()
-    if (targetCell.centers.has(action.value)) {
-      targetCell.centers.delete(action.value)
-    } else if (isMoveValid(state.board, action.index, action.value)) {
-      targetCell.centers.add(action.value)
-    } else {
-      return state // Do not add conflicting center mark
-    }
+  const newBoard = toggleMark(state.board, action.index, action.mode, action.value)
+  if (newBoard === state.board) {
+    return state // Do not add a conflicting mark
   }
 
   return {
@@ -354,20 +321,12 @@ const handleEraseCell = (state: SudokuState, action: EraseCellAction): SudokuSta
   const cell = state.board[index]
   if (
     (cell.value === null && cell.candidates.size === 0 && cell.centers.size === 0) ||
-    (state.solver.gameMode === 'playing' && cell.isGiven)
+    isLockedGiven(state, index)
   ) {
     return state
   }
 
-  const newBoard = state.board.map((cell, i) =>
-    i === index
-      ? { ...cell, value: null, candidates: new Set<number>(), centers: new Set<number>() }
-      : {
-          ...cell,
-          candidates: new Set(cell.candidates),
-          centers: new Set(cell.centers),
-        },
-  )
+  const newBoard = clearCell(state.board, index)
 
   return {
     ...state,
@@ -482,9 +441,7 @@ const initializeGameFromPuzzle = (
   difficulty: string | null,
 ): SudokuState => {
   const newBoard = boardStateFromString(puzzleString)
-  const solutionNumbers = solutionString.split('').map((c) => {
-    return c === '.' ? 0 : Number.parseInt(c, 10)
-  })
+  const solutionNumbers = parseSolution(solutionString)
 
   return {
     ...initialState,
@@ -655,7 +612,7 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
     centers: new Set<number>(),
   }))
 
-  const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : Number.parseInt(c, 10)))
+  const solutionNumbers = parseSolution(solution)
 
   const boardAfterLogic = state.board.map((cell) => ({ ...cell }))
   for (const step of steps) {
@@ -697,18 +654,19 @@ const reconstructBoard = (
   steps: readonly SolvingStep[],
   upTo: number,
 ): BoardState => {
-  const board = startingBoard.map((c) => ({
-    ...c,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }))
-
+  const values = startingBoard.map((c) => c.value)
   for (let i = 0; i < upTo; i++) {
     for (const p of steps[i].placements) {
-      board[p.index].value = p.value
+      values[p.index] = p.value
     }
   }
-  return board
+
+  // Reuses a cell whose value is unchanged and whose marks are already empty.
+  return startingBoard.map((c, i) =>
+    c.value === values[i] && c.candidates.size === 0 && c.centers.size === 0
+      ? c
+      : { ...c, value: values[i], candidates: new Set<number>(), centers: new Set<number>() },
+  )
 }
 
 /**
@@ -823,6 +781,78 @@ const handleSetActiveCell = (state: SudokuState, action: SetActiveCellAction): S
   },
 })
 
+const handleInputValue = (state: SudokuState, action: InputValueAction): SudokuState => {
+  const { activeCellIndex: index, inputMode } = state.ui
+  if (index === null || isLockedGiven(state, index)) return state
+  const { value } = action
+
+  if (inputMode === 'normal') {
+    const next = handleSetCellValue(state, { type: 'SET_CELL_VALUE', index, value })
+    // Advancing helps while typing in a puzzle, but during play it jumps off the cell just filled.
+    const advance =
+      state.solver.gameMode === 'customInput' &&
+      isMoveValid(state.board, index, value) &&
+      index < 80
+    return advance ? handleSetActiveCell(next, { type: 'SET_ACTIVE_CELL', index: index + 1 }) : next
+  }
+
+  const cell = state.board[index]
+  const hasMark = inputMode === 'candidate' ? cell.candidates.has(value) : cell.centers.has(value)
+  // Removing a mark is always allowed, while adding one that clashes highlights the clash instead.
+  if (!hasMark) {
+    const conflicts = getConflictingPeers(state.board, index, value)
+    if (conflicts.size > 0) {
+      return { ...state, ui: { ...state.ui, transientConflicts: conflicts } }
+    }
+  }
+  return handleTogglePencilMark(state, {
+    type: 'TOGGLE_PENCIL_MARK',
+    index,
+    value,
+    mode: inputMode,
+  })
+}
+
+const handleNavigate = (state: SudokuState, action: NavigateAction): SudokuState => {
+  const index = state.ui.activeCellIndex
+  if (index === null) return state
+
+  let nextIndex = -1
+  const { direction } = action
+  if (direction === 'right' && index < 80) nextIndex = index + 1
+  else if (direction === 'left' && index > 0) nextIndex = index - 1
+  else if (direction === 'down' && index < 72) nextIndex = index + 9
+  else if (direction === 'up' && index > 8) nextIndex = index - 9
+
+  return nextIndex === -1
+    ? state
+    : handleSetActiveCell(state, { type: 'SET_ACTIVE_CELL', index: nextIndex })
+}
+
+const handleEraseActiveCell = (state: SudokuState, action: EraseActiveCellAction): SudokuState => {
+  const index = state.ui.activeCellIndex
+  if (index === null) return state
+
+  // Clues are never erased, but backspace still moves off one.
+  const erased = isLockedGiven(state, index)
+    ? state
+    : handleEraseCell(state, { type: 'ERASE_CELL', index })
+  return action.mode === 'backspace' && index > 0
+    ? handleSetActiveCell(erased, { type: 'SET_ACTIVE_CELL', index: index - 1 })
+    : erased
+}
+
+const handleStepVisualization = (
+  state: SudokuState,
+  action: StepVisualizationAction,
+): SudokuState => {
+  const { gameMode, currentStepIndex, steps } = state.solver
+  if (gameMode !== 'visualizing' || currentStepIndex === null) return state
+  const index = currentStepIndex + action.delta
+  if (index < 0 || index > steps.length) return state
+  return handleViewSolverStep(state, { type: 'VIEW_SOLVER_STEP', index })
+}
+
 const handleValidatePuzzleSuccess = (
   state: SudokuState,
   action: ValidatePuzzleSuccessAction,
@@ -831,9 +861,7 @@ const handleValidatePuzzleSuccess = (
     ...cell,
     isGiven: cell.value !== null,
   }))
-  const solutionNumbers = action.solutionString.split('').map((c) => {
-    return c === '.' ? 0 : Number.parseInt(c, 10)
-  })
+  const solutionNumbers = parseSolution(action.solutionString)
 
   return {
     ...state,
@@ -903,8 +931,7 @@ const handleHintSuccess = (state: SudokuState, action: HintSuccessAction): Sudok
     // Logic alone is stuck, so reveal one empty cell from the solution.
     const solution =
       state.solver.solution ??
-      action.result.solution?.split('').map((c) => Number.parseInt(c, 10)) ??
-      null
+      (action.result.solution === null ? null : parseSolution(action.result.solution))
     const index = state.board.findIndex((cell) => cell.value === null)
     if (solution && index !== -1) {
       hint = { kind: 'reveal', index, value: solution[index] }
@@ -1080,6 +1107,23 @@ export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuS
       break
     case 'LOAD_PUZZLE':
       newState = handleLoadPuzzle(state, action)
+      break
+    case 'INPUT_VALUE':
+      newState = handleInputValue(state, action)
+      break
+    case 'NAVIGATE':
+      newState = handleNavigate(state, action)
+      break
+    case 'ERASE_ACTIVE_CELL':
+      newState = handleEraseActiveCell(state, action)
+      break
+    case 'CYCLE_INPUT_MODE': {
+      const next = INPUT_MODES[(INPUT_MODES.indexOf(state.ui.inputMode) + 1) % INPUT_MODES.length]
+      newState = { ...state, ui: { ...state.ui, inputMode: next } }
+      break
+    }
+    case 'STEP_VISUALIZATION':
+      newState = handleStepVisualization(state, action)
       break
     default:
       newState = state
