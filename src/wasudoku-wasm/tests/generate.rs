@@ -33,7 +33,7 @@ fn test_generate_creates_valid_puzzle() {
         "Generated puzzle should not be empty."
     );
     assert!(
-        puzzle.cells.iter().any(|&c| c == 0),
+        puzzle.cells.contains(&0),
         "Generated puzzle should not be full."
     );
 }
