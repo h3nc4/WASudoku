@@ -67,6 +67,14 @@ describe('sudokuReducer', () => {
       expect(newState.solver.solveFailed).toBe(false)
     })
 
+    it('shares every cell it did not change with the previous board', () => {
+      const newState = sudokuReducer(initialState, { type: 'SET_CELL_VALUE', index: 0, value: 5 })
+      newState.board.forEach((cell, i) => {
+        if (i !== 0) expect(cell).toBe(initialState.board[i])
+      })
+      expect(newState.history.stack[0]).toBe(initialState.history.stack[0])
+    })
+
     it('should increment mistakes if value does not match solution', () => {
       const state: SudokuState = {
         ...initialState,
@@ -1104,6 +1112,14 @@ describe('sudokuReducer', () => {
       // Highlighting for step 2 (index 2 in action -> index 1 in steps array)
       // Placed value is 3
       expect(state.ui.highlightedValue).toBe(3)
+    })
+
+    it('reuses the cells no step placed a value in', () => {
+      const state = sudokuReducer(visualizingState, { type: 'VIEW_SOLVER_STEP', index: 1 })
+      state.solver.visualizationBoard?.forEach((cell, i) => {
+        if (i === 0) expect(cell).not.toBe(userBoard[i])
+        else expect(cell).toBe(userBoard[i])
+      })
     })
 
     it('should correctly apply prior eliminations when viewing a later step', () => {

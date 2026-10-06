@@ -16,12 +16,11 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { clearCell, parseSolution, placeValue, toggleMark } from '@/lib/board'
 import {
   areBoardsEqual,
   boardStateFromString,
   calculateCandidates,
-  getRelatedCellIndices,
-  isMoveValid,
   validateBoard,
 } from '@/lib/utils'
 
@@ -264,23 +263,7 @@ const handleSetCellValue = (state: SudokuState, action: SetCellValueAction): Sud
     return state
   }
 
-  const newBoard = state.board.map((cell) => ({
-    ...cell,
-    candidates: new Set(cell.candidates),
-    centers: new Set(cell.centers),
-  }))
-
-  newBoard[index] = {
-    ...newBoard[index],
-    value: value,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }
-
-  getRelatedCellIndices(index).forEach((relatedIndex) => {
-    newBoard[relatedIndex].candidates.delete(value)
-    newBoard[relatedIndex].centers.delete(value)
-  })
+  const newBoard = placeValue(state.board, index, value)
 
   // Track mistakes if solution is known
   let mistakes = state.game.mistakes
@@ -314,31 +297,9 @@ const handleTogglePencilMark = (
     return state
   }
 
-  const newBoard = state.board.map((c) => ({
-    ...c,
-    candidates: new Set(c.candidates),
-    centers: new Set(c.centers),
-  }))
-  const targetCell = newBoard[action.index]
-
-  if (action.mode === 'candidate') {
-    if (targetCell.candidates.has(action.value)) {
-      targetCell.candidates.delete(action.value)
-    } else if (isMoveValid(state.board, action.index, action.value)) {
-      targetCell.candidates.add(action.value)
-    } else {
-      return state // Do not add conflicting candidate
-    }
-  } else {
-    // Center mode
-    targetCell.candidates.clear()
-    if (targetCell.centers.has(action.value)) {
-      targetCell.centers.delete(action.value)
-    } else if (isMoveValid(state.board, action.index, action.value)) {
-      targetCell.centers.add(action.value)
-    } else {
-      return state // Do not add conflicting center mark
-    }
+  const newBoard = toggleMark(state.board, action.index, action.mode, action.value)
+  if (newBoard === state.board) {
+    return state // Do not add a conflicting mark
   }
 
   return {
@@ -359,15 +320,7 @@ const handleEraseCell = (state: SudokuState, action: EraseCellAction): SudokuSta
     return state
   }
 
-  const newBoard = state.board.map((cell, i) =>
-    i === index
-      ? { ...cell, value: null, candidates: new Set<number>(), centers: new Set<number>() }
-      : {
-          ...cell,
-          candidates: new Set(cell.candidates),
-          centers: new Set(cell.centers),
-        },
-  )
+  const newBoard = clearCell(state.board, index)
 
   return {
     ...state,
@@ -482,9 +435,7 @@ const initializeGameFromPuzzle = (
   difficulty: string | null,
 ): SudokuState => {
   const newBoard = boardStateFromString(puzzleString)
-  const solutionNumbers = solutionString.split('').map((c) => {
-    return c === '.' ? 0 : Number.parseInt(c, 10)
-  })
+  const solutionNumbers = parseSolution(solutionString)
 
   return {
     ...initialState,
@@ -655,7 +606,7 @@ const handleSolveSuccess = (state: SudokuState, action: SolveSuccessAction): Sud
     centers: new Set<number>(),
   }))
 
-  const solutionNumbers = solution.split('').map((c) => (c === '.' ? 0 : Number.parseInt(c, 10)))
+  const solutionNumbers = parseSolution(solution)
 
   const boardAfterLogic = state.board.map((cell) => ({ ...cell }))
   for (const step of steps) {
@@ -697,18 +648,19 @@ const reconstructBoard = (
   steps: readonly SolvingStep[],
   upTo: number,
 ): BoardState => {
-  const board = startingBoard.map((c) => ({
-    ...c,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }))
-
+  const values = startingBoard.map((c) => c.value)
   for (let i = 0; i < upTo; i++) {
     for (const p of steps[i].placements) {
-      board[p.index].value = p.value
+      values[p.index] = p.value
     }
   }
-  return board
+
+  // Reuses a cell whose value is unchanged and whose marks are already empty.
+  return startingBoard.map((c, i) =>
+    c.value === values[i] && c.candidates.size === 0 && c.centers.size === 0
+      ? c
+      : { ...c, value: values[i], candidates: new Set<number>(), centers: new Set<number>() },
+  )
 }
 
 /**
@@ -831,9 +783,7 @@ const handleValidatePuzzleSuccess = (
     ...cell,
     isGiven: cell.value !== null,
   }))
-  const solutionNumbers = action.solutionString.split('').map((c) => {
-    return c === '.' ? 0 : Number.parseInt(c, 10)
-  })
+  const solutionNumbers = parseSolution(action.solutionString)
 
   return {
     ...state,
@@ -903,8 +853,7 @@ const handleHintSuccess = (state: SudokuState, action: HintSuccessAction): Sudok
     // Logic alone is stuck, so reveal one empty cell from the solution.
     const solution =
       state.solver.solution ??
-      action.result.solution?.split('').map((c) => Number.parseInt(c, 10)) ??
-      null
+      (action.result.solution === null ? null : parseSolution(action.result.solution))
     const index = state.board.findIndex((cell) => cell.value === null)
     if (solution && index !== -1) {
       hint = { kind: 'reveal', index, value: solution[index] }
