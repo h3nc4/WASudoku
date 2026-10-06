@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2 README.md",
     "lint:sh": "shellcheck -o all scripts/*.sh",
-    "lint:wasm": "cd src/wasudoku-wasm && cargo clippy -- -D warnings",
+    "lint:wasm": "cd src/wasudoku-wasm && cargo clippy --all-targets -- -D warnings",
     "typecheck": "tsc -b",
     "format:check": "prettier --check .",
     "preview": "vite preview",
