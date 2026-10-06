@@ -19,27 +19,26 @@
 import { useEffect } from 'react'
 
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canUndoRedo } from '@/context/sudoku.selectors'
 
 import { useSudokuActions } from './useSudokuActions'
 
 /** Page-wide shortcuts: undo and redo while editing, arrows while stepping a solution. */
 export function useKeyboardShortcuts() {
-  const { solver, ui } = useSudokuState()
+  const state = useSudokuState()
+  const { solver } = state
   const { undo, redo, stepVisualization } = useSudokuActions()
 
-  useEffect(() => {
-    const isEditing =
-      (solver.gameMode === 'playing' || solver.gameMode === 'customInput') &&
-      !solver.isSolving &&
-      !ui.isPaused
+  const isUndoable = canUndoRedo(state)
 
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Keys go to an open dialog first.
       if (document.querySelector('[role="dialog"]')) return
 
       const key = e.key.toLowerCase()
       if (e.ctrlKey || e.metaKey) {
-        if (!isEditing || e.altKey) return
+        if (!isUndoable || e.altKey) return
         if (key === 'z' && !e.shiftKey) {
           e.preventDefault()
           undo()
@@ -63,5 +62,5 @@ export function useKeyboardShortcuts() {
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [solver.gameMode, solver.isSolving, ui.isPaused, undo, redo, stepVisualization])
+  }, [isUndoable, solver.gameMode, undo, redo, stepVisualization])
 }

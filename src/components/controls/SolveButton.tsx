@@ -21,28 +21,21 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canSolve } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 import { ConfirmDialog } from '../ConfirmDialog'
 
 /** Triggers the solver or exits visualization. During play it asks first, as one tap spoils the game. */
 export function SolveButton() {
-  const { solver, derived, ui } = useSudokuState()
+  const state = useSudokuState()
+  const { solver, derived } = state
   const { solve, exitVisualization, validatePuzzle } = useSudokuActions()
 
   const [isShowingSolvingState, setIsShowingSolvingState] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
-  const isSolveDisabled =
-    solver.isSolving ||
-    solver.isValidating ||
-    derived.isBoardEmpty ||
-    derived.isBoardFull ||
-    derived.conflicts.size > 0 ||
-    solver.solveFailed ||
-    solver.isSolved ||
-    solver.isHinting ||
-    ui.isPaused
+  const isSolveDisabled = !canSolve(state)
 
   const solveButtonTitle = useMemo(() => {
     if (derived.conflicts.size > 0) return 'Cannot solve with conflicts.'

@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canClearBoard } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { areBoardsEqual, cn } from '@/lib/utils'
 
@@ -34,18 +35,14 @@ interface ClearButtonProps {
  * In 'customInput' mode, it clears all numbers. It is disabled in other modes.
  */
 export function ClearButton({ className }: ClearButtonProps) {
-  const { solver, derived, board, initialBoard } = useSudokuState()
+  const state = useSudokuState()
+  const { solver, derived, board, initialBoard } = state
   const { clearBoard, undo } = useSudokuActions()
 
   const isPristineInPlay = solver.gameMode === 'playing' && areBoardsEqual(board, initialBoard)
   const isEmptyInCustom = solver.gameMode === 'customInput' && derived.isBoardEmpty
 
-  const isClearDisabled =
-    solver.isSolving ||
-    solver.isValidating ||
-    !['playing', 'customInput'].includes(solver.gameMode) ||
-    isPristineInPlay ||
-    isEmptyInCustom
+  const isClearDisabled = !canClearBoard(state) || isPristineInPlay || isEmptyInCustom
 
   const clearButtonTitle = useMemo(() => {
     if (isPristineInPlay) return 'No progress to clear.'

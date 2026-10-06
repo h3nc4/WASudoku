@@ -49,6 +49,7 @@ import type {
   ValidatePuzzleSuccessAction,
   ViewSolverStepAction,
 } from './sudoku.actions.types'
+import { canRequestHint, isClockRunning, isWrongValue } from './sudoku.selectors'
 import type {
   BoardState,
   Hint,
@@ -898,17 +899,12 @@ const handleValidatePuzzleFailure = (
 })
 
 const handleRequestHint = (state: SudokuState): SudokuState => {
-  const { gameMode, isSolved, isHinting, solution } = state.solver
-  if (gameMode !== 'playing' || isSolved || isHinting || state.ui.isPaused) {
+  if (!canRequestHint(state)) {
     return state
   }
 
   // A wrong digit makes every later deduction unreliable, so point it out first.
-  const mistakeIndex = solution
-    ? state.board.findIndex(
-        (cell, i) => !cell.isGiven && cell.value !== null && cell.value !== solution[i],
-      )
-    : -1
+  const mistakeIndex = state.board.findIndex((_, i) => isWrongValue(state, i))
   if (mistakeIndex !== -1) {
     return { ...state, ui: { ...state.ui, hint: { kind: 'mistake', index: mistakeIndex } } }
   }
@@ -946,7 +942,7 @@ const handleHintSuccess = (state: SudokuState, action: HintSuccessAction): Sudok
 }
 
 const handlePauseGame = (state: SudokuState): SudokuState => {
-  if (state.solver.gameMode !== 'playing' || state.solver.isSolved || state.ui.isPaused) {
+  if (!isClockRunning(state)) {
     return state
   }
   return {

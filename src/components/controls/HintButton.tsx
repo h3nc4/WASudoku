@@ -20,19 +20,16 @@ import { Lightbulb, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canRequestHint } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /** Shows the next logical step on the player's board without solving the rest. */
 export function HintButton() {
-  const { solver, ui } = useSudokuState()
+  const state = useSudokuState()
+  const { solver } = state
   const { requestHint } = useSudokuActions()
 
-  const isDisabled =
-    solver.gameMode !== 'playing' ||
-    solver.isSolved ||
-    solver.isHinting ||
-    solver.isSolving ||
-    ui.isPaused
+  const isDisabled = !canRequestHint(state)
 
   return (
     <Button

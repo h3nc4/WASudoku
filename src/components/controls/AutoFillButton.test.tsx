@@ -80,6 +80,17 @@ describe('AutoFillButton component', () => {
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeEnabled()
   })
 
+  it('is disabled while paused, like the rest of the board controls', () => {
+    mockUseSudokuState.mockReturnValue({
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      derived: { ...initialState.derived, isBoardEmpty: false, isBoardFull: false },
+      ui: { ...initialState.ui, isPaused: true },
+    })
+    render(<AutoFillButton />)
+    expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeDisabled()
+  })
+
   it('calls autoFillCandidates and shows toast on click', async () => {
     const user = userEvent.setup()
     mockUseSudokuState.mockReturnValue({

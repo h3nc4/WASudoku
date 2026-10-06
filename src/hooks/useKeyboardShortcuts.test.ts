@@ -77,6 +77,10 @@ describe('useKeyboardShortcuts', () => {
   it.each([
     ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
     ['while solving', { ...playing, solver: { ...playing.solver, isSolving: true } }],
+    [
+      'while validating',
+      { ...playing, solver: { ...playing.solver, gameMode: 'customInput', isValidating: true } },
+    ],
     ['while visualizing', { ...playing, solver: { ...playing.solver, gameMode: 'visualizing' } }],
   ] as [string, SudokuState][])('ignores undo %s', (_, state) => {
     mockUseSudokuState.mockReturnValue(state)

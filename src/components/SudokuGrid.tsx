@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { importBoard } from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
+import { isEditable, isGridReadOnly, isWrongValue } from '@/context/sudoku.selectors'
 import type { CellState } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { cn, getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
@@ -42,18 +43,14 @@ import SudokuCell from './SudokuCell'
  * It orchestrates focus management and dispatches actions for cell changes.
  */
 export function SudokuGrid() {
-  const { board, ui, solver, derived } = useSudokuState()
+  const state = useSudokuState()
+  const { board, ui, solver, derived } = state
   const dispatch = useSudokuDispatch()
   const actions = useSudokuActions()
 
   const displayBoard = solver.gameMode === 'visualizing' ? solver.visualizationBoard : board
-  const isReadOnly =
-    solver.gameMode === 'visualizing' ||
-    solver.isSolving ||
-    solver.isValidating ||
-    solver.gameMode === 'selecting' ||
-    solver.isSolved ||
-    ui.isPaused
+  const isReadOnly = isGridReadOnly(state)
+  const isPasteAllowed = isEditable(state)
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -131,8 +128,8 @@ export function SudokuGrid() {
   // Reading the paste event's own data avoids the clipboard permission prompt.
   const handlePaste = useCallback(
     (event: ClipboardEvent) => {
+      if (!isPasteAllowed) return
       const isPlaying = solver.gameMode === 'playing'
-      if (solver.gameMode !== 'customInput' && !isPlaying) return
       event.preventDefault()
       const text = event.clipboardData.getData('text').replaceAll(/\s/g, '')
       if (!isBoardStringValid(text)) {
@@ -144,7 +141,7 @@ export function SudokuGrid() {
         toast.success('Board imported from clipboard.')
       }
     },
-    [actions, dispatch, solver.gameMode],
+    [actions, dispatch, isPasteAllowed, solver.gameMode],
   )
 
   // Centralized keyboard handler for the entire grid.
@@ -256,12 +253,7 @@ export function SudokuGrid() {
           const row = Math.floor(index / 9)
           const col = index % 9
 
-          const isError =
-            solver.gameMode === 'playing' &&
-            !displayCell.isGiven &&
-            displayCell.value !== null &&
-            solver.solution !== null &&
-            solver.solution[index] !== displayCell.value
+          const isError = isWrongValue(state, index)
 
           return (
             <SudokuCell

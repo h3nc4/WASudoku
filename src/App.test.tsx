@@ -148,6 +148,22 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
+  it.each([
+    ['while solving', { solver: { ...defaultState.solver, isSolving: true } }],
+    ['once solved', { solver: { ...defaultState.solver, isSolved: true } }],
+    [
+      'while validating',
+      { solver: { ...defaultState.solver, gameMode: 'customInput', isValidating: true } },
+    ],
+  ] as [string, Partial<SudokuState>][])(
+    'disables the erase button %s, like the Delete key',
+    (_, patch) => {
+      mockUseSudokuState.mockReturnValue({ ...defaultState, ...patch })
+      render(<App />)
+      expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
+    },
+  )
+
   it('does not render the SolverStepsPanel in playing mode', () => {
     render(<App />)
     expect(screen.queryByTestId('solver-steps-panel')).not.toBeInTheDocument()

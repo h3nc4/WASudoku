@@ -20,6 +20,7 @@ import { memo, useCallback, useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { isGridReadOnly } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +31,9 @@ const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
  * for each number, indicating how many are left to be placed.
  */
 export const NumberPad = memo(function NumberPad() {
-  const { board, solver, ui } = useSudokuState()
+  const state = useSudokuState()
+  const { board } = state
+  const isReadOnly = isGridReadOnly(state)
   const { inputValue, setHighlightedValue } = useSudokuActions()
 
   const numberCounts = useMemo(() => {
@@ -67,7 +70,7 @@ export const NumberPad = memo(function NumberPad() {
             data-complete={isComplete || undefined}
             className="aspect-[1/1.12] h-auto w-full rounded-[4px] data-[complete]:border-dashed data-[complete]:border-current/20 data-[complete]:bg-transparent data-[complete]:opacity-100"
             onClick={() => handleNumberClick(num)}
-            disabled={isComplete || solver.gameMode === 'visualizing' || ui.isPaused}
+            disabled={isComplete || isReadOnly}
             aria-label={`Enter number ${num}`}
             onMouseDown={(e) => e.preventDefault()}
           >
