@@ -19,11 +19,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { AutoFillButton } from './AutoFillButton'
 
@@ -31,61 +29,52 @@ vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('AutoFillButton component', () => {
   const mockAutoFillCandidates = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuActions.mockReturnValue({ autoFillCandidates: mockAutoFillCandidates })
+    mockSudoku({ actions: { autoFillCandidates: mockAutoFillCandidates } })
   })
 
   it('is disabled when not in playing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'selecting' } }) })
     render(<AutoFillButton />)
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeDisabled()
   })
 
   it('is disabled when solving', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing', isSolving: true },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'playing', isSolving: true } }) })
     render(<AutoFillButton />)
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeDisabled()
   })
 
   it('is disabled when board is empty', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      derived: { ...initialState.derived, isBoardEmpty: true },
+    mockSudoku({
+      state: makeState({ solver: { gameMode: 'playing' }, derived: { isBoardEmpty: true } }),
     })
     render(<AutoFillButton />)
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeDisabled()
   })
 
   it('is enabled when board has values and is in playing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      derived: { ...initialState.derived, isBoardEmpty: false, isBoardFull: false },
+    mockSudoku({
+      state: makeState({
+        solver: { gameMode: 'playing' },
+        derived: { isBoardEmpty: false, isBoardFull: false },
+      }),
     })
     render(<AutoFillButton />)
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeEnabled()
   })
 
   it('is disabled while paused, like the rest of the board controls', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      derived: { ...initialState.derived, isBoardEmpty: false, isBoardFull: false },
-      ui: { ...initialState.ui, isPaused: true },
+    mockSudoku({
+      state: makeState({
+        solver: { gameMode: 'playing' },
+        derived: { isBoardEmpty: false, isBoardFull: false },
+        ui: { isPaused: true },
+      }),
     })
     render(<AutoFillButton />)
     expect(screen.getByRole('button', { name: 'Auto-fill pencil marks' })).toBeDisabled()
@@ -93,10 +82,8 @@ describe('AutoFillButton component', () => {
 
   it('calls autoFillCandidates and shows toast on click', async () => {
     const user = userEvent.setup()
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      derived: { ...initialState.derived, isBoardEmpty: false },
+    mockSudoku({
+      state: makeState({ solver: { gameMode: 'playing' }, derived: { isBoardEmpty: false } }),
     })
     render(<AutoFillButton />)
 

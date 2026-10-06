@@ -18,48 +18,40 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
 import type { Hint, SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { HintPanel } from './HintPanel'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
-const withHint = (hint: Hint | null, gameMode: SudokuState['solver']['gameMode'] = 'playing') => ({
-  ...initialState,
-  solver: { ...initialState.solver, gameMode },
-  ui: { ...initialState.ui, hint },
-})
+const withHint = (hint: Hint | null, gameMode: SudokuState['solver']['gameMode'] = 'playing') =>
+  makeState({ solver: { gameMode }, ui: { hint } })
 
 describe('HintPanel component', () => {
   const mockClearHint = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuActions.mockReturnValue({ clearHint: mockClearHint })
+    mockSudoku({ actions: { clearHint: mockClearHint } })
   })
 
   it('renders nothing without a hint or outside play', () => {
-    mockUseSudokuState.mockReturnValue(withHint(null))
+    mockSudoku({ state: withHint(null) })
     const { container, rerender } = render(<HintPanel />)
     expect(container).toBeEmptyDOMElement()
 
-    mockUseSudokuState.mockReturnValue(withHint({ kind: 'mistake', index: 0 }, 'visualizing'))
+    mockSudoku({ state: withHint({ kind: 'mistake', index: 0 }, 'visualizing') })
     rerender(<HintPanel />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('labels a step hint with its cell and technique, leaving the digit out', () => {
-    mockUseSudokuState.mockReturnValue(
-      withHint({
+    mockSudoku({
+      state: withHint({
         kind: 'step',
         step: {
           technique: 'HiddenSingle',
@@ -68,7 +60,7 @@ describe('HintPanel component', () => {
           cause: [],
         },
       }),
-    )
+    })
     render(<HintPanel />)
     expect(screen.getByText('Hint')).toBeInTheDocument()
     expect(screen.getByText('R2C3')).toBeInTheDocument()
@@ -77,8 +69,8 @@ describe('HintPanel component', () => {
   })
 
   it('points an elimination hint at its pattern cells', () => {
-    mockUseSudokuState.mockReturnValue(
-      withHint({
+    mockSudoku({
+      state: withHint({
         kind: 'step',
         step: {
           technique: 'NakedPair',
@@ -90,18 +82,18 @@ describe('HintPanel component', () => {
           ],
         },
       }),
-    )
+    })
     render(<HintPanel />)
     expect(screen.getByText('R1C2 +1')).toBeInTheDocument()
     expect(screen.getByText('Naked Pair')).toBeInTheDocument()
   })
 
   it('labels a mistake hint and a revealed cell', () => {
-    mockUseSudokuState.mockReturnValue(withHint({ kind: 'mistake', index: 0 }))
+    mockSudoku({ state: withHint({ kind: 'mistake', index: 0 }) })
     const { rerender } = render(<HintPanel />)
     expect(screen.getByRole('status')).toHaveTextContent(/^Hint R1C1 Check this cell/)
 
-    mockUseSudokuState.mockReturnValue(withHint({ kind: 'reveal', index: 0, value: 3 }))
+    mockSudoku({ state: withHint({ kind: 'reveal', index: 0, value: 3 }) })
     rerender(<HintPanel />)
     expect(screen.getByText('Reveal')).toBeInTheDocument()
     expect(screen.getByText(/Cell R1C1 is 3/)).toBeInTheDocument()
@@ -109,7 +101,7 @@ describe('HintPanel component', () => {
 
   it('dismisses the hint', async () => {
     const user = userEvent.setup()
-    mockUseSudokuState.mockReturnValue(withHint({ kind: 'mistake', index: 0 }))
+    mockSudoku({ state: withHint({ kind: 'mistake', index: 0 }) })
     render(<HintPanel />)
     await user.click(screen.getByRole('button', { name: 'Dismiss hint' }))
     expect(mockClearHint).toHaveBeenCalledOnce()

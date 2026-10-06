@@ -18,32 +18,23 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
-import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { HintButton } from './HintButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('HintButton component', () => {
   const mockRequestHint = vi.fn()
-  const playing: SudokuState = {
-    ...initialState,
-    solver: { ...initialState.solver, gameMode: 'playing' },
-  }
+  const playing = makeState({ solver: { gameMode: 'playing' } })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(playing)
-    mockUseSudokuActions.mockReturnValue({ requestHint: mockRequestHint })
+    mockSudoku({ state: playing, actions: { requestHint: mockRequestHint } })
   })
 
   it('requests a hint on click', async () => {
@@ -54,10 +45,7 @@ describe('HintButton component', () => {
   })
 
   it('shows a spinner while the hint is computed', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playing,
-      solver: { ...playing.solver, isHinting: true },
-    })
+    mockSudoku({ state: makeState({ solver: { isHinting: true } }, playing) })
     render(<HintButton />)
     const button = screen.getByRole('button', { name: 'Hint' })
     expect(button).toBeDisabled()
@@ -65,12 +53,12 @@ describe('HintButton component', () => {
   })
 
   it.each([
-    ['outside play', { ...playing, solver: { ...playing.solver, gameMode: 'customInput' } }],
-    ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
-    ['while solving', { ...playing, solver: { ...playing.solver, isSolving: true } }],
-    ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+    ['outside play', makeState({ solver: { gameMode: 'customInput' } }, playing)],
+    ['once solved', makeState({ solver: { isSolved: true } }, playing)],
+    ['while solving', makeState({ solver: { isSolving: true } }, playing)],
+    ['while paused', makeState({ ui: { isPaused: true } }, playing)],
   ] as [string, SudokuState][])('is disabled %s', (_, state) => {
-    mockUseSudokuState.mockReturnValue(state)
+    mockSudoku({ state })
     render(<HintButton />)
     expect(screen.getByRole('button', { name: 'Hint' })).toBeDisabled()
   })

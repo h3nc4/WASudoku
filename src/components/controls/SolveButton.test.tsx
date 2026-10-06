@@ -18,21 +18,16 @@
 
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SolveButton } from './SolveButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('SolveButton component', () => {
   const mockSolve = vi.fn()
@@ -41,11 +36,13 @@ describe('SolveButton component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState)
-    mockUseSudokuActions.mockReturnValue({
-      solve: mockSolve,
-      exitVisualization: mockExitVisualization,
-      validatePuzzle: mockValidatePuzzle,
+    mockSudoku({
+      state: initialState,
+      actions: {
+        solve: mockSolve,
+        exitVisualization: mockExitVisualization,
+        validatePuzzle: mockValidatePuzzle,
+      },
     })
   })
 
@@ -55,10 +52,7 @@ describe('SolveButton component', () => {
 
   describe('in "playing" mode', () => {
     it('is disabled and has correct title when board is empty', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: true },
-      })
+      mockSudoku({ state: makeState({ derived: { isBoardEmpty: true } }) })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
@@ -66,26 +60,14 @@ describe('SolveButton component', () => {
     })
 
     it('is enabled when board has values and no conflicts', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
-      })
+      mockSudoku({ state: makeState({ derived: { isBoardEmpty: false, conflicts: new Set() } }) })
       render(<SolveButton />)
       expect(screen.getByRole('button', { name: 'Solve' })).toBeEnabled()
     })
 
     it('is disabled and shows conflict title when there are conflicts', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set([0, 1]),
-        },
+      mockSudoku({
+        state: makeState({ derived: { isBoardEmpty: false, conflicts: new Set([0, 1]) } }),
       })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: 'Solve' })
@@ -94,10 +76,7 @@ describe('SolveButton component', () => {
     })
 
     it('is disabled and shows correct title when board is full', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardFull: true },
-      })
+      mockSudoku({ state: makeState({ derived: { isBoardFull: true } }) })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: 'Solve' })
       expect(button).toBeDisabled()
@@ -105,10 +84,8 @@ describe('SolveButton component', () => {
     })
 
     it('is disabled and shows correct title when solve has failed', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: false },
-        solver: { ...initialState.solver, solveFailed: true },
+      mockSudoku({
+        state: makeState({ derived: { isBoardEmpty: false }, solver: { solveFailed: true } }),
       })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: 'Solve' })
@@ -121,14 +98,7 @@ describe('SolveButton component', () => {
 
     it('calls solve on click when valid', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: {
-          ...initialState.derived,
-          isBoardEmpty: false,
-          conflicts: new Set(),
-        },
-      })
+      mockSudoku({ state: makeState({ derived: { isBoardEmpty: false, conflicts: new Set() } }) })
       render(<SolveButton />)
 
       await user.click(screen.getByRole('button', { name: 'Solve' }))
@@ -137,10 +107,8 @@ describe('SolveButton component', () => {
 
     it('asks for confirmation before revealing the solution during play', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: false },
-        solver: { ...initialState.solver, gameMode: 'playing' },
+      mockSudoku({
+        state: makeState({ derived: { isBoardEmpty: false }, solver: { gameMode: 'playing' } }),
       })
       render(<SolveButton />)
 
@@ -155,10 +123,8 @@ describe('SolveButton component', () => {
 
     it('does not solve when the confirmation is cancelled', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: false },
-        solver: { ...initialState.solver, gameMode: 'playing' },
+      mockSudoku({
+        state: makeState({ derived: { isBoardEmpty: false }, solver: { gameMode: 'playing' } }),
       })
       render(<SolveButton />)
 
@@ -169,27 +135,22 @@ describe('SolveButton component', () => {
     })
 
     it('is disabled once the puzzle is solved, while a hint runs, or while paused', () => {
-      const base = {
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: false },
-      }
+      const base = makeState({ derived: { isBoardEmpty: false } })
       const { rerender } = render(<SolveButton />)
       for (const state of [
-        { ...base, solver: { ...base.solver, gameMode: 'playing', isSolved: true } },
-        { ...base, solver: { ...base.solver, isHinting: true } },
-        { ...base, ui: { ...base.ui, isPaused: true } },
+        makeState({ solver: { gameMode: 'playing', isSolved: true } }, base),
+        makeState({ solver: { isHinting: true } }, base),
+        makeState({ ui: { isPaused: true } }, base),
       ]) {
-        mockUseSudokuState.mockReturnValue(state)
+        mockSudoku({ state })
         rerender(<SolveButton />)
         expect(screen.getByRole('button', { name: 'Solve' })).toBeDisabled()
       }
     })
 
     it('shows no guiding tooltip', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...initialState,
-        derived: { ...initialState.derived, isBoardEmpty: false },
-        solver: { ...initialState.solver, gameMode: 'playing' },
+      mockSudoku({
+        state: makeState({ derived: { isBoardEmpty: false }, solver: { gameMode: 'playing' } }),
       })
       render(<SolveButton />)
       expect(screen.queryByText(/Click me!/i)).not.toBeInTheDocument()
@@ -197,13 +158,10 @@ describe('SolveButton component', () => {
 
     it('shows and hides "Solving..." state correctly based on isSolving prop', () => {
       vi.useFakeTimers()
-      const solvingState: SudokuState = {
-        ...initialState,
-        solver: { ...initialState.solver, isSolving: true },
-      }
+      const solvingState = makeState({ solver: { isSolving: true } })
 
       const { rerender } = render(<SolveButton />)
-      mockUseSudokuState.mockReturnValue(solvingState)
+      mockSudoku({ state: solvingState })
 
       // Rerender with isSolving = true
       rerender(<SolveButton />)
@@ -218,7 +176,7 @@ describe('SolveButton component', () => {
       expect(screen.getByText('Solving...')).toBeInTheDocument()
 
       // Rerender with isSolving = false, which should trigger the cleanup
-      mockUseSudokuState.mockReturnValue(initialState)
+      mockSudoku({ state: initialState })
       rerender(<SolveButton />)
 
       // Should disappear immediately
@@ -230,13 +188,10 @@ describe('SolveButton component', () => {
   })
 
   describe('in "visualizing" mode', () => {
-    const visualizingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'visualizing' },
-    }
+    const visualizingState = makeState({ solver: { gameMode: 'visualizing' } })
 
     it('renders an "Exit Visualization" button', () => {
-      mockUseSudokuState.mockReturnValue(visualizingState)
+      mockSudoku({ state: visualizingState })
       render(<SolveButton />)
       expect(screen.getByRole('button', { name: /exit visualization/i })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /^solve$/i })).not.toBeInTheDocument()
@@ -244,7 +199,7 @@ describe('SolveButton component', () => {
 
     it('calls exitVisualization on click', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue(visualizingState)
+      mockSudoku({ state: visualizingState })
       render(<SolveButton />)
       await user.click(screen.getByRole('button', { name: /exit visualization/i }))
       expect(mockExitVisualization).toHaveBeenCalled()
@@ -252,23 +207,19 @@ describe('SolveButton component', () => {
   })
 
   describe('in "customInput" mode', () => {
-    const customInputState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'customInput' },
-      derived: { ...initialState.derived, isBoardEmpty: false },
-    }
+    const customInputState = makeState({
+      solver: { gameMode: 'customInput' },
+      derived: { isBoardEmpty: false },
+    })
 
     it('renders a "Start Puzzle" button', () => {
-      mockUseSudokuState.mockReturnValue(customInputState)
+      mockSudoku({ state: customInputState })
       render(<SolveButton />)
       expect(screen.getByRole('button', { name: /start puzzle/i })).toBeInTheDocument()
     })
 
     it('is disabled if the board is empty', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...customInputState,
-        derived: { ...initialState.derived, isBoardEmpty: true },
-      })
+      mockSudoku({ state: makeState({ derived: { isBoardEmpty: true } }, customInputState) })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: /start puzzle/i })
       expect(button).toBeDisabled()
@@ -277,17 +228,14 @@ describe('SolveButton component', () => {
 
     it('calls validatePuzzle on click', async () => {
       const user = userEvent.setup()
-      mockUseSudokuState.mockReturnValue(customInputState)
+      mockSudoku({ state: customInputState })
       render(<SolveButton />)
       await user.click(screen.getByRole('button', { name: /start puzzle/i }))
       expect(mockValidatePuzzle).toHaveBeenCalled()
     })
 
     it('renders "Validating..." when isValidating is true', () => {
-      mockUseSudokuState.mockReturnValue({
-        ...customInputState,
-        solver: { ...customInputState.solver, isValidating: true },
-      })
+      mockSudoku({ state: makeState({ solver: { isValidating: true } }, customInputState) })
       render(<SolveButton />)
       const button = screen.getByRole('button', { name: /validating/i })
       expect(button).toBeInTheDocument()

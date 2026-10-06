@@ -18,20 +18,15 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { ShareMenu } from './ShareMenu'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
-
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('ShareMenu component', () => {
   const mockSharePuzzleLink = vi.fn()
@@ -40,12 +35,11 @@ describe('ShareMenu component', () => {
     index === 0 ? { ...cell, value: 5, isGiven: true } : cell,
   )
   const progress = givens.map((cell, index) => (index === 1 ? { ...cell, value: 3 } : cell))
-  const playing: SudokuState = {
-    ...initialState,
+  const playing = makeState({
     initialBoard: givens,
     board: progress,
-    solver: { ...initialState.solver, gameMode: 'playing' },
-  }
+    solver: { gameMode: 'playing' },
+  })
 
   const choose = async (name: string) => {
     const user = userEvent.setup()
@@ -56,10 +50,12 @@ describe('ShareMenu component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(playing)
-    mockUseSudokuActions.mockReturnValue({
-      sharePuzzleLink: mockSharePuzzleLink,
-      exportBoard: mockExportBoard,
+    mockSudoku({
+      state: playing,
+      actions: {
+        sharePuzzleLink: mockSharePuzzleLink,
+        exportBoard: mockExportBoard,
+      },
     })
   })
 
@@ -70,10 +66,7 @@ describe('ShareMenu component', () => {
   })
 
   it('shares the board being typed in customInput mode', async () => {
-    mockUseSudokuState.mockReturnValue({
-      ...playing,
-      solver: { ...playing.solver, gameMode: 'customInput' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'customInput' } }, playing) })
     await choose('Copy puzzle link')
     expect(mockSharePuzzleLink).toHaveBeenCalledExactlyOnceWith(progress)
   })

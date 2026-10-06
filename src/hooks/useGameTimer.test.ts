@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { pauseGame, tickTimer } from '@/context/sudoku.actions'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
+import { makeState } from '@/test/sudoku-state'
 
 import { useGameTimer } from './useGameTimer'
 
@@ -38,10 +38,9 @@ describe('useGameTimer', () => {
   })
 
   it('should dispatch TICK_TIMER every second when in playing mode', () => {
-    const playingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing', isSolved: false },
-    }
+    const playingState = makeState({
+      solver: { gameMode: 'playing', isSolved: false },
+    })
 
     renderHook(() => useGameTimer(playingState, mockDispatch))
 
@@ -57,10 +56,7 @@ describe('useGameTimer', () => {
   })
 
   it('should not dispatch tick when not playing', () => {
-    const selectingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    }
+    const selectingState = makeState({ solver: { gameMode: 'selecting' } })
 
     renderHook(() => useGameTimer(selectingState, mockDispatch))
 
@@ -71,10 +67,7 @@ describe('useGameTimer', () => {
   })
 
   it('should stop ticking when solved', () => {
-    const solvedState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing', isSolved: true },
-    }
+    const solvedState = makeState({ solver: { gameMode: 'playing', isSolved: true } })
 
     renderHook(() => useGameTimer(solvedState, mockDispatch))
 
@@ -85,11 +78,10 @@ describe('useGameTimer', () => {
   })
 
   it('should not tick while paused', () => {
-    const pausedState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing' },
-      ui: { ...initialState.ui, isPaused: true },
-    }
+    const pausedState = makeState({
+      solver: { gameMode: 'playing' },
+      ui: { isPaused: true },
+    })
 
     renderHook(() => useGameTimer(pausedState, mockDispatch))
 

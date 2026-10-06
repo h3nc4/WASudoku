@@ -18,25 +18,18 @@
 
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { createEmptyBoard, initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { NumberPad } from './NumberPad'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
-const playingState: SudokuState = {
-  ...initialState,
-  solver: { ...initialState.solver, gameMode: 'playing' },
-}
+const playingState = makeState({ solver: { gameMode: 'playing' } })
 
 describe('NumberPad component', () => {
   const mockInputValue = vi.fn()
@@ -44,10 +37,12 @@ describe('NumberPad component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(playingState)
-    mockUseSudokuActions.mockReturnValue({
-      inputValue: mockInputValue,
-      setHighlightedValue: mockSetHighlightedValue,
+    mockSudoku({
+      state: playingState,
+      actions: {
+        inputValue: mockInputValue,
+        setHighlightedValue: mockSetHighlightedValue,
+      },
     })
   })
 
@@ -82,8 +77,8 @@ describe('NumberPad component', () => {
       ...initialState.board[0],
       value: 3,
     }))
-    const state: SudokuState = { ...playingState, board: fullBoard }
-    mockUseSudokuState.mockReturnValue(state)
+    const state = makeState({ board: fullBoard }, playingState)
+    mockSudoku({ state })
     render(<NumberPad />)
 
     expect(screen.getByRole('button', { name: 'Enter number 3' })).toBeDisabled()
@@ -91,11 +86,8 @@ describe('NumberPad component', () => {
   })
 
   it('disables all number buttons when in visualizing mode', () => {
-    const state: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'visualizing' },
-    }
-    mockUseSudokuState.mockReturnValue(state)
+    const state = makeState({ solver: { gameMode: 'visualizing' } })
+    mockSudoku({ state })
     render(<NumberPad />)
 
     for (let i = 1; i <= 9; i++) {
@@ -104,20 +96,17 @@ describe('NumberPad component', () => {
   })
 
   it.each([
-    ['while selecting', { ...initialState }],
-    ['while paused', { ...playingState, ui: { ...playingState.ui, isPaused: true } }],
-    ['while solving', { ...playingState, solver: { ...playingState.solver, isSolving: true } }],
+    ['while selecting', makeState()],
+    ['while paused', makeState({ ui: { isPaused: true } }, playingState)],
+    ['while solving', makeState({ solver: { isSolving: true } }, playingState)],
     [
       'while validating',
-      {
-        ...playingState,
-        solver: { ...playingState.solver, gameMode: 'customInput', isValidating: true },
-      },
+      makeState({ solver: { gameMode: 'customInput', isValidating: true } }, playingState),
     ],
   ] as [string, SudokuState][])(
     'disables all number buttons %s, as the grid is read-only',
     (_, state) => {
-      mockUseSudokuState.mockReturnValue(state)
+      mockSudoku({ state })
       render(<NumberPad />)
 
       for (let i = 1; i <= 9; i++) {
@@ -131,8 +120,8 @@ describe('NumberPad component', () => {
       ...cell,
       value: i < 7 ? 3 : null,
     }))
-    const state: SudokuState = { ...playingState, board: partialBoard }
-    mockUseSudokuState.mockReturnValue(state)
+    const state = makeState({ board: partialBoard }, playingState)
+    mockSudoku({ state })
     render(<NumberPad />)
 
     const button3 = screen.getByRole('button', { name: 'Enter number 3' })
@@ -146,8 +135,8 @@ describe('NumberPad component', () => {
       ...initialState.board[0],
       value: 3,
     }))
-    const state: SudokuState = { ...playingState, board: fullBoard }
-    mockUseSudokuState.mockReturnValue(state)
+    const state = makeState({ board: fullBoard }, playingState)
+    mockSudoku({ state })
     render(<NumberPad />)
 
     const button3 = screen.getByRole('button', { name: 'Enter number 3' })
