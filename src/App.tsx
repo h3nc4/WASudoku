@@ -24,6 +24,7 @@ import { ModeToggle } from '@/components/mode-toggle'
 import { NumberPad } from '@/components/NumberPad'
 import { SudokuGrid } from '@/components/SudokuGrid'
 import { Button } from '@/components/ui/button'
+import { Wordmark } from '@/components/Wordmark'
 
 import { AutoFillButton } from './components/controls/AutoFillButton'
 import { ClearButton } from './components/controls/ClearButton'
@@ -64,7 +65,9 @@ function App() {
   return (
     <div className="text-foreground flex min-h-screen flex-col">
       <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
-        <h1 className="voice-ink text-ink text-2xl tracking-tight md:text-3xl">WASudoku</h1>
+        <h1>
+          <Wordmark className="text-2xl tracking-tight md:text-3xl" />
+        </h1>
         <div className="flex items-center gap-1">
           <ShareMenu />
           <Button variant="ghost" size="icon" asChild>
@@ -91,8 +94,8 @@ function App() {
           {/* Main content: Grid + Controls */}
           <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
             <GameStatus />
-            <HintPanel />
             <SudokuGrid />
+            <HintPanel />
             <div className="flex flex-col gap-4">
               <div className="grid w-full grid-cols-4 place-items-center gap-2">
                 <UndoRedo />
