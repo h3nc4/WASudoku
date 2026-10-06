@@ -18,7 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Priority, type TaskType, WorkerPool } from './worker-pool'
+import { Priority, WorkerPool } from './worker-pool'
 
 // Hoist mocks
 const { MockWorker, mockPostMessage, mockTerminate, mockAddEventListener } = vi.hoisted(() => {
@@ -103,12 +103,12 @@ describe('WorkerPool', () => {
   })
 
   it('executes a high priority task immediately if workers are free', async () => {
-    const promise = pool.runTask('solve', { board: '...' }, Priority.HIGH)
+    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
 
     expect(mockPostMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'solve',
-        board: '...',
+        boardString: '...',
       }),
     )
 
@@ -126,15 +126,14 @@ describe('WorkerPool', () => {
     await expect(promise).resolves.toBe('solved')
   })
 
-  it('handles task with no payload (coverage for || {})', async () => {
-    const promise = pool.runTask('solve', null, Priority.HIGH)
+  it('posts the id, type and payload as one flat message', async () => {
+    const promise = pool.runTask('generate', { difficulty: 'easy' }, Priority.HIGH)
 
-    expect(mockPostMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'solve',
-        // Should not have other payload props, effectively just type and id
-      }),
-    )
+    expect(mockPostMessage).toHaveBeenCalledWith({
+      id: expect.any(Number),
+      type: 'generate',
+      difficulty: 'easy',
+    })
 
     const taskId = mockPostMessage.mock.calls[0][0].id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,12 +154,12 @@ describe('WorkerPool', () => {
     // If we make 3 workers busy, 1 is free. Low priority should queue.
 
     // 1. Occupy 3 workers with High Priority tasks
-    pool.runTask('solve', {}, Priority.HIGH)
-    pool.runTask('solve', {}, Priority.HIGH)
-    pool.runTask('solve', {}, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
 
     // 2. Schedule Low Priority task
-    pool.runTask('generate', {}, Priority.LOW)
+    pool.runTask('generate', { difficulty: 'easy' }, Priority.LOW)
 
     // Only the first 3 high priority tasks should have been sent
     expect(mockPostMessage).toHaveBeenCalledTimes(3)
@@ -168,13 +167,13 @@ describe('WorkerPool', () => {
 
   it('executes queued tasks when a worker becomes free', async () => {
     // 1. Saturate the pool
-    const p1 = pool.runTask('solve' as TaskType, {}, Priority.HIGH)
-    pool.runTask('solve' as TaskType, {}, Priority.HIGH)
-    pool.runTask('solve' as TaskType, {}, Priority.HIGH)
-    pool.runTask('solve' as TaskType, {}, Priority.HIGH)
+    const p1 = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
 
     // 2. Add queued task
-    const pQueued = pool.runTask('generate' as TaskType, {}, Priority.HIGH)
+    const pQueued = pool.runTask('generate', { difficulty: 'easy' }, Priority.HIGH)
 
     expect(mockPostMessage).toHaveBeenCalledTimes(4)
 
@@ -205,7 +204,7 @@ describe('WorkerPool', () => {
   })
 
   it('handles worker errors correctly', async () => {
-    const promise = pool.runTask('solve', {}, Priority.HIGH)
+    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
     const id = mockPostMessage.mock.calls[0][0].id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
@@ -219,7 +218,7 @@ describe('WorkerPool', () => {
   })
 
   it('handles "unknown worker error" fallback', async () => {
-    const promise = pool.runTask('solve', {}, Priority.HIGH)
+    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
     const id = mockPostMessage.mock.calls[0][0].id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
@@ -255,7 +254,7 @@ describe('WorkerPool', () => {
     const unknownWorker = { some: 'object' }
 
     // Start a task so we have a pending request
-    const promise = pool.runTask('solve', {}, Priority.HIGH)
+    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
     const id = mockPostMessage.mock.calls[0][0].id
 
     // Send message from unknown worker

@@ -19,14 +19,30 @@
 /* v8 ignore next */
 import init, { generate_sudoku, solve_sudoku, validate_puzzle } from 'wasudoku-wasm'
 
+import type {
+  GeneratedPuzzle,
+  Responses,
+  TaskType,
+  WorkerRequest,
+  WorkerResponse,
+} from '@/workers/protocol'
+
 // Initialize the WASM module on worker startup.
 const wasmReady = init()
 
-interface WorkerRequest {
-  id: number
-  type: 'solve' | 'generate' | 'validate'
-  boardString?: string
-  difficulty?: string
+function run(request: WorkerRequest): Responses[TaskType] {
+  if (request.type === 'solve' && request.boardString) {
+    return solve_sudoku(request.boardString) as Responses['solve']
+  }
+  if (request.type === 'generate' && request.difficulty) {
+    const { puzzle, solution } = generate_sudoku(request.difficulty) as GeneratedPuzzle
+    return { puzzleString: puzzle, solutionString: solution }
+  }
+  if (request.type === 'validate' && request.boardString) {
+    const solution = validate_puzzle(request.boardString)
+    return { isValid: solution !== undefined, solutionString: solution ?? '' }
+  }
+  throw new Error(`Unknown or malformed request type: ${String(request.type)}`)
 }
 
 /**
@@ -45,36 +61,17 @@ export async function handleMessage(event: MessageEvent<WorkerRequest>) {
     return
   }
 
-  const { id, type, boardString, difficulty } = event.data
+  const { id } = event.data
+  let response: WorkerResponse
 
   try {
     await wasmReady
-    let payload: unknown
-
-    if (type === 'solve' && boardString) {
-      payload = solve_sudoku(boardString)
-    } else if (type === 'generate' && difficulty) {
-      const puzzleString = generate_sudoku(difficulty)
-      const solveResult = solve_sudoku(puzzleString)
-      const solutionString = solveResult.solution ?? ''
-      payload = { puzzleString, solutionString }
-    } else if (type === 'validate' && boardString) {
-      const isValid = validate_puzzle(boardString)
-      let solutionString = ''
-      if (isValid) {
-        const solveResult = solve_sudoku(boardString)
-        solutionString = solveResult.solution ?? ''
-      }
-      payload = { isValid, solutionString }
-    } else {
-      throw new Error(`Unknown or malformed request type: ${type}`)
-    }
-
-    self.postMessage({ id, status: 'success', payload })
+    response = { id, status: 'success', payload: run(event.data) }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    self.postMessage({ id, status: 'error', error: errorMessage })
+    response = { id, status: 'error', error: errorMessage }
   }
+  self.postMessage(response)
 }
 
 // Attach the handler to the 'message' event in the worker's global scope.

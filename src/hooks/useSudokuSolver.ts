@@ -33,7 +33,7 @@ import {
   validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
-import type { SolveResult, SudokuState } from '@/context/sudoku.types'
+import type { SudokuState } from '@/context/sudoku.types'
 import { boardStateToString } from '@/lib/utils'
 import { Priority, WorkerPool } from '@/lib/worker-pool'
 
@@ -72,7 +72,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
+      .runTask('solve', { boardString }, Priority.HIGH)
       .then((result) => {
         dispatch(solveSuccess(result))
         toast.success('Solver finished. Step through its solution beside the board.')
@@ -89,11 +89,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
     if (!isGenerating || !generationDifficulty || !poolRef.current) return
 
     poolRef.current
-      .runTask<{ puzzleString: string; solutionString: string }>(
-        'generate',
-        { difficulty: generationDifficulty },
-        Priority.HIGH,
-      )
+      .runTask('generate', { difficulty: generationDifficulty }, Priority.HIGH)
       .then(({ puzzleString, solutionString }) => {
         dispatch(generatePuzzleSuccess(puzzleString, solutionString))
         toast.success('New puzzle generated!')
@@ -111,11 +107,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask<{ isValid: boolean; solutionString: string }>(
-        'validate',
-        { boardString },
-        Priority.HIGH,
-      )
+      .runTask('validate', { boardString }, Priority.HIGH)
       .then(({ isValid, solutionString }) => {
         if (isValid && solutionString) {
           dispatch(validatePuzzleSuccess(solutionString))
@@ -137,7 +129,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
+      .runTask('solve', { boardString }, Priority.HIGH)
       .then((result) => {
         dispatch(hintSuccess(result))
       })
@@ -160,11 +152,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
         dispatch(requestPoolRefill(difficulty))
 
         poolRef.current
-          ?.runTask<{ puzzleString: string; solutionString: string }>(
-            'generate',
-            { difficulty },
-            Priority.LOW,
-          )
+          ?.runTask('generate', { difficulty }, Priority.LOW)
           .then(({ puzzleString, solutionString }) => {
             dispatch(poolRefillSuccess(difficulty, puzzleString, solutionString))
           })
