@@ -17,180 +17,158 @@
  */
 
 import { renderHook } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
-import { initialState, STORAGE_KEYS } from '@/context/sudoku.reducer'
+import { GAME_FORMAT_VERSION, STORAGE_KEYS } from '@/context/sudoku.persistence'
+import { initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
 
 import { useSudokuPersistence } from './useSudokuPersistence'
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString()
-    },
-    clear: () => {
-      store = {}
-    },
-    removeItem: (key: string) => {
-      delete store[key]
-    },
-    length: 0,
-    key: () => null,
-  }
-})()
+const withMove = (state: SudokuState): SudokuState => ({
+  ...state,
+  history: { stack: [...state.history.stack, state.board], index: state.history.stack.length },
+})
+
+const storedGame = () => JSON.parse(globalThis.localStorage.getItem(STORAGE_KEYS.GAME) ?? 'null')
+
+const setVisibility = (value: DocumentVisibilityState) =>
+  Object.defineProperty(document, 'visibilityState', { value, configurable: true })
 
 describe('useSudokuPersistence', () => {
-  let setItemSpy: ReturnType<typeof vi.spyOn>
+  let setItemSpy: MockInstance<Storage['setItem']>
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let originalLocalStorage: any
-
-  beforeAll(() => {
-    // Overwrite localStorage to avoid polluting the global scope
-    originalLocalStorage = window.localStorage
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      configurable: true,
-      writable: true,
-    })
-  })
-
-  afterAll(() => {
-    // Restore original localStorage
-    Object.defineProperty(window, 'localStorage', {
-      value: originalLocalStorage,
-      configurable: true,
-      writable: true,
-    })
-  })
 
   beforeEach(() => {
-    localStorageMock.clear()
-    setItemSpy = vi.spyOn(localStorageMock, 'setItem')
+    vi.useFakeTimers()
+    globalThis.localStorage.clear()
+    setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     setItemSpy.mockRestore()
     consoleErrorSpy.mockRestore()
+    setVisibility('visible')
   })
 
-  it('should save to all split keys on first render', () => {
+  const keysWritten = () => setItemSpy.mock.calls.map(([key]) => key)
+
+  const renderPersistence = () => {
+    const view = renderHook((props) => useSudokuPersistence(props), { initialProps: initialState })
+    vi.runAllTimers()
+    setItemSpy.mockClear()
+    return view
+  }
+
+  it('saves metrics and pool at once and the game once idle', () => {
     renderHook(() => useSudokuPersistence(initialState))
-    // Expect separate calls for GAME, METRICS, and POOL
-    expect(setItemSpy).toHaveBeenCalledTimes(3)
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.GAME, expect.any(String))
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.METRICS, expect.any(String))
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.POOL, expect.any(String))
+    expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS, STORAGE_KEYS.POOL])
+
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS, STORAGE_KEYS.POOL, STORAGE_KEYS.GAME])
+    expect(storedGame().version).toBe(GAME_FORMAT_VERSION)
   })
 
-  it('should save only GAME state when history changes', () => {
-    const updatedState: SudokuState = {
-      ...initialState,
-      history: {
-        stack: [...initialState.history.stack, initialState.board],
-        index: 1,
-      },
-    }
+  it('coalesces several moves into one write of the latest history', () => {
+    const { rerender } = renderPersistence()
+    const once = withMove(initialState)
+    const twice = withMove(once)
 
-    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
-      initialProps: initialState,
-    })
+    rerender(once)
+    rerender(twice)
+    expect(setItemSpy).not.toHaveBeenCalled()
 
-    setItemSpy.mockClear()
-    rerender(updatedState)
-
-    // Should ONLY save GAME, not metrics or pool
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.GAME, expect.any(String))
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
+    expect(storedGame().history.index).toBe(2)
   })
 
-  it('should save the puzzle difficulty with the game', () => {
-    const updatedState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, difficulty: 'expert' },
-    }
-    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
-      initialProps: initialState,
-    })
-
-    setItemSpy.mockClear()
-    rerender(updatedState)
-
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-    const [key, json] = setItemSpy.mock.calls[0]
-    expect(key).toBe(STORAGE_KEYS.GAME)
-    expect(JSON.parse(json as string).difficulty).toBe('expert')
+  it('saves the puzzle difficulty with the game', () => {
+    const { rerender } = renderPersistence()
+    rerender({ ...initialState, solver: { ...initialState.solver, difficulty: 'expert' } })
+    vi.runAllTimers()
+    expect(storedGame().difficulty).toBe('expert')
   })
 
-  it('should save only METRICS when timer changes', () => {
-    const updatedState: SudokuState = {
-      ...initialState,
-      game: { timer: 5, mistakes: 1 },
-    }
+  it('flushes a pending game on pagehide', () => {
+    const { rerender } = renderPersistence()
+    rerender(withMove(initialState))
 
-    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
-      initialProps: initialState,
-    })
+    globalThis.dispatchEvent(new Event('pagehide'))
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
+    expect(storedGame().history.index).toBe(1)
 
-    setItemSpy.mockClear()
-    rerender(updatedState)
-
-    // Should ONLY save METRICS
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.METRICS, expect.any(String))
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
   })
 
-  it('should save only POOL when puzzle pool changes', () => {
-    const updatedState: SudokuState = {
-      ...initialState,
-      puzzlePool: {
-        ...initialState.puzzlePool,
-        easy: [{ puzzleString: 'abc', solutionString: 'def' }],
-      },
-    }
+  it('flushes a pending game when the page turns hidden but not when visible', () => {
+    const { rerender } = renderPersistence()
+    rerender(withMove(initialState))
 
-    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
-      initialProps: initialState,
-    })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(setItemSpy).not.toHaveBeenCalled()
 
-    setItemSpy.mockClear()
-    rerender(updatedState)
-
-    // Should ONLY save POOL
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-    expect(setItemSpy).toHaveBeenCalledWith(STORAGE_KEYS.POOL, expect.any(String))
+    setVisibility('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
   })
 
-  it('should not save if irrelevant props change', () => {
-    const updatedState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, isSolving: true }, // This prop isn't in any deps array
-    }
-
-    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
-      initialProps: initialState,
-    })
-
-    setItemSpy.mockClear()
-    rerender(updatedState)
-
+  it('does nothing on hide when nothing is pending', () => {
+    renderPersistence()
+    globalThis.dispatchEvent(new Event('pagehide'))
     expect(setItemSpy).not.toHaveBeenCalled()
   })
 
-  it('should handle local storage write errors gracefully', () => {
+  it('flushes a pending game on unmount and stops listening', () => {
+    const { rerender, unmount } = renderPersistence()
+    rerender(withMove(initialState))
+
+    unmount()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
+
+    globalThis.dispatchEvent(new Event('pagehide'))
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
+  })
+
+  it('saves only metrics when the timer changes', () => {
+    const { rerender } = renderPersistence()
+    rerender({ ...initialState, game: { timer: 5, mistakes: 1 } })
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS])
+  })
+
+  it('saves only the pool when the puzzle pool changes', () => {
+    const { rerender } = renderPersistence()
+    rerender({
+      ...initialState,
+      puzzlePool: {
+        ...initialState.puzzlePool,
+        easy: [{ puzzleString: 'a', solutionString: 'b' }],
+      },
+    })
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.POOL])
+  })
+
+  it('does not save when unrelated state changes', () => {
+    const { rerender } = renderPersistence()
+    rerender({ ...initialState, solver: { ...initialState.solver, isSolving: true } })
+    vi.runAllTimers()
+    expect(setItemSpy).not.toHaveBeenCalled()
+  })
+
+  it('logs storage write errors instead of throwing', () => {
     setItemSpy.mockImplementation(() => {
       throw new Error('Storage is full')
     })
-
     renderHook(() => useSudokuPersistence(initialState))
-
-    // Expect error logs for each failed save attempt
+    vi.runAllTimers()
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to save'),
+      `Failed to save ${STORAGE_KEYS.GAME} to local storage:`,
       expect.any(Error),
     )
   })

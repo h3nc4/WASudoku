@@ -163,25 +163,25 @@ export interface SudokuState {
   readonly poolRequestCount: Record<string, number>
 }
 
-/** Data persisted for the active game session. */
-export interface PersistedGameState {
-  history: {
-    stack: BoardState[]
-    index: number
-  }
-  initialBoard: BoardState
-  solution: number[] | null
-  difficulty?: string | null
+/** Game session as written to storage, five characters per cell. */
+export interface PersistedGame {
+  readonly version: 2
+  readonly history: { readonly stack: readonly string[]; readonly index: number }
+  readonly initialBoard: string
+  /** The 81 solution digits as one string. */
+  readonly solution: string | null
+  readonly difficulty: string | null
 }
 
-/** Data persisted for game metrics. */
-export interface PersistedMetrics {
-  timer: number
-  mistakes: number
+/** Game session as decoded from storage. */
+export interface SavedGame {
+  readonly history: HistoryState
+  readonly initialBoard: BoardState
+  readonly solution: readonly number[] | null
+  readonly difficulty: string | null
 }
 
 /** Data persisted for the puzzle generator pool. */
 export interface PersistedPool {
-  puzzlePool: Record<string, PuzzleData[]>
-  poolRequestCount: Record<string, number>
+  readonly puzzlePool: Record<string, PuzzleData[]>
 }
