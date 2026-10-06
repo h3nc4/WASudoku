@@ -1,8 +1,8 @@
 # WASudoku
 
-A Sudoku solver and generator that runs entirely in the browser. The solving engine is Rust compiled to WebAssembly, and it works the way a person would, so it can show the reasoning behind each digit it places rather than only the answer.
+Sudoku in the browser, with a solver written in Rust and compiled to WebAssembly. It generates puzzles at five levels and solves a grid the way a person would, by named techniques, falling back to backtracking where those run out. Each digit placed by logic comes with the technique that justified it, and a puzzle typed in by hand is checked for a unique solution before play starts.
 
-It runs offline after the first load. There is no backend and no account, and the page stops requesting anything once it has loaded.
+Solving and generating happen inside the tab, in Web Workers, without a network request. The app has neither an account nor a backend.
 
 ## Live
 
@@ -10,50 +10,76 @@ It runs offline after the first load. There is no backend and no account, and th
 
 Also as a hidden service at `wasudoku.h3nc4cd73utflolf2uxgws3j6rmgzotlwndukabzgzawpzk5fejws5id.onion`.
 
-## Solving a puzzle
+## Running it locally
 
-Get a puzzle onto the grid by any of these:
+The image on Docker Hub serves the built site with nginx on port 80.
 
-- **Paste** an 81-character string straight onto the board.
-- **Type** digits, and the focus advances on its own. Arrow keys move, Backspace and Delete clear.
-- **Number pad** on screen, which also counts how many of each digit remain unplaced.
-- **Export** the grid back out as an 81-character string.
+```sh
+docker run --rm -p 8080:80 h3nc4/wasudoku
+```
 
-Entry modes cover notes as well as answers. **Normal** places a digit, **Candidate** writes small corner notes, and **Center** writes centre notes for the techniques that read them. Undo and redo step through all of it.
+Then open <http://localhost:8080>. The image starts from scratch and holds nginx with the static files, running as uid 65534. A request for an unknown path returns `index.html` with status 200, as a single-page app expects.
 
-Conflicts are highlighted as they appear, so a digit repeated in a row, a column or a box shows up before the solve runs.
+Each release on GitHub also attaches the same static build as `WASudoku.tar.gz` and `WASudoku.tar.xz`, for any web server, and an Android package, `WASudoku.apk`, which wraps the live site as a Trusted Web Activity.
 
-The solver runs in a Web Worker, which keeps the grid responsive while it works.
+## Playing
 
-## Reading the solution
+The first screen offers **New Puzzle** or **Create Your Own**.
 
-After a solve, the interface replays the steps the logical engine took, one at a time, with the board as it stood at each one. Each step cites the technique that justified it, which is what the list further down explains.
+- **New Puzzle** picks a level from the table further down. The app keeps a pool of pre-generated puzzles for each level, refilled in the background up to three, which lets a new game usually start at once.
+- **Create Your Own** opens an empty grid for entering a puzzle from elsewhere. **Start Puzzle** then checks it, and a grid with more than one solution, or none, is refused with an error.
 
-**A puzzle that logic cannot finish has a shorter replay.** The engine applies its techniques first. When those run out with cells still empty, it finishes the grid by backtracking, and backtracking produces a correct answer with no reasoning attached. The replay covers the part logic solved and stops at that point. Puzzles generated at the Extreme setting are where this happens, that being the one level with no guarantee that logic alone reaches the end.
+During play the starting digits are locked. A timer runs, and every digit that differs from the known solution counts as a mistake. The counter reads out of 3 and turns red at 3, and play carries on past it.
 
-## Generating a puzzle
+### Entering digits
 
-Five levels, each set by the hardest technique needed rather than by how many digits are given:
+- **Keyboard.** Digits 1 to 9 fill the selected cell. After a digit that clashes with nothing in its row, column or box, the selection moves to the next cell. Arrow keys move, Backspace erases and steps back, Delete erases in place.
+- **Number pad** on screen, which shows how many of each digit are still unplaced.
+- **Modes.** **Normal** places a digit, **Candidate** writes small corner notes, and **Center** writes centre notes. A note that clashes with a placed digit is refused, and the clashing cells flash.
+- **Auto-fill** writes every valid candidate into every empty cell.
+- **Undo and redo** step back and forth through the last 100 board states, notes included.
 
-| Level   | Needs                                                      |
-| ------- | ---------------------------------------------------------- |
-| Easy    | basic techniques alone                                     |
-| Medium  | intermediate techniques                                    |
-| Hard    | advanced techniques, still without backtracking            |
-| Expert  | master techniques, still solvable by logic                 |
-| Extreme | a unique solution, without a guarantee that logic suffices |
+A digit repeated in a row, a column or a box is highlighted as soon as it is placed, and **Solve Puzzle** stays disabled while any such conflict remains.
 
-The generator asserts a unique solution at each of the five levels, and its tests check that.
+### Importing and exporting
 
-## Installing it
+The share button in the header copies the current grid to the clipboard as an 81-character string, row by row, with `.` for an empty cell.
 
-It is a Progressive Web App, which means a browser offers to install it, and an installed copy runs offline. The board, the notes and the undo history are kept in local storage. A closed tab reopens where it was left.
+Pasting works on the **Create Your Own** grid. The clipboard has to hold exactly 81 characters, each a digit or a `.`, where `0` and `.` both mean empty. Anything else is rejected with a message, and the browser may first ask for permission to read the clipboard.
 
-Light and dark themes follow the system setting.
+## Solving
+
+**Solve Puzzle** solves the grid as it stands, including digits the player entered. A wrong digit entered earlier can leave the grid without a solution, and the solve then fails until the board changes.
+
+After a solve, a panel lists the steps the logical engine took. Each step shows its technique and the cells involved, in row and column notation such as `R4C7`. Selecting a step shows the board as it stood at that point, with its candidates and the eliminations that step made. **Exit Visualization** returns to the game.
+
+**When logic runs out, backtracking finishes the grid.** Backtracking produces a correct answer with no reasoning attached. The step list ends with one `Backtracking` entry at the point where logic stopped. Every Extreme puzzle ends that way, by design.
+
+## Levels
+
+A level is set by which techniques a puzzle needs, measured by solving it with the engine below, rather than by how many digits are given.
+
+| Level   | Accepted when                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------ |
+| Easy    | basic techniques alone solve it, with at least 32 givens                                               |
+| Medium  | the hardest step is intermediate, with at least 5 intermediate steps                                   |
+| Hard    | the hardest step is advanced, with at least 3 advanced and 5 intermediate steps, solved by logic alone |
+| Expert  | at least 2 master steps, 3 advanced and 5 intermediate, solved by logic alone                          |
+| Extreme | logic stalls before the grid is full, and backtracking completes it                                    |
+
+The generator keeps the solution unique at all five levels. It removes givens in pairs placed symmetrically about the centre, and keeps a removal only while one solution remains. A candidate puzzle that misses its level is discarded and the generator starts again.
+
+## Saved state
+
+The board, the notes, the undo history, the timer, the mistake count and the pool of pre-generated puzzles live in the browser's local storage. A closed tab reopens where it was left.
+
+The site has a web manifest, so a browser can install it as an app. It lacks a service worker, which means the page, and an installed copy too, needs a connection to open. Once open, it keeps working without one.
+
+The theme starts dark. The button in the header switches between dark and light, and the choice is remembered.
 
 ## Techniques
 
-Tried cheapest first. The first one that matches becomes the next step.
+The engine tries techniques in a fixed order, and the first one that matches becomes the next step. The order follows the levels below, with one exception. Jellyfish is tried together with X-Wing and Swordfish, ahead of the advanced wings.
 
 ### Basic
 
@@ -84,15 +110,40 @@ Tried cheapest first. The first one that matches becomes the next step.
 
 ### Fallback
 
-- **Backtracking.** Used when the techniques above leave cells empty. It finds the solution without producing a reason for any digit, which is where the step replay ends.
+- **Backtracking.** Used when the techniques above leave cells empty. It finds the solution without producing a reason for any digit, which is where the step list ends.
 
 Definitions follow the strategy reference at [SudokuWiki](https://www.sudokuwiki.org/Strategy_Families).
 
-## Built with
+## Building from source
 
-The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. State sits in reducers reached through React context, split one per concern, so the board, the notes and the solver each own their own transitions.
+A build needs Node 24 or newer with npm 11 or newer, a Rust toolchain with the `wasm32-unknown-unknown` target, and wasm-pack. `scripts/wasm-deps.sh` installs wasm-pack and wasm-opt through `cargo install`, and with `-d` it adds cargo-llvm-cov and cargo-audit for the tests and the audit.
 
-The engine is Rust, built with wasm-pack and wasm-bindgen.
+The dev container in `.devcontainer.json` already includes all of that. Its image is pulled from Docker Hub, or built from `docker/dev.Dockerfile` when that tag is still unpublished.
+
+```sh
+git clone https://github.com/h3nc4/WASudoku.git
+cd WASudoku
+npm ci
+npm run dev
+```
+
+`npm run dev` compiles the Rust crate in `src/wasudoku-wasm` with wasm-pack first, then starts Vite on <http://localhost:5173>. After a change to the Rust code, `npm run wasm:build:dev` rebuilds the crate.
+
+| Command                | Does                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run build`        | release build of the crate, a type check, then the site into `dist/`     |
+| `npm run preview`      | serves `dist/` locally                                                   |
+| `npm test`             | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
+| `npm run test:browser` | Vitest in a real browser through Playwright                              |
+| `npm run lint`         | ESLint                                                                   |
+| `npm run lint:wasm`    | Clippy, with warnings as errors                                          |
+| `npm run typecheck`    | `tsc -b`                                                                 |
+| `npm run format:check` | Prettier over the whole repository                                       |
+| `npm run audit`        | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
+
+The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in a pool of two to six Web Workers sized from the CPU count.
+
+To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
 
 ## License
 
