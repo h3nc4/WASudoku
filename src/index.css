@@ -22,6 +22,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
+  --font-sans: 'Recursive Variable', ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -44,88 +45,88 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-paper: var(--paper);
+  --color-grid-thin: var(--grid-thin);
+  --color-grid-thick: var(--grid-thick);
+  --color-ink: var(--ink);
+  --color-pencil: var(--pencil);
+  --color-note: var(--note);
+  --color-peer: var(--peer);
+  --color-same: var(--same);
+  --color-highlighter: var(--highlighter);
+  --color-error: var(--error);
+  --color-solver: var(--solver);
+  --color-solver-wash: var(--solver-wash);
 }
 
+/* Graphite bench with a paper board. Amber is reserved for the solver. */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #eef0ee;
+  --foreground: #1d2433;
+  --card: #fcfcf8;
+  --card-foreground: #1d2433;
+  --popover: #fcfcf8;
+  --popover-foreground: #1d2433;
+  --primary: #1d2a4d;
+  --primary-foreground: #f6f6f1;
+  --secondary: #e3e6e2;
+  --secondary-foreground: #1d2433;
+  --muted: #e3e6e2;
+  --muted-foreground: #646a73;
+  --accent: #e3e6e2;
+  --accent-foreground: #1d2433;
+  --destructive: #c2362c;
+  --border: #d8dbd6;
+  --input: #d8dbd6;
+  --ring: #1d2a4d;
+  --paper: #fcfcf8;
+  --grid-thin: #d9dce1;
+  --grid-thick: #1d2a4d;
+  --ink: #1d2a4d;
+  --pencil: #585d66;
+  --note: #70757e;
+  --peer: rgb(120 140 170 / 0.09);
+  --same: rgb(120 140 170 / 0.2);
+  --highlighter: rgb(250 214 60 / 0.75);
+  --error: #c2362c;
+  --solver: #9a5c00;
+  --solver-wash: rgb(184 115 10 / 0.16);
+  --graph-line: rgb(110 130 160 / 0.08);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #121418;
+  --foreground: #e6e8eb;
+  --card: #1a1d22;
+  --card-foreground: #e6e8eb;
+  --popover: #1a1d22;
+  --popover-foreground: #e6e8eb;
+  --primary: #e6e8eb;
+  --primary-foreground: #121418;
+  --secondary: #1e2127;
+  --secondary-foreground: #e6e8eb;
+  --muted: #1e2127;
+  --muted-foreground: #8a919c;
+  --accent: #252930;
+  --accent-foreground: #e6e8eb;
+  --destructive: #f07a6e;
+  --border: #252930;
+  --input: #2c3038;
+  --ring: #b9c1cc;
+  --paper: #1a1d22;
+  --grid-thin: #2c3038;
+  --grid-thick: #b9c1cc;
+  --ink: #eef1f5;
+  --pencil: #a3abb6;
+  --note: #7f8792;
+  --peer: rgb(150 170 200 / 0.06);
+  --same: rgb(150 170 200 / 0.14);
+  --highlighter: rgb(236 230 120 / 0.3);
+  --error: #f07a6e;
+  --solver: #f2a541;
+  --solver-wash: rgb(242 165 65 / 0.18);
+  --graph-line: rgb(160 180 210 / 0.04);
 }
 
 @layer base {
@@ -135,5 +136,43 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image:
+      linear-gradient(var(--graph-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--graph-line) 1px, transparent 1px);
+    background-size: 14px 14px;
   }
+}
+
+/* Recursive axes give givens, player digits and instrument text their own hand from one font file. */
+@utility voice-ink {
+  font-variation-settings:
+    'CASL' 0,
+    'MONO' 0;
+  font-weight: 700;
+}
+
+@utility voice-pencil {
+  font-variation-settings: 'CASL' 1;
+  font-weight: 450;
+}
+
+@utility voice-mono {
+  font-variation-settings: 'MONO' 1;
+}
+
+@utility highlighter {
+  background-image: linear-gradient(
+    101deg,
+    transparent 4%,
+    var(--highlighter) 7% 93%,
+    transparent 96%
+  );
+}
+
+@utility solver-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--solver-wash) 0 3px,
+    transparent 3px 7px
+  );
 }
