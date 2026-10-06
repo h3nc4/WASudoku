@@ -194,3 +194,31 @@ fn test_induced_panic_is_triggered() {
     let mut board: Board = puzzle_str.parse().unwrap();
     solve(&mut board);
 }
+
+// Run with `cargo test --release --test solver -- --ignored --nocapture`, deterministic unlike generation.
+#[test]
+#[ignore]
+fn bench_count_solutions_fixed_puzzles() {
+    let puzzles = [
+        "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..",
+        "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......",
+        "..53.....8......2..7..1.5..4....53...1..7...6..32...8..6.5....9..4....3......97..",
+        ".....6....59.....82....8....45........3........6..3.54...325..6..................",
+        ".................................................................................",
+    ];
+    for puzzle in puzzles {
+        let board: Board = puzzle.parse().unwrap();
+        let start = std::time::Instant::now();
+        let mut count = 0;
+        for _ in 0..20 {
+            count = std::hint::black_box(count_solutions(&board));
+        }
+        let per_call = start.elapsed().as_secs_f64() * 1000.0 / 20.0;
+        println!(
+            "{}: count={} {:.3}ms per call",
+            &puzzle[..20],
+            count,
+            per_call
+        );
+    }
+}
