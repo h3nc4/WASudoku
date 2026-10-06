@@ -22,44 +22,32 @@ use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 // --- Naked Subsets ---
 
 pub fn find_naked_pair(board: &LogicalBoard) -> Option<SolvingStep> {
-    for unit in ALL_UNITS.iter() {
-        // Filter to cells with exactly 2 candidates
-        let unit_slice = *unit;
-        let potential_indices = filter_naked_subset_candidates(board, unit_slice, 2);
-
-        if potential_indices.len() < 2 {
-            continue;
-        }
-
-        // Check all pairs
-        for i in 0..potential_indices.len() {
-            for j in (i + 1)..potential_indices.len() {
-                if let Some(step) = check_naked_pair(
-                    board,
-                    potential_indices[i],
-                    potential_indices[j],
-                    unit_slice,
-                ) {
-                    return Some(step);
-                }
-            }
-        }
-    }
-    None
+    find_naked_subset(board, 2)
 }
 
 pub fn find_naked_triple(board: &LogicalBoard) -> Option<SolvingStep> {
+    find_naked_subset(board, 3)
+}
+
+/// Finds `size` cells in one unit whose candidates together span exactly `size` digits.
+pub fn find_naked_subset(board: &LogicalBoard, size: usize) -> Option<SolvingStep> {
+    let technique = subset_technique(size, Technique::NakedPair, Technique::NakedTriple);
     for unit in ALL_UNITS.iter() {
         let unit_slice = *unit;
-        // Filter cells with 2 or 3 candidates
-        let potential_indices = filter_naked_subset_candidates(board, unit_slice, 3);
-
-        if potential_indices.len() < 3 {
+        let potential_indices = filter_naked_subset_candidates(board, unit_slice, size);
+        if potential_indices.len() < size {
             continue;
         }
 
-        if let Some(step) = check_naked_triple_combinations(board, &potential_indices, unit_slice) {
-            return Some(step);
+        let step = first_combination(&potential_indices, size, &mut |cells| {
+            let union_mask = cells.iter().fold(0, |m, &i| m | board.candidates[i]);
+            if union_mask.count_ones() as usize != size {
+                return None;
+            }
+            construct_naked_subset_step(board, cells, union_mask, unit_slice, technique)
+        });
+        if step.is_some() {
+            return step;
         }
     }
     None
@@ -74,63 +62,6 @@ fn filter_naked_subset_candidates(board: &LogicalBoard, unit: &[usize], size: us
         })
         .cloned()
         .collect()
-}
-
-#[inline]
-fn check_naked_pair(
-    board: &LogicalBoard,
-    idx1: usize,
-    idx2: usize,
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    let mask = board.candidates[idx1];
-    if mask == board.candidates[idx2] && mask.count_ones() == 2 {
-        return construct_naked_subset_step(board, &[idx1, idx2], mask, unit, Technique::NakedPair);
-    }
-    None
-}
-
-#[inline]
-fn check_naked_triple_combinations(
-    board: &LogicalBoard,
-    indices: &[usize],
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    let len = indices.len();
-    for i in 0..len {
-        for j in (i + 1)..len {
-            for k in (j + 1)..len {
-                if let Some(step) =
-                    check_naked_triple(board, indices[i], indices[j], indices[k], unit)
-                {
-                    return Some(step);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[inline]
-fn check_naked_triple(
-    board: &LogicalBoard,
-    idx1: usize,
-    idx2: usize,
-    idx3: usize,
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    let union_mask = board.candidates[idx1] | board.candidates[idx2] | board.candidates[idx3];
-
-    if union_mask.count_ones() == 3 {
-        return construct_naked_subset_step(
-            board,
-            &[idx1, idx2, idx3],
-            union_mask,
-            unit,
-            Technique::NakedTriple,
-        );
-    }
-    None
 }
 
 fn construct_naked_subset_step(
@@ -177,42 +108,36 @@ fn construct_naked_subset_step(
 // --- Hidden Subsets ---
 
 pub fn find_hidden_pair(board: &LogicalBoard) -> Option<SolvingStep> {
-    for unit in ALL_UNITS.iter() {
-        let unit_slice = *unit;
-        let pos_masks = get_candidate_positions_in_unit(board, unit_slice);
-        let candidates = filter_hidden_subset_candidates(&pos_masks, 2);
-
-        if candidates.len() < 2 {
-            continue;
-        }
-
-        for i in 0..candidates.len() {
-            for j in (i + 1)..candidates.len() {
-                if let Some(step) =
-                    check_hidden_pair(board, candidates[i], candidates[j], &pos_masks, unit_slice)
-                {
-                    return Some(step);
-                }
-            }
-        }
-    }
-    None
+    find_hidden_subset(board, 2)
 }
 
 pub fn find_hidden_triple(board: &LogicalBoard) -> Option<SolvingStep> {
+    find_hidden_subset(board, 3)
+}
+
+/// Finds `size` digits in one unit that together appear in exactly `size` cells.
+pub fn find_hidden_subset(board: &LogicalBoard, size: usize) -> Option<SolvingStep> {
+    let technique = subset_technique(size, Technique::HiddenPair, Technique::HiddenTriple);
     for unit in ALL_UNITS.iter() {
         let unit_slice = *unit;
         let pos_masks = get_candidate_positions_in_unit(board, unit_slice);
-        let candidates = filter_hidden_subset_candidates(&pos_masks, 3);
-
-        if candidates.len() < 3 {
+        let candidates = filter_hidden_subset_candidates(&pos_masks, size);
+        if candidates.len() < size {
             continue;
         }
 
-        if let Some(step) =
-            check_hidden_triple_combinations(board, &candidates, &pos_masks, unit_slice)
-        {
-            return Some(step);
+        let step = first_combination(&candidates, size, &mut |nums| {
+            let combined_pos = nums.iter().fold(0, |m, &n| m | pos_masks[n]);
+            if combined_pos.count_ones() as usize != size {
+                return None;
+            }
+            let cell_indices = indices_from_unit_mask(unit_slice, combined_pos);
+            let keep_mask = nums.iter().fold(0, |m, &n| m | (1 << (n - 1)));
+            let subset_nums: Vec<u8> = nums.iter().map(|&n| n as u8).collect();
+            construct_hidden_subset_step(board, &cell_indices, keep_mask, &subset_nums, technique)
+        });
+        if step.is_some() {
+            return step;
         }
     }
     None
@@ -245,82 +170,6 @@ fn filter_hidden_subset_candidates(pos_masks: &[u16; 10], size: usize) -> Vec<us
             c >= 2 && c <= size
         })
         .collect()
-}
-
-#[inline]
-fn check_hidden_pair(
-    board: &LogicalBoard,
-    n1: usize,
-    n2: usize,
-    pos_masks: &[u16; 10],
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    if pos_masks[n1] == pos_masks[n2] && pos_masks[n1].count_ones() == 2 {
-        let mask_in_unit = pos_masks[n1];
-        let cell_indices = indices_from_unit_mask(unit, mask_in_unit);
-
-        let keep_mask = (1 << (n1 - 1)) | (1 << (n2 - 1));
-        return construct_hidden_subset_step(
-            board,
-            &cell_indices,
-            keep_mask,
-            &[n1 as u8, n2 as u8],
-            Technique::HiddenPair,
-        );
-    }
-    None
-}
-
-#[inline]
-fn check_hidden_triple_combinations(
-    board: &LogicalBoard,
-    candidates: &[usize],
-    pos_masks: &[u16; 10],
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    let len = candidates.len();
-    for i in 0..len {
-        for j in (i + 1)..len {
-            for k in (j + 1)..len {
-                if let Some(step) = check_hidden_triple(
-                    board,
-                    candidates[i],
-                    candidates[j],
-                    candidates[k],
-                    pos_masks,
-                    unit,
-                ) {
-                    return Some(step);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[inline]
-fn check_hidden_triple(
-    board: &LogicalBoard,
-    n1: usize,
-    n2: usize,
-    n3: usize,
-    pos_masks: &[u16; 10],
-    unit: &[usize],
-) -> Option<SolvingStep> {
-    let combined_pos = pos_masks[n1] | pos_masks[n2] | pos_masks[n3];
-    if combined_pos.count_ones() == 3 {
-        let cell_indices = indices_from_unit_mask(unit, combined_pos);
-        let keep_mask = (1 << (n1 - 1)) | (1 << (n2 - 1)) | (1 << (n3 - 1));
-
-        return construct_hidden_subset_step(
-            board,
-            &cell_indices,
-            keep_mask,
-            &[n1 as u8, n2 as u8, n3 as u8],
-            Technique::HiddenTriple,
-        );
-    }
-    None
 }
 
 #[inline]
@@ -370,4 +219,42 @@ fn construct_hidden_subset_step(
             })
             .collect(),
     })
+}
+
+#[inline]
+fn subset_technique(size: usize, pair: Technique, triple: Technique) -> Technique {
+    match size {
+        2 => pair,
+        3 => triple,
+        _ => panic!("no subset technique of size {size}"),
+    }
+}
+
+/// Visits every `size`-combination of `items` in lexicographic order and returns the first hit.
+fn first_combination<T>(
+    items: &[usize],
+    size: usize,
+    visit: &mut dyn FnMut(&[usize]) -> Option<T>,
+) -> Option<T> {
+    fn walk<T>(
+        items: &[usize],
+        start: usize,
+        size: usize,
+        picked: &mut Vec<usize>,
+        visit: &mut dyn FnMut(&[usize]) -> Option<T>,
+    ) -> Option<T> {
+        if picked.len() == size {
+            return visit(picked);
+        }
+        for (i, &item) in items.iter().enumerate().skip(start) {
+            picked.push(item);
+            let found = walk(items, i + 1, size, picked, visit);
+            picked.pop();
+            if found.is_some() {
+                return found;
+            }
+        }
+        None
+    }
+    walk(items, 0, size, &mut Vec::with_capacity(size), visit)
 }

@@ -16,8 +16,8 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{LogicalBoard, PEER_MAP, mask_to_vec};
-use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
+use super::{LogicalBoard, common_peer_eliminations, mask_to_vec};
+use crate::types::{CauseCell, SolvingStep, Technique};
 
 // --- Skyscraper ---
 
@@ -119,20 +119,7 @@ fn check_skyscraper_pair(
     };
 
     // Eliminate num from intersection of roof cells
-    let mut elims = Vec::new();
-    let cand_bit = 1 << (num - 1);
-
-    for &target_idx in &PEER_MAP[roof_cell_1] {
-        if board.cells[target_idx] == 0
-            && (board.candidates[target_idx] & cand_bit) != 0
-            && PEER_MAP[roof_cell_2].contains(&target_idx)
-        {
-            elims.push(Elimination {
-                index: target_idx,
-                value: num as u8,
-            });
-        }
-    }
+    let elims = common_peer_eliminations(board, &[roof_cell_1, roof_cell_2], num as u8);
 
     if !elims.is_empty() {
         return Some(SolvingStep {
@@ -282,20 +269,7 @@ fn construct_kite_step(
     other_cc: usize,
 ) -> Option<SolvingStep> {
     // Eliminate from intersection of other_rc and other_cc
-    let mut elims = Vec::new();
-    let cand_bit = 1 << (num - 1);
-
-    for &target_idx in &PEER_MAP[other_rc] {
-        if board.cells[target_idx] == 0
-            && (board.candidates[target_idx] & cand_bit) != 0
-            && PEER_MAP[other_cc].contains(&target_idx)
-        {
-            elims.push(Elimination {
-                index: target_idx,
-                value: num as u8,
-            });
-        }
-    }
+    let elims = common_peer_eliminations(board, &[other_rc, other_cc], num as u8);
 
     if !elims.is_empty() {
         return Some(SolvingStep {
