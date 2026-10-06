@@ -43,16 +43,16 @@ describe('InputModeToggle component', () => {
 
   it('renders with the correct initial mode selected', () => {
     render(<InputModeToggle />)
-    const normalButton = screen.getByRole('radio', { name: 'Normal' })
-    expect(normalButton).toBeChecked()
+    const penButton = screen.getByRole('radio', { name: 'Pen' })
+    expect(penButton).toBeChecked()
   })
 
   it('calls setInputMode when a different mode is selected', async () => {
     const user = userEvent.setup()
     render(<InputModeToggle />)
 
-    const candidateButton = screen.getByRole('radio', { name: 'Candidate' })
-    await user.click(candidateButton)
+    const cornerButton = screen.getByRole('radio', { name: 'Corner' })
+    await user.click(cornerButton)
 
     expect(mockSetInputMode).toHaveBeenCalledWith('candidate')
   })
@@ -66,8 +66,8 @@ describe('InputModeToggle component', () => {
     })
     render(<InputModeToggle />)
 
-    const candidateButton = screen.getByRole('radio', { name: 'Candidate' })
-    await user.click(candidateButton)
+    const cornerButton = screen.getByRole('radio', { name: 'Corner' })
+    await user.click(cornerButton)
 
     expect(mockSetInputMode).not.toHaveBeenCalled()
   })

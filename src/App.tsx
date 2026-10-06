@@ -62,12 +62,12 @@ function App() {
   const showSelectionScreen = solver.gameMode === 'selecting'
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
+    <div className="text-foreground flex min-h-screen flex-col">
       <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
-        <h1 className="text-2xl font-bold md:text-3xl">WASudoku</h1>
-        <div className="flex items-center gap-2">
+        <h1 className="voice-ink text-ink text-2xl tracking-tight md:text-3xl">WASudoku</h1>
+        <div className="flex items-center gap-1">
           <ShareMenu />
-          <Button variant="outline" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild>
             <a
               href="https://github.com/h3nc4/WASudoku"
               target="_blank"
@@ -83,8 +83,8 @@ function App() {
 
       <main
         className={cn(
-          'container mx-auto flex flex-1 flex-col items-center justify-center p-4 transition-all',
-          showSelectionScreen && 'pointer-events-none blur-sm',
+          'container mx-auto flex flex-1 flex-col items-center justify-center p-4 transition-opacity duration-200 motion-reduce:transition-none',
+          showSelectionScreen && 'pointer-events-none opacity-35',
         )}
       >
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
@@ -119,7 +119,7 @@ function App() {
 
               {/* Mobile visual cue for solving steps */}
               {solver.gameMode === 'visualizing' && (
-                <div className="text-primary mt-2 flex animate-bounce items-center justify-center md:hidden">
+                <div className="text-primary mt-2 flex animate-bounce items-center justify-center motion-reduce:animate-none md:hidden">
                   <span className="text-sm font-medium">Scroll down for solving steps</span>
                   <ChevronDown className="ml-1 size-5" />
                 </div>
@@ -140,12 +140,12 @@ function App() {
       <WinDialog />
       <PendingPuzzleDialog />
 
-      <footer className="text-muted-foreground container mx-auto p-4 text-center text-sm">
+      <footer className="text-muted-foreground/80 container mx-auto p-4 text-center text-xs">
         <a
           href="https://h3nc4.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:no-underline"
+          className="hover:text-foreground transition-colors"
         >
           <p>🄯 2025-2026 Henrique Almeida.</p>
           <p>Because knowledge should be free.</p>

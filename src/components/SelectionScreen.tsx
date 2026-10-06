@@ -32,8 +32,10 @@ export function SelectionScreen() {
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
-      <div className="bg-background/80 flex w-full max-w-xl flex-col gap-4 rounded-lg border p-6 shadow-2xl backdrop-blur-lg sm:p-8">
-        <h2 className="text-center text-2xl font-bold">Welcome to WASudoku</h2>
+      <div className="bg-card text-card-foreground flex w-full max-w-xl flex-col gap-4 rounded-md border p-6 shadow-[0_24px_60px_-16px_rgb(0_0_0/0.35)] sm:p-8">
+        <h2 className="voice-ink text-ink text-center text-2xl tracking-tight">
+          Welcome to WASudoku
+        </h2>
         <p className="text-muted-foreground text-center text-sm">Pick a difficulty to start.</p>
         <DifficultyPicker onSelect={generatePuzzle} />
         <Button onClick={startCustomPuzzle} variant="secondary">

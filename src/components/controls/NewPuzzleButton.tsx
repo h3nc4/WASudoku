@@ -108,6 +108,8 @@ export function NewPuzzleButton() {
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen} modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
+            // Start Puzzle is the primary action while a custom board is entered.
+            variant={solver.gameMode === 'customInput' ? 'outline' : 'default'}
             className="flex-1"
             disabled={isButtonDisabled}
             onClick={() => setIsOpen(true)}

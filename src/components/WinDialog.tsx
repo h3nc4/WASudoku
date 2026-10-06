@@ -60,7 +60,7 @@ export function WinDialog() {
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PartyPopper className="size-5 text-amber-500" />
+            <PartyPopper className="text-ink size-5" />
             Puzzle solved
           </DialogTitle>
           <DialogDescription>
@@ -68,7 +68,9 @@ export function WinDialog() {
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Play another</p>
+          <p className="voice-mono text-muted-foreground text-xs tracking-wider uppercase">
+            Play another
+          </p>
           <DifficultyPicker onSelect={generatePuzzle} />
         </div>
       </DialogContent>
