@@ -233,21 +233,21 @@
     var(--ease-out);
 }
 
-/* A transition takes the duration of the state it moves into, so shading arrives fast. */
+/* A transition takes the duration of the state it moves into, so shading arrives at once and only fades out. */
 @utility cell-on {
-  --cell-motion: var(--motion-in);
+  --cell-motion: 0ms;
 }
 
 @utility highlighter {
   &::before {
     opacity: 1;
-    transition-duration: var(--motion-in);
+    transition-duration: 0ms;
   }
 }
 
 @utility solver-hatch {
   &::after {
     opacity: 1;
-    transition-duration: var(--motion-in);
+    transition-duration: 0ms;
   }
 }
