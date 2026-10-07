@@ -99,6 +99,10 @@ const getBackgroundStyles = ({
   return cn('cell-fill', fill, ring, (fill || ring) && 'cell-on', isSolving && 'cursor-not-allowed')
 }
 
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 /**
  * Computes the conditional class names for the cell's digit.
  * @returns A string of Tailwind classes.
@@ -140,8 +144,10 @@ const getInputTextStyles = ({
     voice,
     weight,
     color,
-    (isConflict || isError) && 'underline decoration-error decoration-wavy decoration-[1.5px]',
-    isTransientConflict && !(isConflict || isError) && 'underline decoration-error decoration-2',
+    color === 'text-error' && 'ink-alarm',
+    (isConflict || isError) &&
+      'underline-in underline decoration-error decoration-wavy decoration-[1.5px]',
+    isTransientConflict && (prefersReducedMotion() ? 'conflict-mark' : 'conflict-pulse'),
   )
 }
 

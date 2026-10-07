@@ -18,7 +18,7 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SudokuCell from './SudokuCell'
 
@@ -48,6 +48,10 @@ describe('SudokuCell component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   describe('Rendering and Visual States', () => {
@@ -124,7 +128,23 @@ describe('SudokuCell component', () => {
       expect(background.className).not.toMatch(/bg-/)
     })
 
-    it('applies transient highlight style when isTransientConflict is true', () => {
+    it('turns a wrong digit red at once and draws its underline in', () => {
+      render(<SudokuCell {...defaultProps} isError cell={{ ...defaultProps.cell, value: 5 }} />)
+      expect(screen.getByTestId('cell-digit')).toHaveClass('cell-ink ink-alarm underline-in')
+    })
+
+    it('lets a digit leave the error state through the ordinary fade', () => {
+      const props = { ...defaultProps, cell: { ...defaultProps.cell, value: 5 } }
+      const { rerender } = render(<SudokuCell {...props} isConflict />)
+      rerender(<SudokuCell {...props} />)
+
+      const digit = screen.getByTestId('cell-digit')
+      expect(digit).toHaveClass('cell-ink text-pencil')
+      expect(digit).not.toHaveClass('ink-alarm')
+      expect(digit).not.toHaveClass('underline-in')
+    })
+
+    it('pulses a transiently clashing digit instead of underlining it', () => {
       render(
         <SudokuCell
           {...defaultProps}
@@ -135,9 +155,28 @@ describe('SudokuCell component', () => {
       const digit = screen.getByTestId('cell-digit')
       const background = screen.getByTestId('cell-background')
 
-      expect(digit).toHaveClass('text-error underline decoration-error')
-      expect(digit).not.toHaveClass('decoration-wavy')
+      expect(digit).toHaveClass('text-error ink-alarm conflict-pulse')
+      expect(digit).not.toHaveClass('underline')
+      expect(digit).not.toHaveClass('conflict-mark')
       expect(background.className).not.toMatch(/bg-/)
+    })
+
+    it('outlines a transiently clashing digit without motion under reduced motion', () => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: query.includes('reduce') })),
+      )
+      render(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      const digit = screen.getByTestId('cell-digit')
+
+      expect(digit).toHaveClass('text-error conflict-mark')
+      expect(digit).not.toHaveClass('conflict-pulse')
     })
 
     it('applies correct classes for given numbers', () => {
