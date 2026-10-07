@@ -43,7 +43,8 @@ export const PencilMarks = memo(function PencilMarks({
   if (centers.size > 0) {
     // Center marks rendering
     const sortedCenters = [...centers].sort((a, b) => a - b)
-    const fontSize = centers.size > 4 ? 'text-xs md:text-sm' : 'text-[0.95rem] md:text-base'
+    const fontSize =
+      centers.size > 4 ? 'text-[0.65rem] md:text-xs' : 'text-[0.8rem] md:text-[0.85rem]'
     return (
       <div className="flex size-full items-center justify-center p-1">
         {sortedCenters.map((num) => (
