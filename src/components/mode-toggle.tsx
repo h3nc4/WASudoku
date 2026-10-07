@@ -18,6 +18,7 @@
 
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { flushSync } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
 
@@ -25,7 +26,24 @@ export function ModeToggle() {
   const { theme, setTheme } = useTheme()
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+    const next = theme === 'dark' ? 'light' : 'dark'
+    const reduce = globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!('startViewTransition' in document) || reduce) {
+      setTheme(next)
+      return
+    }
+    document.startViewTransition(() => {
+      // next-themes sets the class in an effect, so set it here too or the new snapshot is still the old theme.
+      const root = document.documentElement
+      root.classList.add('theme-switching')
+      root.classList.remove('light', 'dark')
+      root.classList.add(next)
+      root.style.colorScheme = next
+      flushSync(() => setTheme(next))
+      // Forcing layout settles every colour while transitions are held off, so none start afterwards.
+      void root.offsetHeight
+      root.classList.remove('theme-switching')
+    })
   }
 
   return (

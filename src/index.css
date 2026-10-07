@@ -251,3 +251,55 @@
     transition-duration: 0ms;
   }
 }
+
+/* Pause and theme motion */
+/* The board blurs at once and only goes invisible once the overlay is opaque, so it is never readable while paused. */
+.pause-board {
+  transition:
+    filter var(--motion-panel) var(--ease-out),
+    visibility 0s;
+}
+
+.pause-board[data-paused] {
+  filter: blur(6px);
+  visibility: hidden;
+  transition:
+    filter 0s,
+    visibility 0s linear var(--motion-panel);
+}
+
+.pause-overlay {
+  animation: pause-overlay-in var(--motion-panel) var(--ease-out) both;
+}
+
+.pause-overlay[data-state='closed'] {
+  animation-name: pause-overlay-out;
+  pointer-events: none;
+}
+
+@keyframes pause-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pause-overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The theme toggle wraps its class flip in a view transition, which cross-fades the whole page. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-panel);
+  animation-timing-function: var(--ease-out);
+}
+
+/* The new snapshot must show the finished theme, so colour transitions are held off while the class flips. */
+.theme-switching :not(svg),
+.theme-switching ::before,
+.theme-switching ::after {
+  transition: none !important;
+}
