@@ -22,16 +22,19 @@ use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 // --- Naked Subsets ---
 
 pub fn find_naked_pair(board: &LogicalBoard) -> Option<SolvingStep> {
-    find_naked_subset(board, 2)
+    find_naked_subset(board, 2, Technique::NakedPair)
 }
 
 pub fn find_naked_triple(board: &LogicalBoard) -> Option<SolvingStep> {
-    find_naked_subset(board, 3)
+    find_naked_subset(board, 3, Technique::NakedTriple)
 }
 
 /// Finds `size` cells in one unit whose candidates together span exactly `size` digits.
-pub fn find_naked_subset(board: &LogicalBoard, size: usize) -> Option<SolvingStep> {
-    let technique = subset_technique(size, Technique::NakedPair, Technique::NakedTriple);
+pub fn find_naked_subset(
+    board: &LogicalBoard,
+    size: usize,
+    technique: Technique,
+) -> Option<SolvingStep> {
     for unit in ALL_UNITS.iter() {
         let unit_slice = *unit;
         let potential_indices = filter_naked_subset_candidates(board, unit_slice, size);
@@ -108,16 +111,19 @@ fn construct_naked_subset_step(
 // --- Hidden Subsets ---
 
 pub fn find_hidden_pair(board: &LogicalBoard) -> Option<SolvingStep> {
-    find_hidden_subset(board, 2)
+    find_hidden_subset(board, 2, Technique::HiddenPair)
 }
 
 pub fn find_hidden_triple(board: &LogicalBoard) -> Option<SolvingStep> {
-    find_hidden_subset(board, 3)
+    find_hidden_subset(board, 3, Technique::HiddenTriple)
 }
 
 /// Finds `size` digits in one unit that together appear in exactly `size` cells.
-pub fn find_hidden_subset(board: &LogicalBoard, size: usize) -> Option<SolvingStep> {
-    let technique = subset_technique(size, Technique::HiddenPair, Technique::HiddenTriple);
+pub fn find_hidden_subset(
+    board: &LogicalBoard,
+    size: usize,
+    technique: Technique,
+) -> Option<SolvingStep> {
     for unit in ALL_UNITS.iter() {
         let unit_slice = *unit;
         let pos_masks = get_candidate_positions_in_unit(board, unit_slice);
@@ -219,15 +225,6 @@ fn construct_hidden_subset_step(
             })
             .collect(),
     })
-}
-
-#[inline]
-fn subset_technique(size: usize, pair: Technique, triple: Technique) -> Technique {
-    match size {
-        2 => pair,
-        3 => triple,
-        _ => panic!("no subset technique of size {size}"),
-    }
 }
 
 /// Visits every `size`-combination of `items` in lexicographic order and returns the first hit.
