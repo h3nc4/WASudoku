@@ -47,8 +47,15 @@ export function getTechniqueName(technique: Technique): string {
   return TECHNIQUE_NAMES[technique]
 }
 
-const formatNums = (nums: number[]) => `{${[...nums].sort((a, b) => a - b).join(', ')}}`
-const formatCells = (indices: number[]) => indices.map(formatCell).join(', ')
+// Reads as prose: "3 or 4" for the values a cell may take, "3 and 4" for values that all go.
+const joinWords = (items: string[], word: 'and' | 'or') =>
+  items.length <= 1
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} ${word} ${items[items.length - 1]}`
+const sortedNums = (nums: number[]) => [...nums].sort((a, b) => a - b).map(String)
+const listOr = (nums: number[]) => joinWords(sortedNums(nums), 'or')
+const listAnd = (nums: number[]) => joinWords(sortedNums(nums), 'and')
+const formatCells = (indices: number[]) => joinWords(indices.map(formatCell), 'and')
 const rowOf = (index: number) => Math.floor(index / 9)
 const colOf = (index: number) => index % 9
 const boxOf = (index: number) => Math.floor(rowOf(index) / 3) * 3 + Math.floor(colOf(index) / 3)
@@ -77,24 +84,23 @@ export function getStepExplanation(step: SolvingStep): string {
     }
     case 'NakedPair':
     case 'NakedTriple': {
-      const candidates = formatNums(cause[0].candidates)
-      return `Cells ${formatCells(causeCells)} can only contain the candidates ${candidates}. So these candidates are removed from the other cells in the same unit.`
+      const { candidates } = cause[0]
+      return `Cells ${formatCells(causeCells)} can only contain ${listOr(candidates)}. So ${listAnd(candidates)} are removed from the other cells in the same unit.`
     }
     case 'HiddenPair':
     case 'HiddenTriple': {
-      const candidates = formatNums(cause[0].candidates)
-      return `In their shared unit, the candidates ${candidates} only appear in cells ${formatCells(causeCells)}. So every other candidate is removed from these cells.`
+      return `In their shared unit, ${listAnd(cause[0].candidates)} only appear in cells ${formatCells(causeCells)}. So every other candidate is removed from these cells.`
     }
     case 'PointingPair':
     case 'PointingTriple': {
       const candidate = cause[0].candidates[0]
       const line = describeLine(causeCells)
-      return `In box ${boxOf(causeCells[0]) + 1}, the candidate ${candidate} only appears in ${formatCells(causeCells)}, which all lie in ${line}. So ${candidate} is removed from the rest of ${line}.`
+      return `In box ${boxOf(causeCells[0]) + 1}, the candidate ${candidate} only appears in ${formatCells(causeCells)}, which lie in ${line}. So ${candidate} is removed from the rest of ${line}.`
     }
     case 'ClaimingCandidate': {
       const candidate = cause[0].candidates[0]
       const line = describeLine(causeCells)
-      return `In ${line}, the candidate ${candidate} only appears in ${formatCells(causeCells)}, which all lie in box ${boxOf(causeCells[0]) + 1}. So ${candidate} is removed from the rest of that box.`
+      return `In ${line}, the candidate ${candidate} only appears in ${formatCells(causeCells)}, which lie in box ${boxOf(causeCells[0]) + 1}. So ${candidate} is removed from the rest of that box.`
     }
     case 'X-Wing': {
       const candidate = cause[0].candidates[0]
@@ -111,12 +117,12 @@ export function getStepExplanation(step: SolvingStep): string {
     case 'XY-Wing': {
       const [pivot, pincer1, pincer2] = causeCells.map(formatCell)
       const eliminationVal = step.eliminations[0].value
-      return `Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a Y-Wing pattern. Whatever value the pivot takes, one of the pincers must be ${eliminationVal}. So ${eliminationVal} can be removed from any cell seen by both pincers.`
+      return `Pivot ${pivot} and pincers ${pincer1} and ${pincer2} form a Y-Wing pattern. Whatever value the pivot takes, one of the pincers must be ${eliminationVal}. So ${eliminationVal} can be removed from any cell seen by both pincers.`
     }
     case 'XYZ-Wing': {
       const [pivot, pincer1, pincer2] = causeCells.map(formatCell)
       const eliminationVal = step.eliminations[0].value
-      return `Pivot ${pivot} and pincers ${pincer1}, ${pincer2} form a bent triple. The pivot has 3 candidates and the pincers have 2, with ${eliminationVal} common to all three. Any cell seeing all three can no longer be ${eliminationVal}.`
+      return `Pivot ${pivot} and pincers ${pincer1} and ${pincer2} form a bent triple. The pivot has 3 candidates and the pincers have 2, with ${eliminationVal} common to all three. Any cell seeing all three can no longer be ${eliminationVal}.`
     }
     case 'Skyscraper': {
       const candidate = cause[0].candidates[0]
@@ -127,14 +133,15 @@ export function getStepExplanation(step: SolvingStep): string {
       return `A row and a column each have exactly two positions for candidate ${candidate}. One end of the row and one end of the column meet inside the same box. So ${candidate} must be in one of the outer ends, eliminating it from their intersection.`
     }
     case 'UniqueRectangleType1': {
-      const candidates = formatNums(cause[0].candidates)
+      const candidates = listAnd(cause[0].candidates)
       const targetCell = formatCell(step.eliminations[0].index)
-      return `A "deadly pattern" of candidates ${candidates} spans two boxes. To avoid a puzzle with several solutions, the candidates ${candidates} must be removed from cell ${targetCell}, which holds extra possibilities.`
+      return `A "deadly pattern" of ${candidates} spans two boxes. To avoid a puzzle with several solutions, ${candidates} must be removed from cell ${targetCell}, which holds extra possibilities.`
     }
     case 'W-Wing': {
       const valX = step.eliminations[0].value
-      const valB = cause[0].candidates.find((c) => c !== valX) ?? 0
-      return `Two cells hold the identical pair {${valX}, ${valB}} but do not see each other. A strong link on ${valB} connects them, which forces one of the two cells to be ${valX}. So ${valX} is removed from any cell that sees both.`
+      const valB = cause[0].candidates.find((c) => c !== valX)
+      const pair = listAnd(valB === undefined ? [valX] : [valX, valB])
+      return `Two cells hold only ${pair} but do not see each other. A strong link${valB === undefined ? '' : ` on ${valB}`} connects them, which forces one of the two cells to be ${valX}. So ${valX} is removed from any cell that sees both.`
     }
     case 'Backtracking':
       return 'The available logical techniques were not enough to solve the puzzle. A backtracking (brute-force) search found the solution.'

@@ -60,7 +60,7 @@ describe('getStepExplanation', () => {
           { index: 2, candidates: [4, 6] },
         ],
       }),
-      /^Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/,
+      /^Cells R1C2 and R1C3 can only contain 4 or 6\. So 4 and 6 are removed from the other cells in the same unit\.$/,
     ],
     [
       step('NakedTriple', {
@@ -70,7 +70,7 @@ describe('getStepExplanation', () => {
           { index: 32, candidates: [2, 3] },
         ],
       }),
-      /^Cells R4C4, R4C5, R4C6 can only contain the candidates \{1, 2, 3\}/,
+      /^Cells R4C4, R4C5 and R4C6 can only contain 1, 2 or 3\. So 1, 2 and 3 are removed/,
     ],
     [
       step('HiddenPair', {
@@ -79,11 +79,11 @@ describe('getStepExplanation', () => {
           { index: 21, candidates: [7, 8] },
         ],
       }),
-      /the candidates \{7, 8\} only appear in cells R3C3, R3C4/,
+      /^In their shared unit, 7 and 8 only appear in cells R3C3 and R3C4\./,
     ],
     [
       step('HiddenTriple', { cause: [{ index: 40, candidates: [5, 6, 9] }] }),
-      /the candidates \{5, 6, 9\} only appear in cells R5C5/,
+      /^In their shared unit, 5, 6 and 9 only appear in cells R5C5\./,
     ],
     [
       step('PointingPair', {
@@ -92,7 +92,7 @@ describe('getStepExplanation', () => {
           { index: 1, candidates: [8] },
         ],
       }),
-      /^In box 1, the candidate 8 only appears in R1C1, R1C2, which all lie in row 1\. So 8 is removed from the rest of row 1\.$/,
+      /^In box 1, the candidate 8 only appears in R1C1 and R1C2, which lie in row 1\. So 8 is removed from the rest of row 1\.$/,
     ],
     [
       step('PointingTriple', {
@@ -102,7 +102,7 @@ describe('getStepExplanation', () => {
           { index: 23, candidates: [1] },
         ],
       }),
-      /^In box 2, the candidate 1 only appears in R1C6, R2C6, R3C6, which all lie in column 6\./,
+      /^In box 2, the candidate 1 only appears in R1C6, R2C6 and R3C6, which lie in column 6\./,
     ],
     [
       step('ClaimingCandidate', {
@@ -111,7 +111,7 @@ describe('getStepExplanation', () => {
           { index: 61, candidates: [2] },
         ],
       }),
-      /^In row 7, the candidate 2 only appears in R7C7, R7C8, which all lie in box 9\. So 2 is removed from the rest of that box\.$/,
+      /^In row 7, the candidate 2 only appears in R7C7 and R7C8, which lie in box 9\. So 2 is removed from the rest of that box\.$/,
     ],
     [
       step('ClaimingCandidate', { cause: [{ index: 70, candidates: [2] }] }),
@@ -135,7 +135,7 @@ describe('getStepExplanation', () => {
           { index: 9, candidates: [2, 3] },
         ],
       }),
-      /^Pivot R1C1 and pincers R1C2, R2C1 form a Y-Wing pattern.*3 can be removed/,
+      /^Pivot R1C1 and pincers R1C2 and R2C1 form a Y-Wing pattern.*3 can be removed/,
     ],
     [
       step('XYZ-Wing', {
@@ -146,7 +146,7 @@ describe('getStepExplanation', () => {
           { index: 9, candidates: [2, 3] },
         ],
       }),
-      /^Pivot R1C1 and pincers R1C2, R2C1 form a bent triple/,
+      /^Pivot R1C1 and pincers R1C2 and R2C1 form a bent triple/,
     ],
     [
       step('Skyscraper', { cause: [{ index: 0, candidates: [5] }] }),
@@ -161,21 +161,21 @@ describe('getStepExplanation', () => {
         eliminations: [{ index: 10, value: 2 }],
         cause: [{ index: 0, candidates: [2, 8] }],
       }),
-      /candidates \{2, 8\} spans two boxes.*removed from cell R2C2/,
+      /^A "deadly pattern" of 2 and 8 spans two boxes\. To avoid a puzzle with several solutions, 2 and 8 must be removed from cell R2C2/,
     ],
     [
       step('W-Wing', {
         eliminations: [{ index: 20, value: 5 }],
         cause: [{ index: 0, candidates: [5, 9] }],
       }),
-      /^Two cells hold the identical pair \{5, 9\}/,
+      /^Two cells hold only 5 and 9 but do not see each other\. A strong link on 9 connects them/,
     ],
     [
       step('W-Wing', {
         eliminations: [{ index: 20, value: 5 }],
         cause: [{ index: 0, candidates: [5] }],
       }),
-      /identical pair \{5, 0\}/,
+      /^Two cells hold only 5 but do not see each other\. A strong link connects them/,
     ],
     [step('Backtracking'), /A backtracking \(brute-force\) search found the solution\./],
   ]

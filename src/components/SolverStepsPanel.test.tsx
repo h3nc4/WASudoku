@@ -320,7 +320,7 @@ describe('SolverStepsPanel component', () => {
     mockSudoku({ state: makeState({ solver: { currentStepIndex: 3 } }, defaultState) })
     render(<SolverStepsPanel />)
     expect(
-      await screen.findByText(/Cells R1C2, R1C3 can only contain the candidates \{4, 6\}/),
+      await screen.findByText(/Cells R1C2 and R1C3 can only contain 4 or 6\./),
     ).toBeInTheDocument()
   })
 
