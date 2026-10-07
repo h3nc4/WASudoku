@@ -65,7 +65,7 @@ function App() {
 
   return (
     <div className="text-foreground flex min-h-screen flex-col">
-      <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
+      <header className="relative z-30 container mx-auto flex items-center justify-between px-4 py-2 md:p-4">
         <h1>
           <Wordmark className="text-2xl tracking-tight md:text-3xl" />
         </h1>
@@ -87,17 +87,17 @@ function App() {
 
       <main
         className={cn(
-          'container mx-auto flex flex-1 flex-col items-center justify-center p-4 transition-opacity duration-200 motion-reduce:transition-none',
+          'container mx-auto flex flex-1 flex-col items-center justify-center px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none md:p-4',
           showSelectionScreen && 'pointer-events-none opacity-35',
         )}
       >
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
           {/* Main content: Grid + Controls */}
-          <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
+          <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-3 md:order-2 md:gap-6">
             <GameStatus />
             <SudokuGrid />
             <HintPanel />
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 md:gap-4">
               <div className="grid w-full grid-cols-4 place-items-center gap-2">
                 <UndoRedo />
                 <AutoFillButton />
@@ -144,12 +144,12 @@ function App() {
       <WinDialog />
       <PendingPuzzleDialog />
 
-      <footer className="text-muted-foreground container mx-auto p-4 text-center text-xs">
+      <footer className="text-muted-foreground container mx-auto px-4 py-3 text-center text-xs md:p-4">
         <a
           href="https://h3nc4.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-paper hover:text-foreground inline-block rounded-md px-3 py-1.5 transition-colors"
+          className="hover:text-foreground inline-block transition-colors"
         >
           <p>🄯 2025-2026 Henrique Almeida.</p>
           <p>Because knowledge should be free.</p>
