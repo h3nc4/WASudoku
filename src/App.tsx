@@ -87,7 +87,7 @@ function App() {
 
       <main
         className={cn(
-          'container mx-auto flex flex-1 flex-col items-center justify-center px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none md:p-4',
+          'container mx-auto flex flex-1 flex-col items-center justify-start px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none md:p-4',
           showSelectionScreen && 'pointer-events-none opacity-35',
         )}
       >
