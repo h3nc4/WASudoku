@@ -93,7 +93,11 @@ function App() {
       >
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
           {/* Main content: Grid + Controls */}
-          <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-3 md:order-2 md:gap-6">
+          {/* The hint strip pads its content by this gap inside its clip. A closed strip takes no room. */}
+          <div
+            ref={sourceRef}
+            className="flex w-full max-w-md flex-col gap-(--column-gap) [--column-gap:--spacing(3)] md:order-2 md:[--column-gap:--spacing(6)]"
+          >
             <GameStatus />
             <SudokuGrid />
             <HintPanel />

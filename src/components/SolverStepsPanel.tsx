@@ -36,10 +36,12 @@ const ROW_TONE: Record<Position, string> = {
   future: 'text-muted-foreground hover:bg-accent',
 }
 
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
+
 const REACHED_TONE = 'text-solver font-semibold hover:bg-accent'
 
 const ROW_CLASS =
-  'voice-mono grid w-full grid-cols-[var(--trace-tag)_8ch_1fr] gap-x-[1.5ch] rounded-sm px-2 py-1 text-left text-xs tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'voice-mono grid w-full grid-cols-[var(--trace-tag)_8ch_1fr] gap-x-[1.5ch] rounded-sm px-2 py-1 text-left text-xs tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring transition-[background-color] duration-(--motion-out) ease-out'
 
 const positionOf = (index: number, current: number | null): Position => {
   if (current === null || index > current) return 'future'
@@ -62,16 +64,17 @@ export function SolverStepsPanel() {
     const viewport = logRef.current?.closest('[data-slot="scroll-area-viewport"]')
     const item = document.getElementById(`solver-step-${currentStepIndex - 1}`)
     if (!viewport) return
+    const behavior = globalThis.matchMedia(REDUCED_MOTION).matches ? 'instant' : 'smooth'
     if (!item) {
-      viewport.scrollTop = 0
+      viewport.scrollTo({ top: 0, behavior })
       return
     }
     const itemRect = item.getBoundingClientRect()
     const viewRect = viewport.getBoundingClientRect()
     if (itemRect.top < viewRect.top) {
-      viewport.scrollTop -= viewRect.top - itemRect.top
+      viewport.scrollTo({ top: viewport.scrollTop - (viewRect.top - itemRect.top), behavior })
     } else if (itemRect.bottom > viewRect.bottom) {
-      viewport.scrollTop += itemRect.bottom - viewRect.bottom
+      viewport.scrollTo({ top: viewport.scrollTop + itemRect.bottom - viewRect.bottom, behavior })
     }
   }, [currentStepIndex])
 

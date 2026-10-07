@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -39,14 +39,36 @@ describe('HintPanel component', () => {
     mockSudoku({ actions: { clearHint: mockClearHint } })
   })
 
-  it('renders nothing without a hint or outside play', () => {
+  it('keeps the strip closed without a hint or outside play', () => {
     mockSudoku({ state: withHint(null) })
     const { container, rerender } = render(<HintPanel />)
-    expect(container).toBeEmptyDOMElement()
+    const slot = container.firstElementChild!
+    expect(slot).not.toHaveAttribute('data-open')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
 
     mockSudoku({ state: withHint({ kind: 'mistake', index: 0 }, 'visualizing') })
     rerender(<HintPanel />)
-    expect(container).toBeEmptyDOMElement()
+    expect(slot).not.toHaveAttribute('data-open')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('opens with a hint and keeps it hidden while the strip closes', () => {
+    mockSudoku({ state: withHint({ kind: 'mistake', index: 0 }) })
+    const { container, rerender } = render(<HintPanel />)
+    const slot = container.firstElementChild!
+    expect(slot).toHaveAttribute('data-open')
+    expect(screen.getByRole('status')).toHaveTextContent(/Check this cell/)
+
+    mockSudoku({ state: withHint(null) })
+    rerender(<HintPanel />)
+    expect(slot).not.toHaveAttribute('data-open')
+    expect(slot).toHaveAttribute('aria-hidden', 'true')
+    expect(slot).toHaveAttribute('inert')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(slot).toHaveTextContent(/Check this cell/)
+
+    fireEvent.transitionEnd(slot)
+    expect(slot).toHaveTextContent(/^$/)
   })
 
   it('labels a step hint with its cell and technique, leaving the digit out', () => {

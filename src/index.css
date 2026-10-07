@@ -300,3 +300,88 @@
   text-decoration: line-through 1.5px currentColor;
   animation: note-struck 160ms var(--ease-out) forwards;
 }
+
+/* Panel and control motion */
+
+/* A grid row moving from 0fr to 1fr opens the strip to its content height without measuring it. */
+@utility hint-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-bottom: calc(var(--column-gap, 0px) * -1);
+  transition: grid-template-rows var(--motion-panel) var(--ease-out);
+
+  & .hint-slot-content {
+    opacity: 0;
+    transition: opacity var(--motion-panel) var(--ease-out);
+  }
+
+  &[data-open] {
+    grid-template-rows: 1fr;
+  }
+
+  &[data-open] .hint-slot-content {
+    opacity: 1;
+
+    /* The content mounts as the strip opens. Its fade starts from this value. */
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+/* Items share the track equally. Each step moves the indicator by its own width plus one gap. */
+@utility toggle-indicator {
+  position: absolute;
+  inset-block: 3px;
+  left: 3px;
+  z-index: -1;
+  width: calc((100% - 6px - (var(--item-count) - 1) * 3px) / var(--item-count));
+  border-radius: 4px;
+  background-color: var(--paper);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 0 0 1px var(--border);
+  pointer-events: none;
+  transform: translateX(calc(var(--item-index) * (100% + 3px)));
+  transition:
+    transform var(--motion-panel) var(--ease-move),
+    opacity var(--motion-out) var(--ease-out);
+
+  &[data-hidden] {
+    opacity: 0;
+  }
+
+  @variant dark {
+    background-color: var(--accent);
+  }
+}
+
+/* Unarmed, a strike appears at once, so a digit complete when its puzzle loads never draws in. */
+@utility pad-strike {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: -0.1em;
+    top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  &[data-struck]::after {
+    transform: scaleX(1);
+  }
+
+  &[data-armed][data-struck] {
+    transition: color var(--motion-panel) var(--ease-out);
+  }
+
+  &[data-armed][data-struck]::after {
+    transition: transform var(--motion-panel) var(--ease-out);
+  }
+}

@@ -41,6 +41,7 @@ export function InputModeToggle() {
       onValueChange={handleModeChange}
       className="w-full"
       aria-label="Input Mode"
+      indicator
       disabled={solver.gameMode === 'visualizing'}
     >
       <ToggleGroupItem
