@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <style>
     .paper { fill: #fcfcf8 }
-    .thin { stroke: #d9dce1; stroke-width: 1.5; fill: none }
+    .thin { stroke: #b4bac3; stroke-width: 1.5; fill: none }
     .swipe { fill: rgb(250 214 60 / 0.75) }
     .ink { fill: #1d2a4d }
     .frame { fill: none; stroke: #1d2a4d; stroke-width: 4 }
     @media (prefers-color-scheme: dark) {
       .paper { fill: #1a1d22 }
-      .thin { stroke: #2c3038 }
+      .thin { stroke: #444a54 }
       .swipe { fill: rgb(236 230 120 / 0.3) }
       .ink { fill: #eef1f5 }
       .frame { stroke: #b9c1cc }
