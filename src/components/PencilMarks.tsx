@@ -38,12 +38,13 @@ export const PencilMarks = memo(function PencilMarks({
   centers,
   eliminations,
 }: SudokuPencilMarksProps) {
-  const baseClasses = 'text-note voice-pencil'
+  // voice-pencil sets 450 and sorts after font-medium, which overrides a plain font-medium.
+  const baseClasses = 'text-note voice-pencil font-medium!'
 
   if (centers.size > 0) {
     // Center marks rendering
     const sortedCenters = [...centers].sort((a, b) => a - b)
-    const fontSize = centers.size > 4 ? 'text-[0.6rem] md:text-xs' : 'text-xs md:text-sm'
+    const fontSize = centers.size > 4 ? 'text-xs md:text-sm' : 'text-[0.95rem] md:text-base'
     return (
       <div className="flex size-full items-center justify-center p-1">
         {sortedCenters.map((num) => (
@@ -62,14 +63,11 @@ export const PencilMarks = memo(function PencilMarks({
         {NUMBERS.map((num) => (
           <div
             key={`candidate-${num}`}
-            className="flex items-center justify-center text-[0.55rem] leading-none md:text-[0.65rem]"
+            className="flex items-center justify-center text-[0.7rem] leading-none md:text-[0.75rem]"
           >
             {candidates.has(num) ? (
               <span
-                className={cn(
-                  'voice-pencil',
-                  eliminations?.has(num) ? 'text-error decoration-error line-through' : 'text-note',
-                )}
+                className={cn(baseClasses, eliminations?.has(num) && 'line-through decoration-2')}
               >
                 {num}
               </span>

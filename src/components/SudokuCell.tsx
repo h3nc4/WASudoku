@@ -99,9 +99,17 @@ const getInputTextStyles = ({
   isSolved,
   isPlaced,
   isTransientConflict,
+  isNumberHighlighted,
 }: Pick<
   SudokuCellProps,
-  'cell' | 'isConflict' | 'isError' | 'isGiven' | 'isSolved' | 'isPlaced' | 'isTransientConflict'
+  | 'cell'
+  | 'isConflict'
+  | 'isError'
+  | 'isGiven'
+  | 'isSolved'
+  | 'isPlaced'
+  | 'isTransientConflict'
+  | 'isNumberHighlighted'
 > & {
   hasPencilMarks: boolean
 }) => {
@@ -117,9 +125,15 @@ const getInputTextStyles = ({
   else if (isPlaced) color = 'text-solver'
   else if (isGiven) color = 'text-ink'
 
+  // Same-number digits go one weight heavier to show the state in letterform as well as fill.
+  // The voice utilities set a weight and sort after font-*, which overrides a plain font-* class.
+  let weight = ''
+  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold!' : 'font-semibold!'
+
   return cn(
     'text-xl md:text-2xl',
     voice,
+    weight,
     color,
     (isConflict || isError) && 'underline decoration-error decoration-wavy decoration-[1.5px]',
     isTransientConflict && !(isConflict || isError) && 'underline decoration-error decoration-2',
@@ -184,6 +198,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         className={cn(
           'absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent transition-colors duration-200 outline-none',
           'focus-visible:ring-ink focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
+          props.isActive && 'ring-ink ring-2 ring-inset',
           textClasses,
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
