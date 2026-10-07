@@ -241,6 +241,47 @@ describe('SudokuCell component', () => {
       render(<SudokuCell {...defaultProps} />)
       expect(screen.getByRole('textbox')).toHaveClass('focus-visible:ring-2 focus-visible:ring-ink')
     })
+
+    it('rings the active cell in ink without keyboard focus and keeps the highlighter', () => {
+      render(<SudokuCell {...defaultProps} isActive />)
+      expect(screen.getByRole('textbox')).toHaveClass('ring-2 ring-inset ring-ink')
+      expect(screen.getByTestId('cell-background')).toHaveClass('highlighter')
+    })
+
+    it('leaves an inactive cell without the ink ring', () => {
+      render(<SudokuCell {...defaultProps} />)
+      expect(screen.getByRole('textbox')).not.toHaveClass('ring-2')
+    })
+
+    it('sets a same-number pencil digit one weight heavier', () => {
+      render(
+        <SudokuCell
+          {...defaultProps}
+          cell={{ ...defaultProps.cell, value: 4 }}
+          isNumberHighlighted
+        />,
+      )
+      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-semibold!')
+    })
+
+    it('sets a same-number given one weight heavier', () => {
+      render(
+        <SudokuCell
+          {...defaultProps}
+          cell={{ ...defaultProps.cell, value: 4, isGiven: true }}
+          isGiven
+          isNumberHighlighted
+        />,
+      )
+      expect(screen.getByRole('textbox')).toHaveClass('voice-ink font-extrabold!')
+    })
+
+    it('keeps the normal weight on a digit that is not highlighted', () => {
+      render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
+      const textbox = screen.getByRole('textbox')
+      expect(textbox).not.toHaveClass('font-semibold!')
+      expect(textbox).not.toHaveClass('font-extrabold!')
+    })
   })
 
   describe('User Interaction', () => {

@@ -48,16 +48,21 @@ describe('PencilMarks component', () => {
   it('renders small font for many center marks', () => {
     render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3, 4, 5])} />)
     const span = screen.getByText('1')
-    expect(span).toHaveClass('text-[0.6rem]')
+    expect(span).toHaveClass('text-xs md:text-sm')
   })
 
   it('renders normal font for few center marks', () => {
     render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3])} />)
     const span = screen.getByText('1')
-    expect(span).toHaveClass('text-xs')
+    expect(span).toHaveClass('text-[0.95rem] md:text-base')
   })
 
-  it('renders eliminated candidates with a line-through style and destructive color', () => {
+  it('sizes corner marks for legibility on a phone and from md', () => {
+    render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
+    expect(screen.getByText('1').parentElement).toHaveClass('text-[0.7rem] md:text-[0.75rem]')
+  })
+
+  it('strikes eliminated candidates in the note colour rather than red', () => {
     render(
       <PencilMarks
         candidates={new Set([1, 2, 3])}
@@ -66,9 +71,8 @@ describe('PencilMarks component', () => {
       />,
     )
     const eliminatedMark = screen.getByText('2')
-    expect(eliminatedMark).toHaveClass('line-through')
-    expect(eliminatedMark).toHaveClass('text-error')
-    expect(eliminatedMark).not.toHaveClass('text-note')
+    expect(eliminatedMark).toHaveClass('text-note line-through decoration-2')
+    expect(eliminatedMark).not.toHaveClass('text-error')
 
     const normalMark = screen.getByText('1')
     expect(normalMark).not.toHaveClass('line-through')
@@ -78,6 +82,6 @@ describe('PencilMarks component', () => {
 
   it('renders with correct base color classes', () => {
     render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
-    expect(screen.getByText('1')).toHaveClass('text-note voice-pencil')
+    expect(screen.getByText('1')).toHaveClass('text-note voice-pencil font-medium!')
   })
 })
