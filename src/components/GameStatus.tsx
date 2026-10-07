@@ -38,7 +38,7 @@ export function GameStatus() {
   const difficulty = solver.difficulty ? DIFFICULTY_LABELS[solver.difficulty] : 'Custom'
 
   return (
-    <div className="voice-mono text-muted-foreground flex w-full items-center justify-between text-sm tabular-nums">
+    <div className="voice-mono text-muted-foreground bg-paper flex min-h-10 w-full items-center justify-between rounded-md px-3 text-sm tabular-nums">
       <div className="flex items-center gap-3">
         <span className="text-foreground">{difficulty}</span>
         <span className="flex items-center gap-1.5">
@@ -52,7 +52,8 @@ export function GameStatus() {
         {!solver.isSolved && (
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-lg"
+            className="-mr-3"
             onClick={ui.isPaused ? resumeGame : pauseGame}
             aria-label={ui.isPaused ? 'Resume game' : 'Pause game'}
             title={ui.isPaused ? 'Resume game' : 'Pause game'}

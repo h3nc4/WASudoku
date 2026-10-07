@@ -19,22 +19,24 @@
 import { cva } from 'class-variance-authority'
 
 const paperButton =
-  'rounded-md border border-ink/25 bg-paper text-foreground hover:border-ink/50 hover:bg-accent'
+  'rounded-md border-control-border bg-paper text-foreground not-disabled:hover:border-ink/60 not-disabled:hover:bg-accent'
 
 // Primary, secondary and quiet actions differ in radius and weight as well as colour.
+// Disabled turns every variant into a dashed outline on paper, a change of shape rather than a fade.
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out active:translate-y-px motion-reduce:transition-none motion-reduce:active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 ease-out not-disabled:active:translate-y-px motion-reduce:transition-none motion-reduce:active:translate-y-0 border border-transparent disabled:cursor-not-allowed disabled:border-dashed disabled:border-control-border disabled:text-disabled-foreground disabled:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         default:
-          'rounded-[4px] bg-primary text-primary-foreground font-semibold shadow-[0_1px_0_rgb(0_0_0/0.18)] hover:bg-primary/88',
+          'rounded-[4px] bg-primary text-primary-foreground font-semibold shadow-[0_1px_0_rgb(0_0_0/0.18)] not-disabled:hover:bg-primary/88 disabled:bg-paper',
         destructive:
-          'rounded-[4px] bg-destructive text-primary-foreground font-semibold shadow-[0_1px_0_rgb(0_0_0/0.18)] hover:bg-destructive/88 focus-visible:ring-destructive',
+          'rounded-[4px] bg-destructive text-primary-foreground font-semibold shadow-[0_1px_0_rgb(0_0_0/0.18)] not-disabled:hover:bg-destructive/88 disabled:bg-paper focus-visible:ring-destructive',
         outline: paperButton,
         secondary: paperButton,
-        ghost: 'rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
-        link: 'text-ink underline-offset-4 hover:underline',
+        ghost:
+          'rounded-md text-muted-foreground not-disabled:hover:bg-accent not-disabled:hover:text-foreground',
+        link: 'text-ink underline-offset-4 not-disabled:hover:underline disabled:border-transparent',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
@@ -52,9 +54,9 @@ export const buttonVariants = cva(
   },
 )
 
-// Segments sit in a muted track, and the active one lifts onto paper.
+// Segments sit in a muted track, and the active one lifts onto paper in a heavier weight.
 export const toggleVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-[4px] text-sm font-medium text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-paper dark:data-[state=on]:bg-accent data-[state=on]:text-ink data-[state=on]:shadow-[0_1px_2px_rgb(0_0_0/0.14),0_0_0_1px_var(--border)] [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:ring-2 focus-visible:ring-ring outline-none transition-[color,background-color,box-shadow] duration-150 motion-reduce:transition-none aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap",
+  "inline-flex items-center justify-center gap-2 rounded-[4px] border border-transparent text-sm font-normal text-foreground not-disabled:hover:bg-paper/60 disabled:cursor-not-allowed disabled:border-dashed disabled:border-control-border disabled:text-disabled-foreground data-[state=on]:font-semibold data-[state=on]:bg-paper dark:data-[state=on]:bg-accent data-[state=on]:not-disabled:text-ink data-[state=on]:shadow-[0_1px_2px_rgb(0_0_0/0.14),0_0_0_1px_var(--border)] [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:ring-2 focus-visible:ring-ring outline-none transition-[color,background-color,box-shadow] duration-150 motion-reduce:transition-none aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap",
   {
     variants: {
       variant: {

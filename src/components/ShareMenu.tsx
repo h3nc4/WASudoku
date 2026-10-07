@@ -38,7 +38,7 @@ export function ShareMenu() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title="Share puzzle" aria-label="Share puzzle">
+        <Button variant="ghost" size="icon-lg" title="Share puzzle" aria-label="Share puzzle">
           <Share2 className="size-5" />
         </Button>
       </DropdownMenuTrigger>

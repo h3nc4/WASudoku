@@ -43,6 +43,17 @@ describe('InputModeToggle component', () => {
     expect(penButton).toBeChecked()
   })
 
+  it('sets inactive modes in the foreground colour and the active one heavier', () => {
+    render(<InputModeToggle />)
+
+    expect(screen.getByRole('radio', { name: 'Corner' })).toHaveClass(
+      'text-foreground',
+      'font-normal',
+    )
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveAttribute('data-state', 'on')
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveClass('data-[state=on]:font-semibold')
+  })
+
   it('calls setInputMode when a different mode is selected', async () => {
     const user = userEvent.setup()
     render(<InputModeToggle />)
