@@ -248,6 +248,13 @@ describe('SudokuCell component', () => {
       expect(screen.getByTestId('cell-background')).toHaveClass('highlighter')
     })
 
+    it('rings an active hint target in amber so the hint ring is not hidden', () => {
+      render(<SudokuCell {...defaultProps} isActive isHintTarget />)
+      expect(screen.getByRole('textbox')).toHaveClass('ring-2 ring-inset ring-solver')
+      expect(screen.getByRole('textbox')).not.toHaveClass('ring-ink')
+      expect(screen.getByRole('textbox')).toHaveClass('focus-visible:ring-solver')
+    })
+
     it('leaves an inactive cell without the ink ring', () => {
       render(<SudokuCell {...defaultProps} />)
       expect(screen.getByRole('textbox')).not.toHaveClass('ring-2')
@@ -261,7 +268,7 @@ describe('SudokuCell component', () => {
           isNumberHighlighted
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-semibold!')
+      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-semibold')
     })
 
     it('sets a same-number given one weight heavier', () => {
@@ -273,14 +280,14 @@ describe('SudokuCell component', () => {
           isNumberHighlighted
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('voice-ink font-extrabold!')
+      expect(screen.getByRole('textbox')).toHaveClass('voice-ink font-extrabold')
     })
 
     it('keeps the normal weight on a digit that is not highlighted', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
       const textbox = screen.getByRole('textbox')
-      expect(textbox).not.toHaveClass('font-semibold!')
-      expect(textbox).not.toHaveClass('font-extrabold!')
+      expect(textbox).not.toHaveClass('font-semibold')
+      expect(textbox).not.toHaveClass('font-extrabold')
     })
   })
 

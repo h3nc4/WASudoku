@@ -160,16 +160,17 @@
 }
 
 /* Recursive axes give givens, player digits and instrument text their own hand from one font file. */
+/* A voice's weight is only a default, so a font-* class sets the Tailwind weight variable and wins. */
 @utility voice-ink {
   font-variation-settings:
     'CASL' 0,
     'MONO' 0;
-  font-weight: 700;
+  font-weight: var(--tw-font-weight, 700);
 }
 
 @utility voice-pencil {
   font-variation-settings: 'CASL' 1;
-  font-weight: 450;
+  font-weight: var(--tw-font-weight, 450);
 }
 
 @utility voice-mono {

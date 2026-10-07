@@ -82,6 +82,6 @@ describe('PencilMarks component', () => {
 
   it('renders with correct base color classes', () => {
     render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
-    expect(screen.getByText('1')).toHaveClass('text-note voice-pencil font-medium!')
+    expect(screen.getByText('1')).toHaveClass('text-note voice-pencil font-medium')
   })
 })

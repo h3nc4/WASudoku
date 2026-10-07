@@ -126,9 +126,8 @@ const getInputTextStyles = ({
   else if (isGiven) color = 'text-ink'
 
   // Same-number digits go one weight heavier to show the state in letterform as well as fill.
-  // The voice utilities set a weight and sort after font-*, which overrides a plain font-* class.
   let weight = ''
-  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold!' : 'font-semibold!'
+  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold' : 'font-semibold'
 
   return cn(
     'text-xl md:text-2xl',
@@ -197,8 +196,11 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         onFocus={handleFocus}
         className={cn(
           'absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent transition-colors duration-200 outline-none',
-          'focus-visible:ring-ink focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
-          props.isActive && 'ring-ink ring-2 ring-inset',
+          'focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
+          props.isHintTarget
+            ? 'ring-solver focus-visible:ring-solver'
+            : 'ring-ink focus-visible:ring-ink',
+          props.isActive && 'ring-2 ring-inset',
           textClasses,
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}

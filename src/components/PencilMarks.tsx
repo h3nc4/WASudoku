@@ -38,8 +38,7 @@ export const PencilMarks = memo(function PencilMarks({
   centers,
   eliminations,
 }: SudokuPencilMarksProps) {
-  // voice-pencil sets 450 and sorts after font-medium, which overrides a plain font-medium.
-  const baseClasses = 'text-note voice-pencil font-medium!'
+  const baseClasses = 'text-note voice-pencil font-medium'
 
   if (centers.size > 0) {
     // Center marks rendering
