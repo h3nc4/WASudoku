@@ -25,6 +25,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
 } from 'react'
 import { toast } from 'sonner'
 
@@ -35,7 +36,7 @@ import { isEditable, isGridReadOnly, isWrongValue } from '@/context/sudoku.selec
 import type { CellState } from '@/context/sudoku.types'
 import { useBoardMove } from '@/hooks/useBoardMove'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { cn, getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
+import { getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
 
 import SudokuCell from './SudokuCell'
 
@@ -46,6 +47,14 @@ import SudokuCell from './SudokuCell'
 export function SudokuGrid() {
   const state = useSudokuState()
   const { board, ui, solver, derived } = state
+
+  // On resume the overlay is unmounted only when its fade-out animation ends.
+  const [wasPaused, setWasPaused] = useState(ui.isPaused)
+  const [overlayLeaving, setOverlayLeaving] = useState(false)
+  if (wasPaused !== ui.isPaused) {
+    setWasPaused(ui.isPaused)
+    setOverlayLeaving(!ui.isPaused)
+  }
   const dispatch = useSudokuDispatch()
   const actions = useSudokuActions()
 
@@ -230,10 +239,8 @@ export function SudokuGrid() {
         onBlur={handleGridBlur}
         onPaste={handlePaste}
         aria-hidden={ui.isPaused || undefined}
-        className={cn(
-          'bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none',
-          ui.isPaused && 'invisible',
-        )}
+        data-paused={ui.isPaused || undefined}
+        className="pause-board bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none"
       >
         {displayBoard.map((currentCell, index) => {
           const isVisualizing = solver.gameMode === 'visualizing'
@@ -291,8 +298,15 @@ export function SudokuGrid() {
           )
         })}
       </div>
-      {ui.isPaused && (
-        <div className="bg-paper border-grid-thick absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-[3px] border-2">
+      {(ui.isPaused || overlayLeaving) && (
+        <div
+          data-state={ui.isPaused ? 'open' : 'closed'}
+          inert={!ui.isPaused}
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget && !ui.isPaused) setOverlayLeaving(false)
+          }}
+          className="pause-overlay bg-paper border-grid-thick absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-[3px] border-2"
+        >
           <p className="text-ink voice-ink text-2xl">Paused</p>
           <Button onClick={actions.resumeGame}>
             <Play className="mr-2 size-4" />

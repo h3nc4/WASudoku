@@ -441,18 +441,56 @@ describe('SudokuGrid component', () => {
   })
 
   describe('Pause', () => {
+    // jsdom has no AnimationEvent, so React listens for the prefixed event name there.
+    const endAnimation = (el: HTMLElement) =>
+      fireEvent(el, new Event('webkitAnimationEnd', { bubbles: true }))
+
     it('hides the board behind a resume overlay and ignores keys', async () => {
       const user = userEvent.setup()
       mockSudoku({ state: makeState({ ui: { isPaused: true } }, defaultState) })
       render(<SudokuGrid />)
 
       const grid = screen.getByRole('grid', { hidden: true })
-      expect(grid).toHaveClass('invisible')
+      expect(grid).toHaveAttribute('aria-hidden', 'true')
+      expect(grid).toHaveAttribute('data-paused')
       fireEvent.keyDown(grid, { key: '5' })
       expect(mockActions.inputValue).not.toHaveBeenCalled()
 
       await user.click(screen.getByRole('button', { name: 'Resume' }))
       expect(mockActions.resumeGame).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the overlay inert while it fades out on resume, then removes it', () => {
+      mockSudoku({ state: makeState({ ui: { isPaused: true } }, defaultState) })
+      const { rerender } = render(<SudokuGrid />)
+      const overlay = screen.getByText('Paused').parentElement as HTMLElement
+      expect(overlay).toHaveAttribute('data-state', 'open')
+
+      mockSudoku({ state: defaultState })
+      rerender(<SudokuGrid />)
+      expect(overlay).toHaveAttribute('data-state', 'closed')
+      expect(overlay).toHaveAttribute('inert')
+      expect(screen.getByRole('grid')).not.toHaveAttribute('data-paused')
+
+      endAnimation(overlay)
+      expect(screen.queryByText('Paused')).not.toBeInTheDocument()
+    })
+
+    it('ignores animation ends bubbling from inside the overlay', () => {
+      mockSudoku({ state: makeState({ ui: { isPaused: true } }, defaultState) })
+      const { rerender } = render(<SudokuGrid />)
+      endAnimation(screen.getByText('Paused'))
+      expect(screen.getByText('Paused')).toBeInTheDocument()
+
+      mockSudoku({ state: defaultState })
+      rerender(<SudokuGrid />)
+      endAnimation(screen.getByText('Paused'))
+      expect(screen.getByText('Paused')).toBeInTheDocument()
+    })
+
+    it('does not show the overlay when the game was never paused', () => {
+      render(<SudokuGrid />)
+      expect(screen.queryByText('Paused')).not.toBeInTheDocument()
     })
   })
 
