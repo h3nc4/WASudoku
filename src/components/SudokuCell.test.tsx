@@ -65,6 +65,19 @@ describe('SudokuCell component', () => {
       expect(screen.getByRole('textbox')).toHaveValue('5')
     })
 
+    it('draws the digit beside the input and keeps the input text transparent', () => {
+      render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 5 }} />)
+      const digit = screen.getByTestId('cell-digit')
+      expect(digit).toHaveTextContent('5')
+      expect(digit).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.getByRole('textbox')).toHaveClass('text-transparent')
+    })
+
+    it('draws no digit in an empty cell', () => {
+      render(<SudokuCell {...defaultProps} />)
+      expect(screen.queryByTestId('cell-digit')).not.toBeInTheDocument()
+    })
+
     it('renders pencil marks when value is null', () => {
       render(
         <SudokuCell
@@ -103,11 +116,11 @@ describe('SudokuCell component', () => {
 
     it('marks a wrong digit with error text and a wavy underline, not a cell fill', () => {
       render(<SudokuCell {...defaultProps} isError cell={{ ...defaultProps.cell, value: 5 }} />)
-      const textbox = screen.getByRole('textbox')
+      const digit = screen.getByTestId('cell-digit')
       const background = screen.getByTestId('cell-background')
 
-      expect(textbox).toHaveClass('text-error underline decoration-wavy decoration-error')
-      expect(textbox).not.toHaveClass('text-pencil')
+      expect(digit).toHaveClass('text-error underline decoration-wavy decoration-error')
+      expect(digit).not.toHaveClass('text-pencil')
       expect(background.className).not.toMatch(/bg-/)
     })
 
@@ -119,22 +132,22 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 3 }}
         />,
       )
-      const textbox = screen.getByRole('textbox')
+      const digit = screen.getByTestId('cell-digit')
       const background = screen.getByTestId('cell-background')
 
-      expect(textbox).toHaveClass('text-error underline decoration-error')
-      expect(textbox).not.toHaveClass('decoration-wavy')
+      expect(digit).toHaveClass('text-error underline decoration-error')
+      expect(digit).not.toHaveClass('decoration-wavy')
       expect(background.className).not.toMatch(/bg-/)
     })
 
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-ink voice-ink')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('text-ink voice-ink')
     })
 
     it('applies correct classes for user-inputted numbers', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-pencil voice-pencil')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('text-pencil voice-pencil')
     })
 
     it('applies correct classes for solver-added numbers', () => {
@@ -146,15 +159,15 @@ describe('SudokuCell component', () => {
           cell={{ ...defaultProps.cell, value: 7 }}
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('text-pencil voice-mono')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('text-pencil voice-mono')
     })
 
     it('applies correct classes for a placed cell (visualization)', () => {
       render(<SudokuCell {...defaultProps} isPlaced cell={{ ...defaultProps.cell, value: 3 }} />)
-      const input = screen.getByRole('textbox')
+      const digit = screen.getByTestId('cell-digit')
       const background = screen.getByTestId('cell-background')
 
-      expect(input).toHaveClass('text-solver voice-ink')
+      expect(digit).toHaveClass('text-solver voice-ink')
       expect(background).toHaveClass('bg-solver-wash')
     })
 
@@ -208,12 +221,12 @@ describe('SudokuCell component', () => {
         />,
       )
       expect(screen.getByTestId('cell-background')).toHaveClass('solver-hatch ring-2')
-      expect(screen.getByRole('textbox')).toHaveClass('text-error')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('text-error')
     })
 
     it('colours user digits as user input when the board is not in solved display', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
-      expect(screen.getByRole('textbox')).toHaveClass('text-pencil')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('text-pencil')
     })
 
     it('applies correct border for right edge of a box', () => {
@@ -268,7 +281,7 @@ describe('SudokuCell component', () => {
           isNumberHighlighted
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-bold')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('voice-pencil font-bold')
     })
 
     it('sets a same-number given one weight heavier', () => {
@@ -280,14 +293,14 @@ describe('SudokuCell component', () => {
           isNumberHighlighted
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('voice-ink font-extrabold')
+      expect(screen.getByTestId('cell-digit')).toHaveClass('voice-ink font-extrabold')
     })
 
     it('keeps the normal weight on a digit that is not highlighted', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
-      const textbox = screen.getByRole('textbox')
-      expect(textbox).not.toHaveClass('font-bold')
-      expect(textbox).not.toHaveClass('font-extrabold')
+      const digit = screen.getByTestId('cell-digit')
+      expect(digit).not.toHaveClass('font-bold')
+      expect(digit).not.toHaveClass('font-extrabold')
     })
   })
 
@@ -319,8 +332,60 @@ describe('SudokuCell component', () => {
     })
 
     it('leaves font weight out of the transitions', () => {
-      render(<SudokuCell {...defaultProps} isActive isNumberHighlighted />)
+      render(
+        <SudokuCell
+          {...defaultProps}
+          isActive
+          isNumberHighlighted
+          cell={{ ...defaultProps.cell, value: 4 }}
+        />,
+      )
       expect(screen.getByRole('textbox').className).not.toMatch(/transition|duration-/)
+      expect(screen.getByTestId('cell-digit').className).not.toMatch(/transition|duration-/)
+    })
+
+    it('inks in a digit the player just entered', () => {
+      render(
+        <SudokuCell {...defaultProps} animateEntry cell={{ ...defaultProps.cell, value: 4 }} />,
+      )
+      expect(screen.getByTestId('cell-digit')).toHaveClass('ink-in')
+    })
+
+    it('shows a digit that arrived any other way at once', () => {
+      render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
+      expect(screen.getByTestId('cell-digit')).not.toHaveClass('ink-in')
+    })
+
+    it('mounts a fresh digit for each new value so the ink-in replays', () => {
+      const cell = { ...defaultProps.cell, value: 4 }
+      const { rerender } = render(<SudokuCell {...defaultProps} animateEntry cell={cell} />)
+      const first = screen.getByTestId('cell-digit')
+
+      rerender(<SudokuCell {...defaultProps} animateEntry cell={{ ...cell, value: 7 }} />)
+      expect(screen.getByTestId('cell-digit')).not.toBe(first)
+    })
+
+    it('replays the ink-in when the same digit is typed again after an erase', () => {
+      const cell = { ...defaultProps.cell, value: 4 }
+      const { rerender } = render(<SudokuCell {...defaultProps} animateEntry cell={cell} />)
+      const first = screen.getByTestId('cell-digit')
+
+      rerender(<SudokuCell {...defaultProps} cell={{ ...cell, value: null }} />)
+      expect(screen.queryByTestId('cell-digit')).not.toBeInTheDocument()
+
+      rerender(<SudokuCell {...defaultProps} animateEntry cell={cell} />)
+      const second = screen.getByTestId('cell-digit')
+      expect(second).not.toBe(first)
+      expect(second).toHaveClass('ink-in')
+    })
+
+    it('keeps the same digit element when only the shading changes', () => {
+      const cell = { ...defaultProps.cell, value: 4 }
+      const { rerender } = render(<SudokuCell {...defaultProps} cell={cell} />)
+      const first = screen.getByTestId('cell-digit')
+
+      rerender(<SudokuCell {...defaultProps} isHighlighted cell={cell} />)
+      expect(screen.getByTestId('cell-digit')).toBe(first)
     })
   })
 

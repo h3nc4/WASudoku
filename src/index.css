@@ -251,3 +251,52 @@
     transition-duration: 0ms;
   }
 }
+
+/* Digit and note motion */
+/* Only opacity and transform move here, since weight or colour across the board costs input time. */
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@utility ink-in {
+  animation: ink-in 90ms var(--ease-out);
+}
+
+/* A starting style applies only to a mark that has just rendered. Marks already shown never fade again. */
+@utility note-in {
+  transition: opacity 90ms var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+@keyframes note-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@utility note-out {
+  animation: note-out var(--motion-out) var(--ease-out) forwards;
+}
+
+/* A note a placement removed is struck before it fades. The strike shows what the digit eliminated. */
+@keyframes note-struck {
+  35% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* The strike appears at once and only the fade animates, since drawing it in cost frames at 4x throttle. */
+@utility note-struck {
+  text-decoration: line-through 1.5px currentColor;
+  animation: note-struck 160ms var(--ease-out) forwards;
+}

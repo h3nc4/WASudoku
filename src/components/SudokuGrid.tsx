@@ -33,6 +33,7 @@ import { importBoard } from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
 import { isEditable, isGridReadOnly, isWrongValue } from '@/context/sudoku.selectors'
 import type { CellState } from '@/context/sudoku.types'
+import { useBoardMove } from '@/hooks/useBoardMove'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { cn, getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
 
@@ -51,6 +52,8 @@ export function SudokuGrid() {
   const displayBoard = solver.gameMode === 'visualizing' ? solver.visualizationBoard : board
   const isReadOnly = isGridReadOnly(state)
   const isPasteAllowed = isEditable(state)
+  const boardMove = useBoardMove(board)
+  const move = solver.gameMode === 'visualizing' ? null : boardMove
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -280,6 +283,10 @@ export function SudokuGrid() {
               onFocus={handleCellFocus}
               eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
               isTransientConflict={ui.transientConflicts?.has(index) ?? false}
+              animateEntry={move?.index === index}
+              strikeRemovedNotes={
+                move?.kind === 'place' && move.index !== index && move.touched.has(index)
+              }
             />
           )
         })}
