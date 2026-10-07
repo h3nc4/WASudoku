@@ -42,7 +42,7 @@ export function AutoFillButton() {
   return (
     <Button
       variant="outline"
-      size="icon"
+      size="icon-lg"
       onClick={handleAutoFill}
       disabled={isDisabled}
       title="Auto-fill pencil marks"

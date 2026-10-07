@@ -39,7 +39,7 @@ export function UndoRedo() {
     <>
       <Button
         variant="outline"
-        size="icon"
+        size="icon-lg"
         onClick={undo}
         disabled={!canUndo}
         title="Undo"
@@ -49,7 +49,7 @@ export function UndoRedo() {
       </Button>
       <Button
         variant="outline"
-        size="icon"
+        size="icon-lg"
         onClick={redo}
         disabled={!canRedo}
         title="Redo"

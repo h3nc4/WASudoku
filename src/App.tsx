@@ -103,7 +103,7 @@ function App() {
                 <AutoFillButton />
                 <Button
                   variant="outline"
-                  size="icon"
+                  size="icon-lg"
                   onClick={handleErase}
                   disabled={ui.activeCellIndex === null || isControlDisabled}
                   title="Erase selected cell"
