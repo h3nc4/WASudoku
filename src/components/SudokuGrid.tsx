@@ -61,8 +61,15 @@ export function SudokuGrid() {
   const displayBoard = solver.gameMode === 'visualizing' ? solver.visualizationBoard : board
   const isReadOnly = isGridReadOnly(state)
   const isPasteAllowed = isEditable(state)
-  const boardMove = useBoardMove(board)
-  const move = solver.gameMode === 'visualizing' ? null : boardMove
+  const change = useBoardMove({
+    board,
+    history: state.history,
+    solution: solver.solution,
+    isSolved: solver.isSolved,
+    gameMode: solver.gameMode,
+  })
+  const move = solver.gameMode === 'visualizing' ? null : change.move
+  const moment = solver.gameMode === 'visualizing' ? null : change.moment
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -264,6 +271,8 @@ export function SudokuGrid() {
           const col = index % 9
 
           const isError = isWrongValue(state, index)
+          // Only cells in the moment get its props, so memoised cells outside it skip the render.
+          const momentDelay = moment?.delays.get(index)
 
           return (
             <SudokuCell
@@ -294,6 +303,9 @@ export function SudokuGrid() {
               strikeRemovedNotes={
                 move?.kind === 'place' && move.index !== index && move.touched.has(index)
               }
+              moment={momentDelay === undefined ? undefined : moment?.kind}
+              momentDelay={momentDelay}
+              momentKey={momentDelay === undefined ? undefined : change.id}
             />
           )
         })}

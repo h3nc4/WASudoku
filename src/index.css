@@ -499,3 +499,66 @@
     box-shadow: inset 0 0 0 2px var(--error);
   }
 }
+
+/* Board moments */
+/* Rare one-shot layers on their own element, so they never interrupt the selection fill transitions. */
+:root {
+  --moment-glow: rgb(250 214 60 / 0.34);
+  --moment-revert: rgb(29 42 77 / 0.16);
+}
+
+.dark {
+  --moment-glow: rgb(255 250 225 / 0.22);
+  --moment-revert: rgb(238 241 245 / 0.16);
+}
+
+/* The layer is drawn above the fill and below the notes and digit. A moment tints a cell without hiding it. */
+/* A backwards fill lets a finished moment drop its animation and leave an idle transparent layer. */
+.board-moment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background-color: var(--moment-glow);
+  animation: board-moment-glow var(--motion-moment) var(--ease-out) var(--moment-delay, 0ms)
+    backwards;
+}
+
+.board-moment[data-moment='revert'] {
+  background-color: var(--moment-revert);
+  animation-name: board-moment-fade;
+  animation-duration: 300ms;
+}
+
+/* A paper cover over the digit fades away, so givens appear box by box without animating the digit itself. */
+.board-moment[data-moment='reveal'] {
+  z-index: 1;
+  background-color: var(--paper);
+  animation-name: board-moment-fade;
+  animation-duration: var(--motion-out);
+}
+
+@keyframes board-moment-glow {
+  30% {
+    opacity: 1;
+  }
+}
+
+@keyframes board-moment-fade {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Only the revert tint tells the player something new. Reduced motion holds it still for its 300ms. */
+@media (prefers-reduced-motion: reduce) {
+  .board-moment {
+    animation-delay: 0s !important;
+  }
+
+  .board-moment[data-moment='revert'] {
+    animation-duration: 300ms !important;
+    animation-timing-function: step-end;
+  }
+}

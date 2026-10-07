@@ -16,9 +16,10 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { forwardRef, memo } from 'react'
+import { type CSSProperties, forwardRef, memo } from 'react'
 
 import type { CellState } from '@/context/sudoku.types'
+import type { BoardMoment } from '@/hooks/useBoardMove'
 import { cn } from '@/lib/utils'
 
 import { PencilMarks } from './PencilMarks'
@@ -60,6 +61,12 @@ interface SudokuCellProps {
   readonly animateEntry?: boolean
   /** Whether a placement elsewhere just removed notes here, which strike out before leaving. */
   readonly strikeRemovedNotes?: boolean
+  /** A one-shot board moment playing on this cell, drawn on its own layer above the fill. */
+  readonly moment?: BoardMoment['kind']
+  /** When this cell's part of the moment starts, in milliseconds. */
+  readonly momentDelay?: number
+  /** Changes per moment, so the layer remounts and its animation replays. */
+  readonly momentKey?: number
 }
 
 /**
@@ -164,6 +171,9 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
     eliminatedCandidates,
     animateEntry,
     strikeRemovedNotes,
+    moment,
+    momentDelay,
+    momentKey,
     ...styleProps
   } = props
   const handleFocus = () => onFocus(index)
@@ -191,6 +201,16 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
           backgroundClasses,
         )}
       >
+        {moment && (
+          <span
+            key={momentKey}
+            aria-hidden
+            data-testid="cell-moment"
+            data-moment={moment}
+            className="board-moment"
+            style={{ '--moment-delay': `${momentDelay ?? 0}ms` } as CSSProperties}
+          />
+        )}
         {cell.value === null ? (
           <PencilMarks
             candidates={cell.candidates}

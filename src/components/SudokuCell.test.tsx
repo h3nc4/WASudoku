@@ -268,6 +268,31 @@ describe('SudokuCell component', () => {
       expect(screen.getByTestId('cell-digit')).toHaveClass('text-pencil')
     })
 
+    it('draws no moment layer on an ordinary cell', () => {
+      render(<SudokuCell {...defaultProps} isActive />)
+      expect(screen.queryByTestId('cell-moment')).not.toBeInTheDocument()
+    })
+
+    it('draws a moment on its own layer with its start delay, leaving the fill classes alone', () => {
+      render(
+        <SudokuCell {...defaultProps} isActive moment="sweep" momentDelay={75} momentKey={3} />,
+      )
+      const layer = screen.getByTestId('cell-moment')
+      expect(layer).toHaveAttribute('data-moment', 'sweep')
+      expect(layer).toHaveClass('board-moment')
+      expect(layer.style.getPropertyValue('--moment-delay')).toBe('75ms')
+      expect(screen.getByTestId('cell-background')).toHaveClass('cell-fill highlighter cell-on')
+    })
+
+    it('remounts the moment layer for each new moment so its animation replays', () => {
+      const { rerender } = render(<SudokuCell {...defaultProps} moment="revert" momentKey={1} />)
+      const first = screen.getByTestId('cell-moment')
+      rerender(<SudokuCell {...defaultProps} moment="revert" momentKey={1} />)
+      expect(screen.getByTestId('cell-moment')).toBe(first)
+      rerender(<SudokuCell {...defaultProps} moment="revert" momentKey={2} />)
+      expect(screen.getByTestId('cell-moment')).not.toBe(first)
+    })
+
     it('applies correct border for right edge of a box', () => {
       const { container } = render(<SudokuCell {...defaultProps} index={2} />) // col 2
       expect(container.firstChild).toHaveClass('border-r-2 border-r-grid-thick')

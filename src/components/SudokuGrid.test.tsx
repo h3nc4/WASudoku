@@ -25,7 +25,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sudokuActions from '@/context/sudoku.actions'
 import { initialState } from '@/context/sudoku.reducer'
 import type { CellState, SolvingStep } from '@/context/sudoku.types'
-import { placeValue, toggleMark } from '@/lib/board'
+import { parseSolution, placeValue, toggleMark } from '@/lib/board'
+import { boardStateFromString } from '@/lib/utils'
 import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SudokuGrid } from './SudokuGrid'
@@ -49,6 +50,9 @@ interface MockSudokuCellProps {
   eliminatedCandidates?: ReadonlySet<number>
   animateEntry?: boolean
   strikeRemovedNotes?: boolean
+  moment?: string
+  momentDelay?: number
+  momentKey?: number
 }
 
 const mockSudokuCellRender = vi.fn()
@@ -851,6 +855,80 @@ describe('SudokuGrid component', () => {
 
       expect(lastPropsOf(0)).toMatchObject({ animateEntry: false })
       expect(lastPropsOf(1)).toMatchObject({ strikeRemovedNotes: false })
+    })
+  })
+
+  describe('Board moments', () => {
+    const SOLUTION =
+      '534678912672195348198342567859761423426853791713924856961537284287419635345286179'
+    const lastPropsOf = (index: number) =>
+      (mockSudokuCellRender.mock.calls as [MockSudokuCellProps][])
+        .map(([props]) => props)
+        .filter((props) => props.index === index)
+        .pop()
+    // Row 0 lacks only cell 0, while cells 10 and 72 keep column 0 and box 0 open.
+    const before = boardStateFromString(
+      [...SOLUTION].map((d, i) => ([0, 10, 72].includes(i) ? '0' : d)).join(''),
+    )
+    const after = placeValue(before, 0, 5)
+    const playing = makeState(
+      {
+        board: before,
+        history: { stack: [before], index: 0 },
+        solver: { solution: parseSolution(SOLUTION) },
+      },
+      defaultState,
+    )
+    const placed = makeState(
+      { board: after, history: { stack: [before, after], index: 1 } },
+      playing,
+    )
+
+    it('passes the sweep only to the cells of the completed row', () => {
+      mockSudoku({ state: playing })
+      const { rerender } = render(<SudokuGrid />)
+      mockSudoku({ state: placed })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ moment: 'sweep', momentDelay: 0, momentKey: 1 })
+      expect(lastPropsOf(8)).toMatchObject({ moment: 'sweep', momentDelay: 200, momentKey: 1 })
+      expect(lastPropsOf(9)).toMatchObject({ moment: undefined, momentKey: undefined })
+    })
+
+    it('keeps the moment, and its key, when only the selection moves', () => {
+      mockSudoku({ state: playing })
+      const { rerender } = render(<SudokuGrid />)
+      mockSudoku({ state: placed })
+      rerender(<SudokuGrid />)
+      mockSudokuCellRender.mockClear()
+
+      mockSudoku({ state: makeState({ ui: { activeCellIndex: 1 } }, placed) })
+      rerender(<SudokuGrid />)
+      expect(lastPropsOf(0)).toMatchObject({ moment: 'sweep', momentKey: 1 })
+    })
+
+    it('passes a revert tint to the cells an undo changed', () => {
+      mockSudoku({ state: placed })
+      const { rerender } = render(<SudokuGrid />)
+      mockSudoku({
+        state: makeState(
+          { board: before, history: { stack: placed.history.stack, index: 0 } },
+          placed,
+        ),
+      })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ moment: 'revert', momentDelay: 0 })
+      expect(lastPropsOf(1)).toMatchObject({ moment: undefined })
+    })
+
+    it('plays no moment while visualizing', () => {
+      mockSudoku({ state: playing })
+      const { rerender } = render(<SudokuGrid />)
+      mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }, placed) })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ moment: undefined })
     })
   })
 })
