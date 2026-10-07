@@ -291,6 +291,39 @@ describe('SudokuCell component', () => {
     })
   })
 
+  describe('Motion', () => {
+    it('gives every cell the fading fill layers, with the long fade when nothing is shaded', () => {
+      render(<SudokuCell {...defaultProps} />)
+      const background = screen.getByTestId('cell-background')
+      expect(background).toHaveClass('cell-fill')
+      expect(background).not.toHaveClass('cell-on')
+      expect(screen.getByRole('textbox')).toHaveClass('cell-ink')
+      expect(screen.getByRole('textbox')).not.toHaveClass('cell-on')
+    })
+
+    it.each([
+      ['active', { isActive: true }, 'highlighter'],
+      ['peer', { isHighlighted: true }, 'bg-peer'],
+      ['same-number', { isNumberHighlighted: true }, 'bg-same'],
+      ['placed', { isPlaced: true }, 'bg-solver-wash'],
+      ['hint target', { isHintTarget: true }, 'solver-hatch'],
+      ['cause', { isCause: true }, 'ring-solver'],
+    ])('switches a %s cell to the short arriving fade', (_, state, shading) => {
+      render(<SudokuCell {...defaultProps} {...state} />)
+      expect(screen.getByTestId('cell-background')).toHaveClass('cell-fill cell-on', shading)
+    })
+
+    it('fades the selection ring in fast on the active cell', () => {
+      render(<SudokuCell {...defaultProps} isActive />)
+      expect(screen.getByRole('textbox')).toHaveClass('cell-ink cell-on ring-2')
+    })
+
+    it('leaves font weight out of the transitions', () => {
+      render(<SudokuCell {...defaultProps} isActive isNumberHighlighted />)
+      expect(screen.getByRole('textbox').className).not.toMatch(/transition|duration-/)
+    })
+  })
+
   describe('User Interaction', () => {
     it('calls onFocus when the input is focused (e.g., by clicking)', async () => {
       const user = userEvent.setup()

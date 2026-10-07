@@ -92,7 +92,7 @@ const getBackgroundStyles = ({
   if (isHintTarget) ring = 'ring-2 ring-inset ring-solver'
   else if (isCause) ring = 'ring-[1.5px] ring-inset ring-solver'
 
-  return cn(fill, ring, isSolving && 'cursor-not-allowed')
+  return cn('cell-fill', fill, ring, (fill || ring) && 'cell-on', isSolving && 'cursor-not-allowed')
 }
 
 /**
@@ -204,12 +204,12 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         value={cell.value === null ? '' : String(cell.value)}
         onFocus={handleFocus}
         className={cn(
-          'absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent transition-colors duration-200 outline-none',
+          'cell-ink absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent outline-none',
           'focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
           props.isHintTarget
             ? 'ring-solver focus-visible:ring-solver'
             : 'ring-ink focus-visible:ring-ink',
-          props.isActive && 'ring-2 ring-inset',
+          props.isActive && 'cell-on ring-2 ring-inset',
           textClasses,
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}

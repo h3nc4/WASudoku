@@ -61,6 +61,17 @@
   --color-solver-wash: var(--solver-wash);
 }
 
+/* Board feedback arrives in one or two frames and leaves slower, so a held arrow key doesn't leave a trail. */
+/* This `--ease-out` replaces the Tailwind default, which keeps one easing family across the app. */
+@theme static {
+  --motion-in: 70ms;
+  --motion-out: 140ms;
+  --motion-panel: 200ms;
+  --motion-moment: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Graphite bench with a paper board. Amber is reserved for the solver. */
 :root {
   --radius: 0.625rem;
@@ -177,19 +188,66 @@
   font-variation-settings: 'MONO' 1;
 }
 
+/* Gradients cannot interpolate, so the highlighter and the hatch are each drawn on a layer whose opacity fades. */
+/* A negative z-index keeps both layers above the cell fill and below its notes. */
+@utility cell-fill {
+  transition-property: background-color, box-shadow;
+  transition-duration: var(--cell-motion, var(--motion-out));
+  transition-timing-function: var(--ease-out);
+
+  :where(&)::before,
+  :where(&)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--motion-out) var(--ease-out);
+  }
+
+  :where(&)::before {
+    background-image: linear-gradient(
+      101deg,
+      transparent 4%,
+      var(--highlighter) 7% 93%,
+      transparent 96%
+    );
+  }
+
+  :where(&)::after {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--solver-wash) 0 3px,
+      transparent 3px 7px
+    );
+  }
+}
+
+/* The digit colour keeps its 200ms fade, while the selection ring follows the cell motion. */
+@utility cell-ink {
+  transition-property: color, text-decoration-color, box-shadow;
+  transition-duration: 200ms, 200ms, var(--cell-motion, var(--motion-out));
+  transition-timing-function:
+    var(--default-transition-timing-function), var(--default-transition-timing-function),
+    var(--ease-out);
+}
+
+/* A transition takes the duration of the state it moves into, so shading arrives at once and only fades out. */
+@utility cell-on {
+  --cell-motion: 0ms;
+}
+
 @utility highlighter {
-  background-image: linear-gradient(
-    101deg,
-    transparent 4%,
-    var(--highlighter) 7% 93%,
-    transparent 96%
-  );
+  &::before {
+    opacity: 1;
+    transition-duration: 0ms;
+  }
 }
 
 @utility solver-hatch {
-  background-image: repeating-linear-gradient(
-    135deg,
-    var(--solver-wash) 0 3px,
-    transparent 3px 7px
-  );
+  &::after {
+    opacity: 1;
+    transition-duration: 0ms;
+  }
 }
