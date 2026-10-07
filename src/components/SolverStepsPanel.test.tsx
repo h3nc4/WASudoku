@@ -178,8 +178,20 @@ describe('SolverStepsPanel component', () => {
     },
   })
 
+  // jsdom has no media queries and no smooth scrolling. Both are mocked here.
+  let reducedMotion = false
+  const scrollTo = vi.fn(function (this: HTMLElement, options: ScrollToOptions) {
+    this.scrollTop = options.top ?? this.scrollTop
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    reducedMotion = false
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: reducedMotion, media: query }))
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
     mockSudoku({ state: defaultState, actions: { viewSolverStep: mockViewSolverStep } })
   })
 
@@ -369,6 +381,19 @@ describe('SolverStepsPanel component', () => {
       rerender(<SolverStepsPanel />)
       expect(viewport.scrollTop).toBe(120)
       spy.mockRestore()
+    })
+
+    it('scrolls smoothly, and at once under reduced motion', () => {
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
+      const { rerender } = render(<SolverStepsPanel />)
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' })
+
+      reducedMotion = true
+      mockSudoku({ state: defaultState })
+      rerender(<SolverStepsPanel />)
+      mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
+      rerender(<SolverStepsPanel />)
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'instant' })
     })
   })
 

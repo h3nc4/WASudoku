@@ -16,15 +16,28 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { isGridReadOnly } from '@/context/sudoku.selectors'
+import type { BoardState } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { cn } from '@/lib/utils'
 
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+interface StrikeMemory {
+  readonly givens: string
+  /** Digits seen with a count left in this puzzle, the only ones whose strike may draw in. */
+  readonly seenOpen: readonly boolean[]
+}
+
+const givensOf = (board: BoardState) =>
+  board.map((cell) => (cell.isGiven ? (cell.value ?? 0) : 0)).join('')
+
+const remember = (counts: readonly number[], prev?: StrikeMemory): readonly boolean[] =>
+  counts.map((count, digit) => count < 9 || (prev?.seenOpen[digit] ?? false))
 
 /**
  * An on-screen number pad for touch-friendly input. It displays a counter
@@ -45,6 +58,18 @@ export const NumberPad = memo(function NumberPad() {
     }
     return counts
   }, [board])
+
+  // A digit already complete when a puzzle loads strikes at once, so only a completion during play draws in.
+  const givens = useMemo(() => givensOf(board), [board])
+  const [strikes, setStrikes] = useState<StrikeMemory>(() => ({
+    givens,
+    seenOpen: remember(numberCounts),
+  }))
+  const samePuzzle = strikes.givens === givens
+  const seenOpen = remember(numberCounts, samePuzzle ? strikes : undefined)
+  if (!samePuzzle || seenOpen.some((open, digit) => open !== strikes.seenOpen[digit])) {
+    setStrikes({ givens, seenOpen })
+  }
 
   const handleNumberClick = useCallback(
     (value: number) => {
@@ -76,13 +101,14 @@ export const NumberPad = memo(function NumberPad() {
             onMouseDown={(e) => e.preventDefault()}
           >
             <div className="flex size-full flex-col items-center justify-center gap-0.5 md:gap-1">
+              {/* A used-up digit is struck out, so it reads as spent rather than unavailable. */}
               <span
                 className={cn(
-                  'voice-ink text-xl leading-none md:text-2xl',
+                  'voice-ink pad-strike text-xl leading-none md:text-2xl',
                   isDisabled ? 'text-disabled-foreground' : 'text-ink',
-                  // A used-up digit is struck out, so it reads as spent rather than unavailable.
-                  isComplete && 'line-through decoration-2',
                 )}
+                data-struck={isComplete || undefined}
+                data-armed={seenOpen[num] || undefined}
               >
                 {num}
               </span>

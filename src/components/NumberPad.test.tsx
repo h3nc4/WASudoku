@@ -16,10 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useSyncExternalStore } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useSudokuState } from '@/context/sudoku.hooks'
 import { createEmptyBoard, initialState } from '@/context/sudoku.reducer'
 import type { SudokuState } from '@/context/sudoku.types'
 import { makeState, mockSudoku } from '@/test/sudoku-state'
@@ -154,10 +156,81 @@ describe('NumberPad component', () => {
     render(<NumberPad />)
 
     const digit = within(screen.getByRole('button', { name: 'Enter number 3' })).getByText('3')
-    expect(digit).toHaveClass('line-through', 'text-disabled-foreground')
+    expect(digit).toHaveAttribute('data-struck')
+    expect(digit).toHaveClass('pad-strike', 'text-disabled-foreground')
     const open = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
     expect(open).toHaveClass('text-ink')
-    expect(open).not.toHaveClass('line-through')
+    expect(open).not.toHaveAttribute('data-struck')
+  })
+
+  describe('strike animation', () => {
+    // Nine 3s, the first `givens` of them given and the rest placed by the player.
+    const threes = (placed: number, givens = 0) =>
+      createEmptyBoard().map((cell, i) => ({
+        ...cell,
+        value: i < placed ? 3 : null,
+        isGiven: i < givens,
+      }))
+    const digitThree = () =>
+      within(screen.getByRole('button', { name: 'Enter number 3' })).getByText('3')
+
+    // The pad is memoised. A subscription delivers board changes to it the way context does.
+    let state = playingState
+    const listeners = new Set<() => void>()
+    const show = (board: ReturnType<typeof threes>) =>
+      act(() => {
+        state = makeState({ board }, playingState)
+        listeners.forEach((notify) => notify())
+      })
+
+    beforeEach(() => {
+      vi.mocked(useSudokuState).mockImplementation(() =>
+        useSyncExternalStore(
+          (notify) => {
+            listeners.add(notify)
+            return () => listeners.delete(notify)
+          },
+          () => state,
+        ),
+      )
+    })
+
+    it('draws the strike in when a digit is completed during play', () => {
+      show(threes(8, 4))
+      render(<NumberPad />)
+      expect(digitThree()).toHaveAttribute('data-armed')
+      expect(digitThree()).not.toHaveAttribute('data-struck')
+
+      show(threes(9, 4))
+      expect(digitThree()).toHaveAttribute('data-struck')
+      expect(digitThree()).toHaveAttribute('data-armed')
+    })
+
+    it('strikes at once a digit already complete when the pad mounts', () => {
+      show(threes(9, 4))
+      render(<NumberPad />)
+      expect(digitThree()).toHaveAttribute('data-struck')
+      expect(digitThree()).not.toHaveAttribute('data-armed')
+    })
+
+    it('strikes at once a digit a new puzzle starts with complete', () => {
+      show(threes(8, 4))
+      render(<NumberPad />)
+      expect(digitThree()).toHaveAttribute('data-armed')
+
+      show(threes(9, 9))
+      expect(digitThree()).toHaveAttribute('data-struck')
+      expect(digitThree()).not.toHaveAttribute('data-armed')
+    })
+
+    it('arms a digit restored complete once it has been open in that puzzle', () => {
+      show(threes(9, 4))
+      render(<NumberPad />)
+      show(threes(8, 4))
+      show(threes(9, 4))
+      expect(digitThree()).toHaveAttribute('data-struck')
+      expect(digitThree()).toHaveAttribute('data-armed')
+    })
   })
 
   it('greys the digits of a read-only pad without striking them', () => {
@@ -166,6 +239,6 @@ describe('NumberPad component', () => {
 
     const digit = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
     expect(digit).toHaveClass('text-disabled-foreground')
-    expect(digit).not.toHaveClass('line-through')
+    expect(digit).not.toHaveAttribute('data-struck')
   })
 })

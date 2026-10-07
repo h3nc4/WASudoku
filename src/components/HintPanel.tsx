@@ -17,6 +17,7 @@
  */
 
 import { X } from 'lucide-react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
@@ -37,37 +38,59 @@ function HintEntry({ hint }: { readonly hint: Hint }) {
   }
 }
 
-/** Explains the hint highlighted on the board. Editing the board dismisses it. */
+/**
+ * Explains the hint highlighted on the board. Editing the board dismisses it.
+ * The strip opens below the board and keeps the last hint while it closes.
+ */
 export function HintPanel() {
   const { ui, solver } = useSudokuState()
   const { clearHint } = useSudokuActions()
 
-  if (solver.gameMode !== 'playing' || ui.hint === null) {
-    return null
+  const current = solver.gameMode === 'playing' ? ui.hint : null
+  const [shown, setShown] = useState<Hint | null>(current)
+  if (current !== null && current !== shown) {
+    setShown(current)
   }
 
-  const { hint } = ui
+  const isOpen = current !== null
+  const hint = current ?? shown
   return (
     <div
-      role="status"
-      className="bg-paper border-grid-thin border-l-solver flex items-start gap-2 rounded-md border border-l-2 py-2 pr-1 pl-3"
+      className="hint-slot"
+      data-open={isOpen || undefined}
+      aria-hidden={!isOpen || undefined}
+      inert={!isOpen}
+      onTransitionEnd={(e) => {
+        if (!isOpen && e.target === e.currentTarget) setShown(null)
+      }}
     >
-      <div className="min-w-0 flex-1 py-0.5">
-        <p className="voice-mono text-solver grid grid-cols-[auto_auto_1fr] gap-x-[1.5ch] text-xs font-semibold tabular-nums [&>span:first-child]:uppercase">
-          <HintEntry hint={hint} />
-        </p>
-        <p className="text-foreground mt-1 text-sm">{getHintExplanation(hint)}</p>
+      <div className="min-h-0 overflow-hidden">
+        {hint !== null && (
+          <div className="hint-slot-content pb-(--column-gap)">
+            <div
+              role="status"
+              className="bg-paper border-grid-thin border-l-solver flex items-start gap-2 rounded-md border border-l-2 py-2 pr-1 pl-3"
+            >
+              <div className="min-w-0 flex-1 py-0.5">
+                <p className="voice-mono text-solver grid grid-cols-[auto_auto_1fr] gap-x-[1.5ch] text-xs font-semibold tabular-nums [&>span:first-child]:uppercase">
+                  <HintEntry hint={hint} />
+                </p>
+                <p className="text-foreground mt-1 text-sm">{getHintExplanation(hint)}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground size-7"
+                onClick={clearHint}
+                aria-label="Dismiss hint"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <X />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="text-muted-foreground size-7"
-        onClick={clearHint}
-        aria-label="Dismiss hint"
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        <X />
-      </Button>
     </div>
   )
 }

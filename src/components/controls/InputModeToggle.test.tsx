@@ -54,6 +54,33 @@ describe('InputModeToggle component', () => {
     expect(screen.getByRole('radio', { name: 'Pen' })).toHaveClass('data-[state=on]:font-semibold')
   })
 
+  it('slides one indicator under the active mode', () => {
+    mockSudoku({ state: makeState({ ui: { inputMode: 'center' } }) })
+    render(<InputModeToggle />)
+    const indicator = screen
+      .getByRole('radiogroup', { name: 'Input Mode' })
+      .querySelector<HTMLElement>('[data-slot="toggle-group-indicator"]')!
+
+    expect(indicator).toHaveAttribute('aria-hidden', 'true')
+    expect(indicator.style.getPropertyValue('--item-index')).toBe('2')
+    expect(indicator.style.getPropertyValue('--item-count')).toBe('3')
+    expect(screen.getByRole('radio', { name: 'Center' })).toHaveClass(
+      'data-[state=on]:bg-transparent',
+    )
+  })
+
+  it('keeps arrow keys moving focus between the modes', async () => {
+    const user = userEvent.setup()
+    render(<InputModeToggle />)
+
+    await user.tab()
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Corner' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveFocus()
+  })
+
   it('calls setInputMode when a different mode is selected', async () => {
     const user = userEvent.setup()
     render(<InputModeToggle />)
