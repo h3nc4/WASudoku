@@ -16,10 +16,10 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { PencilMarks } from './PencilMarks'
+import { LEAVE_FALLBACK_MS, PencilMarks } from './PencilMarks'
 
 describe('PencilMarks component', () => {
   it('renders nothing when both sets are empty', () => {
@@ -83,5 +83,124 @@ describe('PencilMarks component', () => {
   it('renders with correct base color classes', () => {
     render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
     expect(screen.getByText('1')).toHaveClass('text-note voice-pencil font-medium')
+  })
+
+  describe('motion', () => {
+    const none = new Set<number>()
+    // jsdom has no AnimationEvent, so React listens for the prefixed name instead.
+    const endAnimation = (element: Element) =>
+      fireEvent(element, new Event('webkitAnimationEnd', { bubbles: true }))
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    })
+
+    it('keeps a candidate a placement removed, struck and hidden from assistive tech', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+
+      const leaving = screen.getByText('5')
+      expect(leaving).toHaveClass('note-struck')
+      expect(leaving).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.getByText('2')).not.toHaveClass('note-struck')
+    })
+
+    it('drops the struck candidate once its animation ends', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+
+      endAnimation(screen.getByText('5'))
+      expect(screen.queryByText('5')).not.toBeInTheDocument()
+    })
+
+    it('drops the struck candidate on a timer when no animationend arrives', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+
+      act(() => {
+        vi.advanceTimersByTime(LEAVE_FALLBACK_MS - 1)
+      })
+      expect(screen.getByText('5')).toBeInTheDocument()
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(screen.queryByText('5')).not.toBeInTheDocument()
+    })
+
+    it('keeps the grid on screen while the last candidate leaves', () => {
+      const { rerender, container } = render(
+        <PencilMarks candidates={new Set([5])} centers={none} />,
+      )
+      rerender(<PencilMarks candidates={none} centers={none} motion="strike" />)
+      expect(screen.getByText('5')).toHaveClass('note-struck')
+
+      act(() => {
+        vi.advanceTimersByTime(LEAVE_FALLBACK_MS)
+      })
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('fades a note the player toggled off without a strike', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="toggle" />)
+
+      expect(screen.getByText('5')).toHaveClass('note-out')
+      expect(screen.getByText('5')).not.toHaveClass('note-struck')
+    })
+
+    it('marks notes of a toggled cell to fade in as they first render', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2])} centers={none} />)
+      expect(screen.getByText('2')).not.toHaveClass('note-in')
+
+      rerender(<PencilMarks candidates={new Set([2, 7])} centers={none} motion="toggle" />)
+      expect(screen.getByText('7')).toHaveClass('note-in')
+    })
+
+    it('snaps a removal that came without motion, such as undo or a new puzzle', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} />)
+      expect(screen.queryByText('5')).not.toBeInTheDocument()
+    })
+
+    it('shows a leaving candidate as a normal note again when it returns', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+      rerender(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+
+      expect(screen.getByText('5')).not.toHaveClass('note-struck')
+      expect(screen.getByText('5')).not.toHaveAttribute('aria-hidden')
+    })
+
+    it('ignores a new set with the same marks', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2, 5])} centers={none} motion="strike" />)
+      expect(screen.getByText('5')).not.toHaveClass('note-struck')
+    })
+
+    it('strikes a center mark a placement removed', () => {
+      const { rerender } = render(<PencilMarks candidates={none} centers={new Set([3, 8])} />)
+      rerender(<PencilMarks candidates={none} centers={new Set([3])} motion="strike" />)
+
+      expect(screen.getByText('8')).toHaveClass('note-struck')
+      act(() => {
+        vi.advanceTimersByTime(LEAVE_FALLBACK_MS)
+      })
+      expect(screen.queryByText('8')).not.toBeInTheDocument()
+    })
+
+    it('lets a removed mark go at once under reduced motion', () => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: query.includes('reduce') })),
+      )
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+      expect(screen.queryByText('5')).not.toBeInTheDocument()
+    })
   })
 })

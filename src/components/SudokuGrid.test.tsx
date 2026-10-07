@@ -25,6 +25,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sudokuActions from '@/context/sudoku.actions'
 import { initialState } from '@/context/sudoku.reducer'
 import type { CellState, SolvingStep } from '@/context/sudoku.types'
+import { placeValue, toggleMark } from '@/lib/board'
 import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SudokuGrid } from './SudokuGrid'
@@ -46,6 +47,8 @@ interface MockSudokuCellProps {
   isSolved: boolean
   cell: CellState
   eliminatedCandidates?: ReadonlySet<number>
+  animateEntry?: boolean
+  strikeRemovedNotes?: boolean
 }
 
 const mockSudokuCellRender = vi.fn()
@@ -744,5 +747,72 @@ describe('SudokuGrid component', () => {
     expect(focusSpy).toHaveBeenCalledTimes(2)
 
     focusSpy.mockRestore()
+  })
+
+  describe('Motion', () => {
+    const lastPropsOf = (index: number) =>
+      (mockSudokuCellRender.mock.calls as [MockSudokuCellProps][])
+        .map(([props]) => props)
+        .filter((props) => props.index === index)
+        .pop()
+
+    // Cells 1 and 2 share row 0 with the placement, while cell 40 is not its peer.
+    const noted = [1, 2, 40].reduce(
+      (board, index) => toggleMark(board, index, 'candidate', 5),
+      initialState.board,
+    )
+
+    it('animates nothing on the first board', () => {
+      mockSudoku({ state: makeState({ board: noted }, defaultState) })
+      render(<SudokuGrid />)
+      expect(mockSudokuCellRender).not.toHaveBeenCalledWith(
+        expect.objectContaining({ animateEntry: true }),
+      )
+      expect(mockSudokuCellRender).not.toHaveBeenCalledWith(
+        expect.objectContaining({ strikeRemovedNotes: true }),
+      )
+    })
+
+    it('inks the placed digit and strikes the notes only of the peers it changed', () => {
+      mockSudoku({ state: makeState({ board: noted }, defaultState) })
+      const { rerender } = render(<SudokuGrid />)
+
+      mockSudoku({ state: makeState({ board: placeValue(noted, 0, 5) }, defaultState) })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ animateEntry: true, strikeRemovedNotes: false })
+      expect(lastPropsOf(1)).toMatchObject({ animateEntry: false, strikeRemovedNotes: true })
+      expect(lastPropsOf(2)).toMatchObject({ strikeRemovedNotes: true })
+      expect(lastPropsOf(3)).toMatchObject({ strikeRemovedNotes: false })
+      expect(lastPropsOf(40)).toMatchObject({ strikeRemovedNotes: false })
+    })
+
+    it('animates nothing when undo returns the notes', () => {
+      const placed = placeValue(noted, 0, 5)
+      mockSudoku({ state: makeState({ board: placed }, defaultState) })
+      const { rerender } = render(<SudokuGrid />)
+
+      mockSudoku({ state: makeState({ board: noted }, defaultState) })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ animateEntry: false })
+      expect(lastPropsOf(1)).toMatchObject({ strikeRemovedNotes: false })
+    })
+
+    it('animates nothing while visualizing', () => {
+      mockSudoku({ state: makeState({ board: noted }, defaultState) })
+      const { rerender } = render(<SudokuGrid />)
+
+      mockSudoku({
+        state: makeState(
+          { board: placeValue(noted, 0, 5), solver: { gameMode: 'visualizing' } },
+          defaultState,
+        ),
+      })
+      rerender(<SudokuGrid />)
+
+      expect(lastPropsOf(0)).toMatchObject({ animateEntry: false })
+      expect(lastPropsOf(1)).toMatchObject({ strikeRemovedNotes: false })
+    })
   })
 })

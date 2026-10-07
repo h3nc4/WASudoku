@@ -56,6 +56,10 @@ interface SudokuCellProps {
   readonly isTransientConflict?: boolean
   /** Whether a hint points at this cell. */
   readonly isHintTarget?: boolean
+  /** Whether the player just changed this cell. A new digit then inks in and toggled notes fade. */
+  readonly animateEntry?: boolean
+  /** Whether a placement elsewhere just removed notes here, which strike out before leaving. */
+  readonly strikeRemovedNotes?: boolean
 }
 
 /**
@@ -96,12 +100,10 @@ const getBackgroundStyles = ({
 }
 
 /**
- * Computes the conditional class names for the cell's main input text.
+ * Computes the conditional class names for the cell's digit.
  * @returns A string of Tailwind classes.
  */
 const getInputTextStyles = ({
-  cell,
-  hasPencilMarks,
   isConflict,
   isError,
   isGiven,
@@ -111,7 +113,6 @@ const getInputTextStyles = ({
   isNumberHighlighted,
 }: Pick<
   SudokuCellProps,
-  | 'cell'
   | 'isConflict'
   | 'isError'
   | 'isGiven'
@@ -119,11 +120,7 @@ const getInputTextStyles = ({
   | 'isPlaced'
   | 'isTransientConflict'
   | 'isNumberHighlighted'
-> & {
-  hasPencilMarks: boolean
-}) => {
-  if (hasPencilMarks && cell.value === null) return 'text-transparent'
-
+>) => {
   // Givens and walkthrough placements are inked, solver output speaks in mono, the rest is pencil.
   let voice = 'voice-pencil'
   if (isGiven || isPlaced) voice = 'voice-ink'
@@ -154,20 +151,22 @@ const getInputTextStyles = ({
  * It receives a ref to allow the parent to manage focus.
  */
 const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) => {
-  const { cell, index, onFocus, eliminatedCandidates, ...styleProps } = props
+  const {
+    cell,
+    index,
+    onFocus,
+    eliminatedCandidates,
+    animateEntry,
+    strikeRemovedNotes,
+    ...styleProps
+  } = props
   const handleFocus = () => onFocus(index)
 
   const row = Math.floor(index / 9)
   const col = index % 9
 
-  const hasPencilMarks = cell.candidates.size > 0 || cell.centers.size > 0
-
   const backgroundClasses = getBackgroundStyles(styleProps)
-  const textClasses = getInputTextStyles({
-    ...styleProps,
-    cell,
-    hasPencilMarks,
-  })
+  const textClasses = getInputTextStyles(styleProps)
 
   return (
     <div
@@ -186,12 +185,27 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
           backgroundClasses,
         )}
       >
-        {cell.value === null && (
+        {cell.value === null ? (
           <PencilMarks
             candidates={cell.candidates}
             centers={cell.centers}
             eliminations={eliminatedCandidates}
+            motion={animateEntry ? 'toggle' : strikeRemovedNotes ? 'strike' : undefined}
           />
+        ) : (
+          // Scaling the input would scale its ring too. The digit draws here instead, keyed to replay per entry.
+          <span
+            key={cell.value}
+            aria-hidden
+            data-testid="cell-digit"
+            className={cn(
+              'cell-ink leading-none underline-offset-4',
+              textClasses,
+              animateEntry && 'ink-in',
+            )}
+          >
+            {cell.value}
+          </span>
         )}
       </div>
 
@@ -204,13 +218,13 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         value={cell.value === null ? '' : String(cell.value)}
         onFocus={handleFocus}
         className={cn(
-          'cell-ink absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center leading-none underline-offset-4 caret-transparent outline-none',
+          'cell-ink absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center caret-transparent outline-none',
           'focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
           props.isHintTarget
             ? 'ring-solver focus-visible:ring-solver'
             : 'ring-ink focus-visible:ring-ink',
           props.isActive && 'cell-on ring-2 ring-inset',
-          textClasses,
+          'text-transparent',
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
         aria-invalid={props.isConflict || props.isError}
