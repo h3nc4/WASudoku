@@ -71,7 +71,7 @@ describe('PencilMarks component', () => {
       />,
     )
     const eliminatedMark = screen.getByText('2')
-    expect(eliminatedMark).toHaveClass('text-note line-through decoration-2')
+    expect(eliminatedMark).toHaveClass('text-note/55 decoration-solver line-through decoration-2')
     expect(eliminatedMark).not.toHaveClass('text-error')
 
     const normalMark = screen.getByText('1')

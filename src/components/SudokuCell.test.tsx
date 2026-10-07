@@ -155,7 +155,7 @@ describe('SudokuCell component', () => {
       const background = screen.getByTestId('cell-background')
 
       expect(input).toHaveClass('text-solver voice-ink')
-      expect(background.className).not.toMatch(/bg-/)
+      expect(background).toHaveClass('bg-solver-wash')
     })
 
     it('applies correct background for an active cell', () => {

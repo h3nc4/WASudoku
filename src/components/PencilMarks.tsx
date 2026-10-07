@@ -67,7 +67,11 @@ export const PencilMarks = memo(function PencilMarks({
           >
             {candidates.has(num) ? (
               <span
-                className={cn(baseClasses, eliminations?.has(num) && 'line-through decoration-2')}
+                className={cn(
+                  baseClasses,
+                  eliminations?.has(num) &&
+                    'text-note/55 decoration-solver line-through decoration-2',
+                )}
               >
                 {num}
               </span>

@@ -69,12 +69,21 @@ const getBackgroundStyles = ({
   isNumberHighlighted,
   isHighlighted,
   isHintTarget,
+  isPlaced,
 }: Pick<
   SudokuCellProps,
-  'isActive' | 'isSolving' | 'isCause' | 'isNumberHighlighted' | 'isHighlighted' | 'isHintTarget'
+  | 'isActive'
+  | 'isSolving'
+  | 'isCause'
+  | 'isNumberHighlighted'
+  | 'isHighlighted'
+  | 'isHintTarget'
+  | 'isPlaced'
 >) => {
   let fill = ''
   if (isHintTarget) fill = 'solver-hatch'
+  // A walkthrough placement gets a lit cell, since amber digits alone read close to grey on light paper.
+  else if (isPlaced) fill = 'bg-solver-wash'
   else if (isActive) fill = 'highlighter'
   else if (isNumberHighlighted) fill = 'bg-same'
   else if (isHighlighted) fill = 'bg-peer'
