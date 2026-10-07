@@ -34,6 +34,7 @@ export function HintButton() {
   return (
     <Button
       variant="secondary"
+      size="lg"
       className="flex-1"
       onClick={requestHint}
       disabled={isDisabled}

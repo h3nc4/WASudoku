@@ -72,7 +72,7 @@ export function SolveButton() {
 
   if (solver.gameMode === 'visualizing') {
     return (
-      <Button onClick={exitVisualization} className="flex-1" variant="destructive">
+      <Button onClick={exitVisualization} size="lg" className="flex-1" variant="destructive">
         <X className="mr-2 size-4" />
         Exit Visualization
       </Button>
@@ -83,6 +83,7 @@ export function SolveButton() {
     return (
       <Button
         onClick={validatePuzzle}
+        size="lg"
         className="flex-1"
         disabled={derived.isBoardEmpty || solver.isValidating}
         title={derived.isBoardEmpty ? 'Board is empty.' : 'Start puzzle'}
@@ -107,6 +108,7 @@ export function SolveButton() {
       <Button
         onClick={handleSolve}
         variant="outline"
+        size="lg"
         className="flex-1"
         disabled={isSolveDisabled}
         title={solveButtonTitle}

@@ -61,6 +61,7 @@ export const NumberPad = memo(function NumberPad() {
       {NUMBERS.map((num) => {
         const remaining = 9 - numberCounts[num]
         const isComplete = remaining <= 0
+        const isDisabled = isComplete || isReadOnly
 
         return (
           <Button
@@ -68,9 +69,9 @@ export const NumberPad = memo(function NumberPad() {
             variant="outline"
             size="icon"
             data-complete={isComplete || undefined}
-            className="aspect-[1/1.12] h-auto w-full rounded-[4px] data-[complete]:border-dashed data-[complete]:border-current/20 data-[complete]:bg-transparent data-[complete]:opacity-100"
+            className="aspect-[1/1.12] h-auto min-h-11 w-full rounded-[4px]"
             onClick={() => handleNumberClick(num)}
-            disabled={isComplete || isReadOnly}
+            disabled={isDisabled}
             aria-label={`Enter number ${num}`}
             onMouseDown={(e) => e.preventDefault()}
           >
@@ -78,13 +79,20 @@ export const NumberPad = memo(function NumberPad() {
               <span
                 className={cn(
                   'voice-ink text-xl leading-none md:text-2xl',
-                  isComplete ? 'text-note/50' : 'text-ink',
+                  isDisabled ? 'text-disabled-foreground' : 'text-ink',
+                  // A used-up digit is struck out, so it reads as spent rather than unavailable.
+                  isComplete && 'line-through decoration-2',
                 )}
               >
                 {num}
               </span>
               {!isComplete && (
-                <span className="voice-mono text-muted-foreground text-[10px] leading-none tabular-nums md:text-xs">
+                <span
+                  className={cn(
+                    'voice-mono text-[10px] leading-none tabular-nums md:text-xs',
+                    isDisabled ? 'text-disabled-foreground' : 'text-muted-foreground',
+                  )}
+                >
                   {remaining}
                 </span>
               )}

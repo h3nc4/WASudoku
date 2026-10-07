@@ -98,7 +98,7 @@ export function NewPuzzleButton() {
 
   if (isShowingGeneratingState) {
     return (
-      <Button disabled className="flex-1">
+      <Button disabled size="lg" className="flex-1">
         <Loader2 className="mr-2 size-4 animate-spin" />
         Generating...
       </Button>
@@ -113,6 +113,7 @@ export function NewPuzzleButton() {
           <Button
             // Start Puzzle is the primary action while a custom board is entered.
             variant={solver.gameMode === 'customInput' ? 'outline' : 'default'}
+            size="lg"
             className="flex-1"
             disabled={isButtonDisabled}
             onClick={() => setIsOpen(true)}

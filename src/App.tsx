@@ -71,7 +71,7 @@ function App() {
         </h1>
         <div className="flex items-center gap-1">
           <ShareMenu />
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon-lg" asChild>
             <a
               href="https://github.com/h3nc4/WASudoku"
               target="_blank"
@@ -144,12 +144,12 @@ function App() {
       <WinDialog />
       <PendingPuzzleDialog />
 
-      <footer className="text-muted-foreground/80 container mx-auto p-4 text-center text-xs">
+      <footer className="text-muted-foreground container mx-auto p-4 text-center text-xs">
         <a
           href="https://h3nc4.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-foreground transition-colors"
+          className="bg-paper hover:text-foreground inline-block rounded-md px-3 py-1.5 transition-colors"
         >
           <p>🄯 2025-2026 Henrique Almeida.</p>
           <p>Because knowledge should be free.</p>

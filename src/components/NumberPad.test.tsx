@@ -144,4 +144,28 @@ describe('NumberPad component', () => {
     const counterSpan = button3.querySelector('span.absolute')
     expect(counterSpan).not.toBeInTheDocument()
   })
+
+  it('strikes out a complete digit rather than fading it', () => {
+    const fullBoard = createEmptyBoard().map(() => ({
+      ...initialState.board[0],
+      value: 3,
+    }))
+    mockSudoku({ state: makeState({ board: fullBoard }, playingState) })
+    render(<NumberPad />)
+
+    const digit = within(screen.getByRole('button', { name: 'Enter number 3' })).getByText('3')
+    expect(digit).toHaveClass('line-through', 'text-disabled-foreground')
+    const open = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
+    expect(open).toHaveClass('text-ink')
+    expect(open).not.toHaveClass('line-through')
+  })
+
+  it('greys the digits of a read-only pad without striking them', () => {
+    mockSudoku({ state: makeState({ ui: { isPaused: true } }, playingState) })
+    render(<NumberPad />)
+
+    const digit = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
+    expect(digit).toHaveClass('text-disabled-foreground')
+    expect(digit).not.toHaveClass('line-through')
+  })
 })
