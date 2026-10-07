@@ -125,9 +125,9 @@ const getInputTextStyles = ({
   else if (isPlaced) color = 'text-solver'
   else if (isGiven) color = 'text-ink'
 
-  // Same-number digits go one weight heavier to show the state in letterform as well as fill.
+  // Same-number digits go bold, which shows the state in letterform and makes 20px count as large text.
   let weight = ''
-  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold' : 'font-semibold'
+  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold' : 'font-bold'
 
   return cn(
     'text-xl md:text-2xl',

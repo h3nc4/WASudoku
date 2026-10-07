@@ -268,7 +268,7 @@ describe('SudokuCell component', () => {
           isNumberHighlighted
         />,
       )
-      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-semibold')
+      expect(screen.getByRole('textbox')).toHaveClass('voice-pencil font-bold')
     })
 
     it('sets a same-number given one weight heavier', () => {
@@ -286,7 +286,7 @@ describe('SudokuCell component', () => {
     it('keeps the normal weight on a digit that is not highlighted', () => {
       render(<SudokuCell {...defaultProps} cell={{ ...defaultProps.cell, value: 4 }} />)
       const textbox = screen.getByRole('textbox')
-      expect(textbox).not.toHaveClass('font-semibold')
+      expect(textbox).not.toHaveClass('font-bold')
       expect(textbox).not.toHaveClass('font-extrabold')
     })
   })
