@@ -279,8 +279,8 @@ describe('SolverStepsPanel component', () => {
       'text-solver',
       'bg-solver-wash',
     )
-    expect(screen.getByRole('button', { name: /Step 3:/ })).toHaveClass('text-note')
-    expect(screen.getByRole('button', { name: 'Solution' })).toHaveClass('text-note')
+    expect(screen.getByRole('button', { name: /Step 3:/ })).toHaveClass('text-muted-foreground')
+    expect(screen.getByRole('button', { name: 'Solution' })).toHaveClass('text-muted-foreground')
     expect(screen.getByText('02/19')).toBeInTheDocument()
   })
 

@@ -33,7 +33,7 @@ type Position = 'past' | 'current' | 'future'
 const ROW_TONE: Record<Position, string> = {
   past: 'text-ink hover:bg-accent',
   current: 'text-solver bg-solver-wash font-semibold',
-  future: 'text-note hover:bg-accent',
+  future: 'text-muted-foreground hover:bg-accent',
 }
 
 const REACHED_TONE = 'text-solver font-semibold hover:bg-accent'
