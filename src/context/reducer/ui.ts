@@ -52,7 +52,14 @@ export const handleSetHighlightedValue = (
 export const handleSetTransientConflicts = (
   state: SudokuState,
   action: SetTransientConflictsAction,
-): SudokuState => ({ ...state, ui: { ...state.ui, transientConflicts: action.indices } })
+): SudokuState => ({
+  ...state,
+  ui: {
+    ...state.ui,
+    transientConflicts: action.indices,
+    conflictPulse: state.ui.conflictPulse + 1,
+  },
+})
 
 export const handleClearTransientConflicts = (state: SudokuState): SudokuState => ({
   ...state,

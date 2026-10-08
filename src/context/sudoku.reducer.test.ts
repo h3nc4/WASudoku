@@ -1271,6 +1271,7 @@ describe('sudokuReducer', () => {
         indices: conflicts,
       })
       expect(newState.ui.transientConflicts).toBe(conflicts)
+      expect(newState.ui.conflictPulse).toBe(initialState.ui.conflictPulse + 1)
     })
 
     it('should clear transient conflicts', () => {
@@ -1612,6 +1613,10 @@ describe('sudokuReducer', () => {
         const state = sudokuReducer(start, { type: 'INPUT_VALUE', value: 3 })
         expect(state.ui.transientConflicts).toEqual(new Set([1, 9]))
         expect(state.board).toBe(start.board)
+
+        const again = sudokuReducer(state, { type: 'INPUT_VALUE', value: 3 })
+        expect(again.ui.transientConflicts).toEqual(new Set([1, 9]))
+        expect(again.ui.conflictPulse).toBe(state.ui.conflictPulse + 1)
       })
 
       it('removes an existing mark even when a peer now conflicts', () => {

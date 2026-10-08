@@ -286,6 +286,7 @@ export function SudokuGrid() {
         onTap={actions.tapCell}
         eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
         isTransientConflict={ui.transientConflicts?.has(index) ?? false}
+        conflictPulse={ui.transientConflicts?.has(index) ? ui.conflictPulse : undefined}
         animateEntry={move?.index === index}
         strikeRemovedNotes={
           move?.kind === 'place' && move.index !== index && move.touched.has(index)

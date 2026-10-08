@@ -486,12 +486,28 @@
     opacity: 0;
     background-color: color-mix(in srgb, var(--error) 22%, transparent);
     box-shadow: inset 0 0 0 2px var(--error);
-    animation: conflict-pulse 600ms var(--ease-out);
+    animation: conflict-pulse-a 600ms var(--ease-out);
+  }
+
+  /* A new animation name restarts the pulse. Every other clash swaps to these identical keyframes. */
+  .conflict-pulse-b::after {
+    animation-name: conflict-pulse-b;
   }
 }
 
 /* Full, faint, full, gone over 600ms. `CONFLICT_PULSE_MS` in useSudokuFeedback.ts clears the state then. */
-@keyframes conflict-pulse {
+@keyframes conflict-pulse-a {
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes conflict-pulse-b {
   0%,
   55% {
     opacity: 1;

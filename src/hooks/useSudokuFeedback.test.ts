@@ -121,4 +121,34 @@ describe('useSudokuFeedback', () => {
     })
     expect(mockDispatch).toHaveBeenCalledExactlyOnceWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
   })
+
+  it.each([false, true])(
+    'holds a repeat clash on the same cells for 600ms after it, reduced motion %s',
+    (reduced) => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: reduced && query.includes('reduce') })),
+      )
+      const first = makeState({ ui: { transientConflicts: new Set([1, 9]), conflictPulse: 1 } })
+      const { rerender } = renderHook((props) => useSudokuFeedback(props.state, mockDispatch), {
+        initialProps: { state: first },
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      rerender({
+        state: makeState({ ui: { transientConflicts: new Set([1, 9]), conflictPulse: 2 } }, first),
+      })
+      act(() => {
+        vi.advanceTimersByTime(CONFLICT_PULSE_MS - 1)
+      })
+      expect(mockDispatch).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(mockDispatch).toHaveBeenCalledExactlyOnceWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
+    },
+  )
 })

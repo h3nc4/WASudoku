@@ -55,6 +55,8 @@ interface MockSudokuCellProps {
   moment?: string
   momentDelay?: number
   momentKey?: number
+  isTransientConflict?: boolean
+  conflictPulse?: number
 }
 
 const mockSudokuCellRender = vi.fn()
@@ -876,6 +878,19 @@ describe('SudokuGrid component', () => {
 
       expect(lastPropsOf(0)).toMatchObject({ animateEntry: false })
       expect(lastPropsOf(1)).toMatchObject({ strikeRemovedNotes: false })
+    })
+
+    it('passes the clash count only to the clashing cells', () => {
+      const clash = (conflictPulse: number) =>
+        makeState({ ui: { transientConflicts: new Set([1, 9]), conflictPulse } }, defaultState)
+      mockSudoku({ state: clash(1) })
+      const { rerender } = render(<SudokuGrid />)
+      expect(lastPropsOf(1)).toMatchObject({ isTransientConflict: true, conflictPulse: 1 })
+      expect(lastPropsOf(2)).toMatchObject({ isTransientConflict: false, conflictPulse: undefined })
+
+      mockSudoku({ state: clash(2) })
+      rerender(<SudokuGrid />)
+      expect(lastPropsOf(9)).toMatchObject({ isTransientConflict: true, conflictPulse: 2 })
     })
   })
 
