@@ -486,12 +486,28 @@
     opacity: 0;
     background-color: color-mix(in srgb, var(--error) 22%, transparent);
     box-shadow: inset 0 0 0 2px var(--error);
-    animation: conflict-pulse 600ms var(--ease-out);
+    animation: conflict-pulse-a 600ms var(--ease-out);
+  }
+
+  /* A new animation name restarts the pulse. Every other clash swaps to these identical keyframes. */
+  .conflict-pulse-b::after {
+    animation-name: conflict-pulse-b;
   }
 }
 
 /* Full, faint, full, gone over 600ms. `CONFLICT_PULSE_MS` in useSudokuFeedback.ts clears the state then. */
-@keyframes conflict-pulse {
+@keyframes conflict-pulse-a {
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes conflict-pulse-b {
   0%,
   55% {
     opacity: 1;
@@ -565,4 +581,45 @@
     animation-duration: 300ms !important;
     animation-timing-function: step-end;
   }
+}
+
+/* Error mark */
+/* A cell-wide X in the error colour. A wrong digit then reads by shape as well as hue. */
+/* Fixed-width strokes stay crisp at any cell size. The layer is drawn above the fill and below the digit. */
+.error-mark {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--error);
+  stroke-width: 2.25px;
+  stroke-linecap: round;
+  transition: opacity var(--motion-out) var(--ease-out);
+}
+
+.error-mark path {
+  vector-effect: non-scaling-stroke;
+}
+
+@starting-style {
+  .error-mark {
+    opacity: 0;
+  }
+}
+
+/* A paper halo breaks the X where it crosses the glyph and its underline. */
+/* The digit must directly follow the mark in the DOM for this selector to apply. */
+.error-mark + .cell-ink {
+  text-shadow:
+    2px 0 var(--paper),
+    -2px 0 var(--paper),
+    0 2px var(--paper),
+    0 -2px var(--paper),
+    1.5px 1.5px var(--paper),
+    -1.5px 1.5px var(--paper),
+    1.5px -1.5px var(--paper),
+    -1.5px -1.5px var(--paper);
 }

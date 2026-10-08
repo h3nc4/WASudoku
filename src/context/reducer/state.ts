@@ -59,6 +59,7 @@ export const initialState: SudokuState = {
     inputMode: 'normal',
     lastError: null,
     transientConflicts: null,
+    conflictPulse: 0,
     hint: null,
     isPaused: false,
     pendingPuzzle: null,

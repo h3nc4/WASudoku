@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { act, createEvent, fireEvent, render, screen } from '@testing-library/react'
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as React from 'react'
 import { toast } from 'sonner'
@@ -55,6 +55,8 @@ interface MockSudokuCellProps {
   moment?: string
   momentDelay?: number
   momentKey?: number
+  isTransientConflict?: boolean
+  conflictPulse?: number
 }
 
 const mockSudokuCellRender = vi.fn()
@@ -64,13 +66,15 @@ vi.mock('./SudokuCell', () => ({
     const MockCell = React.forwardRef<HTMLInputElement, MockSudokuCellProps>((props, ref) => {
       mockSudokuCellRender(props)
       return (
-        <input
-          ref={ref}
-          aria-label={`cell-${props.index}`}
-          onFocus={() => props.onFocus(props.index)}
-          onClick={() => props.onTap?.(props.index)}
-          tabIndex={-1}
-        />
+        <td>
+          <input
+            ref={ref}
+            aria-label={`cell-${props.index}`}
+            onFocus={() => props.onFocus(props.index)}
+            onClick={() => props.onTap?.(props.index)}
+            tabIndex={-1}
+          />
+        </td>
       )
     })
     MockCell.displayName = 'MockSudokuCell'
@@ -109,6 +113,19 @@ describe('SudokuGrid component', () => {
   it('renders 81 SudokuCell components', () => {
     render(<SudokuGrid />)
     expect(mockSudokuCellRender).toHaveBeenCalledTimes(81)
+  })
+
+  it('groups the cells into nine rows of nine cells in reading order', () => {
+    render(<SudokuGrid />)
+    const rows = within(screen.getByRole('grid')).getAllByRole('row')
+    expect(rows).toHaveLength(9)
+    rows.forEach((row, r) => {
+      expect(within(row).getAllByRole('cell')).toHaveLength(9)
+      const labels = within(row)
+        .getAllByRole('textbox')
+        .map((cell) => cell.getAttribute('aria-label'))
+      expect(labels).toEqual(Array.from({ length: 9 }, (_, c) => `cell-${r * 9 + c}`))
+    })
   })
 
   it('does not render if displayBoard is null', () => {
@@ -861,6 +878,19 @@ describe('SudokuGrid component', () => {
 
       expect(lastPropsOf(0)).toMatchObject({ animateEntry: false })
       expect(lastPropsOf(1)).toMatchObject({ strikeRemovedNotes: false })
+    })
+
+    it('passes the clash count only to the clashing cells', () => {
+      const clash = (conflictPulse: number) =>
+        makeState({ ui: { transientConflicts: new Set([1, 9]), conflictPulse } }, defaultState)
+      mockSudoku({ state: clash(1) })
+      const { rerender } = render(<SudokuGrid />)
+      expect(lastPropsOf(1)).toMatchObject({ isTransientConflict: true, conflictPulse: 1 })
+      expect(lastPropsOf(2)).toMatchObject({ isTransientConflict: false, conflictPulse: undefined })
+
+      mockSudoku({ state: clash(2) })
+      rerender(<SudokuGrid />)
+      expect(lastPropsOf(9)).toMatchObject({ isTransientConflict: true, conflictPulse: 2 })
     })
   })
 

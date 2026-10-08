@@ -165,7 +165,7 @@ export function SudokuGrid() {
 
   // Centralized keyboard handler for the entire grid.
   const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>) => {
+    (e: KeyboardEvent<HTMLTableElement>) => {
       // Modified keys belong to the browser and to the global shortcuts, such as paste and undo.
       if (isReadOnly || e.ctrlKey || e.metaKey || e.altKey) return
 
@@ -215,7 +215,7 @@ export function SudokuGrid() {
 
   // Effect to handle focus leaving the grid entirely.
   const handleGridBlur = useCallback(
-    (e: FocusEvent<HTMLDivElement>) => {
+    (e: FocusEvent<HTMLTableElement>) => {
       // If the element receiving focus is not a cell within this grid, deselect.
       if (!e.currentTarget.contains(e.relatedTarget as Node)) {
         actions.setActiveCell(null)
@@ -237,80 +237,90 @@ export function SudokuGrid() {
     return null
   }
 
+  const cells = displayBoard.map((currentCell, index) => {
+    const isVisualizing = solver.gameMode === 'visualizing'
+
+    const displayCell: CellState = isVisualizing
+      ? {
+          value: currentCell.value,
+          isGiven: currentCell.isGiven,
+          candidates: solver.candidatesForViz?.[index] ?? new Set(),
+          centers: new Set(),
+        }
+      : currentCell
+
+    const eliminatedCandidates = isVisualizing
+      ? new Set(solver.eliminationsForViz?.filter((e) => e.index === index).map((e) => e.value))
+      : undefined
+
+    const row = Math.floor(index / 9)
+    const col = index % 9
+
+    const isError = isWrongValue(state, index)
+    // Only cells in the moment get its props, so memoised cells outside it skip the render.
+    const momentDelay = moment?.delays.get(index)
+
+    return (
+      <SudokuCell
+        ref={cellRefs[index]}
+        // For a static 9x9 grid, the row and column form a stable, unique key.
+        key={`cell-r${row}-c${col}`}
+        index={index}
+        cell={displayCell}
+        isGiven={displayCell.isGiven}
+        isSolving={solver.isSolving}
+        isSolved={solver.isSolved && isVisualizing}
+        isConflict={derived.conflicts.has(index)}
+        isError={isError}
+        isActive={!solver.isSolved && ui.activeCellIndex === index}
+        isHighlighted={!solver.isSolved && highlightedIndices.has(index)}
+        isNumberHighlighted={
+          !solver.isSolved &&
+          displayCell.value !== null &&
+          displayCell.value === ui.highlightedValue
+        }
+        isCause={causeIndices.has(index) || hintIndices.cause.has(index)}
+        isPlaced={placedIndices.has(index)}
+        isHintTarget={hintIndices.target.has(index)}
+        onFocus={handleCellFocus}
+        onTap={actions.tapCell}
+        eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
+        isTransientConflict={ui.transientConflicts?.has(index) ?? false}
+        conflictPulse={ui.transientConflicts?.has(index) ? ui.conflictPulse : undefined}
+        animateEntry={move?.index === index}
+        strikeRemovedNotes={
+          move?.kind === 'place' && move.index !== index && move.touched.has(index)
+        }
+        moment={momentDelay === undefined ? undefined : moment?.kind}
+        momentDelay={momentDelay}
+        momentKey={momentDelay === undefined ? undefined : change.id}
+      />
+    )
+  })
+
   return (
     <div className="relative">
-      <div
+      <table
         role="grid"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         onBlur={handleGridBlur}
         onPaste={handlePaste}
         aria-hidden={ui.isPaused || undefined}
+        // Inert drops the active cell from focus too, which aria-hidden alone leaves reachable.
+        inert={ui.isPaused}
         data-paused={ui.isPaused || undefined}
         className="pause-board bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none"
       >
-        {displayBoard.map((currentCell, index) => {
-          const isVisualizing = solver.gameMode === 'visualizing'
-
-          const displayCell: CellState = isVisualizing
-            ? {
-                value: currentCell.value,
-                isGiven: currentCell.isGiven,
-                candidates: solver.candidatesForViz?.[index] ?? new Set(),
-                centers: new Set(),
-              }
-            : currentCell
-
-          const eliminatedCandidates = isVisualizing
-            ? new Set(
-                solver.eliminationsForViz?.filter((e) => e.index === index).map((e) => e.value),
-              )
-            : undefined
-
-          const row = Math.floor(index / 9)
-          const col = index % 9
-
-          const isError = isWrongValue(state, index)
-          // Only cells in the moment get its props, so memoised cells outside it skip the render.
-          const momentDelay = moment?.delays.get(index)
-
-          return (
-            <SudokuCell
-              ref={cellRefs[index]}
-              // For a static 9x9 grid, the row and column form a stable, unique key.
-              key={`cell-r${row}-c${col}`}
-              index={index}
-              cell={displayCell}
-              isGiven={displayCell.isGiven}
-              isSolving={solver.isSolving}
-              isSolved={solver.isSolved && isVisualizing}
-              isConflict={derived.conflicts.has(index)}
-              isError={isError}
-              isActive={!solver.isSolved && ui.activeCellIndex === index}
-              isHighlighted={!solver.isSolved && highlightedIndices.has(index)}
-              isNumberHighlighted={
-                !solver.isSolved &&
-                displayCell.value !== null &&
-                displayCell.value === ui.highlightedValue
-              }
-              isCause={causeIndices.has(index) || hintIndices.cause.has(index)}
-              isPlaced={placedIndices.has(index)}
-              isHintTarget={hintIndices.target.has(index)}
-              onFocus={handleCellFocus}
-              onTap={actions.tapCell}
-              eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
-              isTransientConflict={ui.transientConflicts?.has(index) ?? false}
-              animateEntry={move?.index === index}
-              strikeRemovedNotes={
-                move?.kind === 'place' && move.index !== index && move.touched.has(index)
-              }
-              moment={momentDelay === undefined ? undefined : moment?.kind}
-              momentDelay={momentDelay}
-              momentKey={momentDelay === undefined ? undefined : change.id}
-            />
-          )
-        })}
-      </div>
+        {/* Body and rows use display contents, which keeps each cell on the nine columns of the board. */}
+        <tbody className="contents">
+          {Array.from({ length: 9 }, (_, row) => (
+            <tr key={`row-${row}`} className="contents">
+              {cells.slice(row * 9, row * 9 + 9)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {(ui.isPaused || overlayLeaving) && (
         <div
           data-state={ui.isPaused ? 'open' : 'closed'}

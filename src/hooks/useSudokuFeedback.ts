@@ -23,7 +23,7 @@ import { clearError, clearTransientConflicts } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
 import type { SudokuState } from '@/context/sudoku.types'
 
-/** Matches the two pulses of `conflict-pulse` in index.css, and the static outline lasts as long. */
+/** Matches both pulse keyframes in index.css, and the static outline lasts as long. */
 export const CONFLICT_PULSE_MS = 600
 
 /**

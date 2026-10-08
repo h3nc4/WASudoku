@@ -123,6 +123,10 @@ export const cell = (page: Page, index: number): Locator =>
 export const cellFace = (page: Page, index: number): Locator =>
   page.locator(`#cell-${index}`).locator('xpath=..').getByTestId('cell-background')
 
+/** The X drawn across a cell holding a wrong or clashing digit. */
+export const errorMark = (page: Page, index: number): Locator =>
+  cellFace(page, index).getByTestId('cell-error-mark')
+
 export const board = (page: Page): Locator => page.getByRole('grid')
 
 export const padKey = (page: Page, digit: number): Locator =>
@@ -168,15 +172,6 @@ export async function hideDocument(page: Page) {
   })
 }
 
-/** Known findings awaiting an app fix, matched by rule and node so anything new still fails. */
-const KNOWN_VIOLATIONS: readonly { rule: string; target: string }[] = [
-  // The cells sit directly under role=grid with no rows, and adding rows restructures the board.
-  { rule: 'aria-required-children', target: '.pause-board' },
-]
-
-const isKnown = (rule: string, target: string) =>
-  KNOWN_VIOLATIONS.some((known) => known.rule === rule && known.target === target)
-
 /** Scans the page as it stands and fails only on serious and critical violations. */
 export async function expectAccessible(page: Page, state: string) {
   const { violations } = await new AxeBuilder({ page }).analyze()
@@ -185,9 +180,8 @@ export async function expectAccessible(page: Page, state: string) {
     .map((v) => ({
       rule: v.id,
       impact: v.impact,
-      targets: v.nodes.map((n) => n.target.join(' ')).filter((t) => !isKnown(v.id, t)),
+      targets: v.nodes.map((n) => n.target.join(' ')),
     }))
-    .filter((v) => v.targets.length > 0)
   expect(blocking, `axe violations in ${state}`).toEqual([])
 }
 

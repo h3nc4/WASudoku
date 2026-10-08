@@ -102,6 +102,8 @@ export interface UiState {
   readonly lastError: string | null
   /** Set of cell indices that are momentarily conflicting with a user action. */
   readonly transientConflicts: ReadonlySet<number> | null
+  /** Counts clashes. Its parity swaps the pulse keyframes, which replays the pulse. */
+  readonly conflictPulse: number
   /** The hint currently shown on the board, if any. */
   readonly hint: Hint | null
   /** Whether the game is paused, which hides the board and stops the timer. */

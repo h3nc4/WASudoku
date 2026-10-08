@@ -234,7 +234,14 @@ export const handleInputValue = (state: SudokuState, action: InputValueAction): 
   if (!hasMark) {
     const conflicts = getConflictingPeers(state.board, index, value)
     if (conflicts.size > 0) {
-      return { ...state, ui: { ...state.ui, transientConflicts: conflicts } }
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          transientConflicts: conflicts,
+          conflictPulse: state.ui.conflictPulse + 1,
+        },
+      }
     }
   }
   return handleTogglePencilMark(state, {

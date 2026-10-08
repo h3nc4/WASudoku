@@ -22,7 +22,9 @@ test('pause hides the board and stops the clock, and a hidden page pauses itself
   page,
   open,
 }) => {
-  await page.clock.install()
+  // A paused clock moves only by runFor, so a slow browser cannot add a tick of real time.
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01'))
   await open({ game: savedGame(), metrics: { timer: 0, mistakes: 0 } })
   const grid = page.locator('[role="grid"]')
   await expect(grid).toBeVisible()
@@ -32,10 +34,14 @@ test('pause hides the board and stops the clock, and a hidden page pauses itself
   await page.getByRole('button', { name: 'Pause game' }).click()
   await expect(page.getByText('Paused', { exact: true })).toBeVisible()
   await expect(grid).toHaveAttribute('aria-hidden', 'true')
+  await expect(grid).toHaveAttribute('inert')
   await expect(grid).toBeHidden()
   await page.clock.runFor(5000)
   await expect(timer(page)).toHaveText('00:03')
+  // Axe waits on its own timers, and the paused game ignores the real time this lets through.
+  await page.clock.resume()
   await expectAccessible(page, 'paused game')
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000))
 
   await page.getByRole('button', { name: 'Resume', exact: true }).click()
   await expect(grid).toBeVisible()

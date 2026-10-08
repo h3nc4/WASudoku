@@ -57,6 +57,8 @@ interface SudokuCellProps {
   readonly eliminatedCandidates?: ReadonlySet<number>
   /** Whether this cell is part of a momentary conflict highlight. */
   readonly isTransientConflict?: boolean
+  /** The clash count, whose parity picks the keyframes so a repeat clash replays the pulse. */
+  readonly conflictPulse?: number
   /** Whether a hint points at this cell. */
   readonly isHintTarget?: boolean
   /** Whether the player just changed this cell. A new digit then inks in and toggled notes fade. */
@@ -123,6 +125,7 @@ const getInputTextStyles = ({
   isSolved,
   isPlaced,
   isTransientConflict,
+  conflictPulse = 0,
   isNumberHighlighted,
 }: Pick<
   SudokuCellProps,
@@ -132,6 +135,7 @@ const getInputTextStyles = ({
   | 'isSolved'
   | 'isPlaced'
   | 'isTransientConflict'
+  | 'conflictPulse'
   | 'isNumberHighlighted'
 >) => {
   // Givens and walkthrough placements are inked, solver output speaks in mono, the rest is pencil.
@@ -154,9 +158,13 @@ const getInputTextStyles = ({
     weight,
     color,
     color === 'text-error' && 'ink-alarm',
+    // Chromium stretches the wave with its thickness. A thinner line shows two crests under a 1 and clears the cell's bottom line.
     (isConflict || isError) &&
-      'underline-in underline decoration-error decoration-wavy decoration-[1.5px]',
-    isTransientConflict && (prefersReducedMotion() ? 'conflict-mark' : 'conflict-pulse'),
+      'underline-in underline decoration-error decoration-wavy decoration-[1.25px]',
+    isTransientConflict &&
+      (prefersReducedMotion()
+        ? 'conflict-mark'
+        : cn('conflict-pulse', conflictPulse % 2 === 0 && 'conflict-pulse-b')),
   )
 }
 
@@ -168,6 +176,19 @@ const getMarkMotion = (
   if (strikeRemovedNotes) return 'strike'
   return undefined
 }
+
+/** A cell-wide X behind a wrong or clashing digit. It marks the error by shape rather than by hue. */
+const ErrorMark = () => (
+  <svg
+    aria-hidden
+    data-testid="cell-error-mark"
+    className="error-mark"
+    viewBox="0 0 100 100"
+    preserveAspectRatio="none"
+  >
+    <path d="M10 10 90 90M90 10 10 90" />
+  </svg>
+)
 
 /**
  * Renders a single cell within the Sudoku grid.
@@ -198,7 +219,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
   const textClasses = getInputTextStyles(styleProps)
 
   return (
-    <div
+    <td
       className={cn(
         'relative',
         col !== 8 &&
@@ -224,6 +245,10 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
             style={{ '--moment-delay': `${momentDelay ?? 0}ms` } as CSSProperties}
           />
         )}
+        {cell.value !== null &&
+          (styleProps.isConflict || styleProps.isError || styleProps.isTransientConflict) && (
+            <ErrorMark />
+          )}
         {cell.value === null ? (
           <PencilMarks
             candidates={cell.candidates}
@@ -238,7 +263,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
             aria-hidden
             data-testid="cell-digit"
             className={cn(
-              'cell-ink leading-none underline-offset-4',
+              'cell-ink leading-none underline-offset-3',
               textClasses,
               animateEntry && 'ink-in',
             )}
@@ -269,7 +294,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
         aria-invalid={props.isConflict || props.isError}
       />
-    </div>
+    </td>
   )
 })
 

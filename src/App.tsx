@@ -139,9 +139,9 @@ function App() {
             </div>
           </div>
 
-          {/* Side Panel: Shown only in visualization mode */}
+          {/* Side panel, shown only in visualization mode. Phone toasts never cover it. */}
           {solver.gameMode === 'visualizing' && (
-            <div ref={targetRef} className="w-full md:order-1 md:w-64">
+            <div ref={targetRef} data-toast-floor className="w-full md:order-1 md:w-64">
               <SolverStepsPanel />
             </div>
           )}

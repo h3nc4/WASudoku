@@ -21,6 +21,9 @@ import { useSyncExternalStore } from 'react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
 const WIDE_QUERY = '(min-width: 768px)'
+const FLOOR_SELECTOR = '[data-toast-floor]'
+const SAFE_BOTTOM = 'calc(16px + env(safe-area-inset-bottom))'
+const FLOOR_GAP = 12
 
 const subscribeToWidth = (onChange: () => void) => {
   const query = globalThis.matchMedia(WIDE_QUERY)
@@ -28,20 +31,48 @@ const subscribeToWidth = (onChange: () => void) => {
   return () => query.removeEventListener('change', onChange)
 }
 
+const subscribeToLayout = (onChange: () => void) => {
+  const resize = new ResizeObserver(onChange)
+  resize.observe(document.body)
+  globalThis.addEventListener('scroll', onChange, { passive: true })
+  globalThis.addEventListener('resize', onChange)
+  return () => {
+    resize.disconnect()
+    globalThis.removeEventListener('scroll', onChange)
+    globalThis.removeEventListener('resize', onChange)
+  }
+}
+
+/** Pixels of the viewport, counted up from its bottom edge, that a floor element covers. */
+const readFloorLift = () => {
+  const floor = document.querySelector(FLOOR_SELECTOR)
+  if (!floor) return 0
+  return Math.max(0, Math.ceil(globalThis.innerHeight - floor.getBoundingClientRect().top))
+}
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme()
-  // On a phone the steps panel is below the board. Toasts go to the top there.
   const isWide = useSyncExternalStore(
     subscribeToWidth,
     () => globalThis.matchMedia(WIDE_QUERY).matches,
     () => true,
   )
+  // On a phone toasts go bottom-centre over the lower buttons, and move up above the steps panel as it scrolls in.
+  const lift = useSyncExternalStore(
+    subscribeToLayout,
+    () => (isWide ? 0 : readFloorLift()),
+    () => 0,
+  )
+  const bottom = lift > 0 ? `max(${SAFE_BOTTOM}, ${lift + FLOOR_GAP}px)` : SAFE_BOTTOM
+  const phoneOffset = isWide ? undefined : { bottom }
 
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
-      position={isWide ? 'bottom-right' : 'top-center'}
+      position={isWide ? 'bottom-right' : 'bottom-center'}
+      offset={phoneOffset}
+      mobileOffset={phoneOffset}
       toastOptions={{
         classNames: {
           toast:

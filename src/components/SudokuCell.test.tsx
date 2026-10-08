@@ -16,11 +16,22 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render as baseRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SudokuCell from './SudokuCell'
+
+// A cell is a table cell, so it renders inside a row as the board renders it.
+const BoardRow = ({ children }: { children: ReactNode }) => (
+  <table>
+    <tbody>
+      <tr>{children}</tr>
+    </tbody>
+  </table>
+)
+const render = (ui: ReactElement) => baseRender(ui, { wrapper: BoardRow })
 
 describe('SudokuCell component', () => {
   const mockOnFocus = vi.fn()
@@ -197,6 +208,108 @@ describe('SudokuCell component', () => {
       expect(digit).not.toHaveClass('conflict-pulse')
     })
 
+    it('swaps the pulse keyframes on each clash so a repeat clash replays it', () => {
+      const clash = (conflictPulse: number) => (
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={conflictPulse}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />
+      )
+      const { rerender } = render(clash(1))
+      const digit = screen.getByTestId('cell-digit')
+      expect(digit).toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+
+      rerender(clash(2))
+      expect(screen.getByTestId('cell-digit')).toBe(digit)
+      expect(digit).toHaveClass('conflict-pulse conflict-pulse-b')
+
+      rerender(clash(3))
+      expect(digit).toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+    })
+
+    it('keeps the still outline across repeat clashes under reduced motion', () => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: query.includes('reduce') })),
+      )
+      const { rerender } = render(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={1}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      rerender(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={2}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      const digit = screen.getByTestId('cell-digit')
+
+      expect(digit).toHaveClass('conflict-mark')
+      expect(digit).not.toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+    })
+
+    describe('Error mark', () => {
+      const withDigit = { ...defaultProps, cell: { ...defaultProps.cell, value: 5 } }
+
+      it('draws an X across the cell behind a wrong digit', () => {
+        render(<SudokuCell {...withDigit} isError />)
+        const mark = screen.getByTestId('cell-error-mark')
+        expect(mark).toHaveClass('error-mark')
+        expect(mark).toHaveAttribute('aria-hidden', 'true')
+        expect(screen.getByTestId('cell-background')).toContainElement(mark)
+        expect(screen.getByTestId('cell-digit')).not.toContainElement(mark)
+        // The paper halo in index.css selects the digit as the mark's next sibling.
+        expect(mark.nextElementSibling).toBe(screen.getByTestId('cell-digit'))
+      })
+
+      it('draws the X behind a conflicting digit', () => {
+        render(<SudokuCell {...withDigit} isConflict />)
+        expect(screen.getByTestId('cell-error-mark')).toBeInTheDocument()
+      })
+
+      it('draws the X behind a transiently clashing digit', () => {
+        render(<SudokuCell {...withDigit} isTransientConflict />)
+        expect(screen.getByTestId('cell-error-mark')).toBeInTheDocument()
+      })
+
+      it('draws no X behind a correct digit or a given', () => {
+        const { rerender } = render(<SudokuCell {...withDigit} />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+        rerender(<SudokuCell {...withDigit} isGiven />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+
+      it('draws no X over notes, even in an errored cell', () => {
+        render(
+          <SudokuCell
+            {...defaultProps}
+            isConflict
+            isError
+            cell={{ ...defaultProps.cell, candidates: new Set([1, 2]) }}
+            eliminatedCandidates={new Set([2])}
+          />,
+        )
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+
+      it('removes the X once the digit is corrected', () => {
+        const { rerender } = render(<SudokuCell {...withDigit} isError />)
+        rerender(<SudokuCell {...withDigit} />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+    })
+
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
       expect(screen.getByTestId('cell-digit')).toHaveClass('text-ink voice-ink')
@@ -312,19 +425,19 @@ describe('SudokuCell component', () => {
     })
 
     it('applies correct border for right edge of a box', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={2} />) // col 2
-      expect(container.firstChild).toHaveClass('border-r-2 border-r-grid-thick')
-      expect(container.firstChild).toHaveClass('border-b border-b-grid-thin')
+      render(<SudokuCell {...defaultProps} index={2} />) // col 2
+      expect(screen.getByRole('cell')).toHaveClass('border-r-2 border-r-grid-thick')
+      expect(screen.getByRole('cell')).toHaveClass('border-b border-b-grid-thin')
     })
 
     it('applies correct border for bottom edge of a box', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={18} />) // row 2
-      expect(container.firstChild).toHaveClass('border-b-2 border-b-grid-thick')
+      render(<SudokuCell {...defaultProps} index={18} />) // row 2
+      expect(screen.getByRole('cell')).toHaveClass('border-b-2 border-b-grid-thick')
     })
 
     it('leaves the outer edge to the board frame', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={80} />)
-      expect(container.firstChild).not.toHaveClass(
+      render(<SudokuCell {...defaultProps} index={80} />)
+      expect(screen.getByRole('cell')).not.toHaveClass(
         'border-r',
         'border-b',
         'border-r-2',
