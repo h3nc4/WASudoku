@@ -22,6 +22,20 @@ import { flushSync } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
 
+// Flips the theme with transitions held off, so no colour fades between the two themes.
+function applyTheme(next: string, setTheme: (theme: string) => void) {
+  const root = document.documentElement
+  root.classList.add('theme-switching')
+  // next-themes sets the class in an effect, so set it here too or a snapshot still shows the old theme.
+  root.classList.remove('light', 'dark')
+  root.classList.add(next)
+  root.style.colorScheme = next
+  flushSync(() => setTheme(next))
+  // Forcing layout settles every colour while transitions are held off, so none start afterwards.
+  root.getBoundingClientRect()
+  root.classList.remove('theme-switching')
+}
+
 export function ModeToggle() {
   const { theme, setTheme } = useTheme()
 
@@ -29,21 +43,10 @@ export function ModeToggle() {
     const next = theme === 'dark' ? 'light' : 'dark'
     const reduce = globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!('startViewTransition' in document) || reduce) {
-      setTheme(next)
+      applyTheme(next, setTheme)
       return
     }
-    document.startViewTransition(() => {
-      // next-themes sets the class in an effect, so set it here too or the new snapshot is still the old theme.
-      const root = document.documentElement
-      root.classList.add('theme-switching')
-      root.classList.remove('light', 'dark')
-      root.classList.add(next)
-      root.style.colorScheme = next
-      flushSync(() => setTheme(next))
-      // Forcing layout settles every colour while transitions are held off, so none start afterwards.
-      root.getBoundingClientRect()
-      root.classList.remove('theme-switching')
-    })
+    document.startViewTransition(() => applyTheme(next, setTheme))
   }
 
   return (

@@ -147,6 +147,9 @@ describe('ModeToggle component', () => {
     await clickToggle('light')
 
     expect(mockSetTheme).toHaveBeenCalledWith('dark')
-    expect(document.documentElement).not.toHaveClass('dark')
+    // The instant path flips the class itself with transitions held off.
+    expect(document.documentElement).toHaveClass('dark')
+    expect(document.documentElement).not.toHaveClass('theme-switching')
+    expect(document.documentElement).toHaveStyle({ colorScheme: 'dark' })
   })
 })
