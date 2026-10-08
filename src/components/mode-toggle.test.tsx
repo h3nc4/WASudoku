@@ -48,14 +48,24 @@ describe('ModeToggle component', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: /toggle theme/i }))
   }
 
+  // A real browser has the API on the prototype, and its transition calls back after the click resolves.
+  const nativeViewTransition = Object.getOwnPropertyDescriptor(
+    Document.prototype,
+    'startViewTransition',
+  )
+
   beforeEach(() => {
     vi.clearAllMocks()
     stubReducedMotion(false)
+    Reflect.deleteProperty(Document.prototype, 'startViewTransition')
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
     Reflect.deleteProperty(document, 'startViewTransition')
+    if (nativeViewTransition) {
+      Object.defineProperty(Document.prototype, 'startViewTransition', nativeViewTransition)
+    }
     document.documentElement.className = ''
     document.documentElement.style.colorScheme = ''
   })

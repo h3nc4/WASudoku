@@ -27,6 +27,7 @@ import { initialState } from '@/context/sudoku.reducer'
 import type { CellState, SolvingStep } from '@/context/sudoku.types'
 import { parseSolution, placeValue, toggleMark } from '@/lib/board'
 import { boardStateFromString } from '@/lib/utils'
+import { endAnimation, pasteText } from '@/test/events'
 import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SudokuGrid } from './SudokuGrid'
@@ -342,10 +343,7 @@ describe('SudokuGrid component', () => {
 
   describe('Clipboard (Paste) Interactions', () => {
     const validBoardString = '.'.repeat(81)
-    const paste = (text: string) => {
-      const grid = screen.getByRole('grid')
-      fireEvent.paste(grid, { clipboardData: { getData: () => text } })
-    }
+    const paste = (text: string) => pasteText(screen.getByRole('grid'), text)
 
     beforeEach(() => {
       mockSudoku({ state: makeState({ solver: { gameMode: 'customInput' } }, defaultState) })
@@ -457,10 +455,6 @@ describe('SudokuGrid component', () => {
   })
 
   describe('Pause', () => {
-    // jsdom has no AnimationEvent, so React listens for the prefixed event name there.
-    const endAnimation = (el: HTMLElement) =>
-      fireEvent(el, new Event('webkitAnimationEnd', { bubbles: true }))
-
     it('hides the board behind a resume overlay and ignores keys', async () => {
       const user = userEvent.setup()
       mockSudoku({ state: makeState({ ui: { isPaused: true } }, defaultState) })

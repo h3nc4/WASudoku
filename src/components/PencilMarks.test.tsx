@@ -16,8 +16,10 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { endAnimation } from '@/test/events'
 
 import { LEAVE_FALLBACK_MS, PencilMarks } from './PencilMarks'
 
@@ -87,9 +89,6 @@ describe('PencilMarks component', () => {
 
   describe('motion', () => {
     const none = new Set<number>()
-    // jsdom has no AnimationEvent, so React listens for the prefixed name instead.
-    const endAnimation = (element: Element) =>
-      fireEvent(element, new Event('webkitAnimationEnd', { bubbles: true }))
 
     beforeEach(() => {
       vi.useFakeTimers()

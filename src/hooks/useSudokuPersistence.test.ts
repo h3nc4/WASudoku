@@ -42,12 +42,15 @@ describe('useSudokuPersistence', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
+    // Fake timers type an idle callback with a timeout as a Timeout, so cancelIdleCallback throws on it.
+    vi.stubGlobal('requestIdleCallback', undefined)
     globalThis.localStorage.clear()
     setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     vi.useRealTimers()
     setItemSpy.mockRestore()
     consoleErrorSpy.mockRestore()

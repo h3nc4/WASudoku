@@ -392,12 +392,17 @@ describe('SolverStepsPanel component', () => {
       mockSudoku({ state: makeState({ solver: { currentStepIndex: 2 } }, defaultState) })
       const { rerender } = render(<SolverStepsPanel />)
       const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!
-      expect(viewport.scrollTop).toBe(100)
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 100, behavior: 'smooth' })
 
-      viewport.scrollTop = 200
+      // A real browser clamps scrollTop to this unstyled viewport's zero overflow, so hold a value.
+      Object.defineProperty(viewport, 'scrollTop', {
+        configurable: true,
+        writable: true,
+        value: 200,
+      })
       mockSudoku({ state: makeState({ solver: { currentStepIndex: 1 } }, defaultState) })
       rerender(<SolverStepsPanel />)
-      expect(viewport.scrollTop).toBe(120)
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 120, behavior: 'smooth' })
       spy.mockRestore()
     })
 
