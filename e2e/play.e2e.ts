@@ -77,6 +77,7 @@ test('corner and center notes, a conflict and the mistakes counter', async ({ pa
   await expect(cell(page, R1C3)).toHaveValue('5')
   await expect(cell(page, R1C3)).toHaveAttribute('aria-invalid', 'true')
   await expect(errorMark(page, R1C3)).toBeVisible()
+  await expect(cellFace(page, R1C3).getByTestId('cell-digit')).not.toHaveCSS('text-shadow', 'none')
   await expect(mistakes(page)).toHaveText('1/3')
   await expect(page.getByRole('button', { name: 'Solve' })).toBeDisabled()
   await expectAccessible(page, 'board with a conflict')

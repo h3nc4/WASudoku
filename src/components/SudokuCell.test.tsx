@@ -207,6 +207,8 @@ describe('SudokuCell component', () => {
         expect(mark).toHaveAttribute('aria-hidden', 'true')
         expect(screen.getByTestId('cell-background')).toContainElement(mark)
         expect(screen.getByTestId('cell-digit')).not.toContainElement(mark)
+        // The paper halo in index.css selects the digit as the mark's next sibling.
+        expect(mark.nextElementSibling).toBe(screen.getByTestId('cell-digit'))
       })
 
       it('draws the X behind a conflicting digit', () => {

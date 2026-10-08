@@ -579,7 +579,7 @@
   pointer-events: none;
   fill: none;
   stroke: var(--error);
-  stroke-width: 1.75px;
+  stroke-width: 2.25px;
   stroke-linecap: round;
   transition: opacity var(--motion-out) var(--ease-out);
 }
@@ -592,4 +592,18 @@
   .error-mark {
     opacity: 0;
   }
+}
+
+/* A paper halo breaks the X where it crosses the glyph and its underline. */
+/* The digit must directly follow the mark in the DOM for this selector to apply. */
+.error-mark + .cell-ink {
+  text-shadow:
+    2px 0 var(--paper),
+    -2px 0 var(--paper),
+    0 2px var(--paper),
+    0 -2px var(--paper),
+    1.5px 1.5px var(--paper),
+    -1.5px 1.5px var(--paper),
+    1.5px -1.5px var(--paper),
+    -1.5px -1.5px var(--paper);
 }

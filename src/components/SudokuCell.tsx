@@ -178,8 +178,7 @@ const ErrorMark = () => (
     viewBox="0 0 100 100"
     preserveAspectRatio="none"
   >
-    {/* The strokes stop short of the centre and leave bare paper behind the digit. */}
-    <path d="M12 12 29 29M71 71 88 88M88 12 71 29M29 71 12 88" />
+    <path d="M10 10 90 90M90 10 10 90" />
   </svg>
 )
 
