@@ -73,13 +73,13 @@ jobs:
           tar -czvf WASudoku.tar.gz -C dist .
           XZ_OPT=-9e tar -cJf WASudoku.tar.xz -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gz-build
           path: WASudoku.tar.gz
           retention-days: 1
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: xz-build
           path: WASudoku.tar.xz
@@ -87,7 +87,7 @@ jobs:
       - name: Create Pages artifact tar
         run: tar --format=ustar --no-same-owner -cf artifact.tar -C dist .
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: github-pages
           path: artifact.tar
@@ -159,7 +159,7 @@ jobs:
             -c 'printf "%s\n" "${VERSION}" | bubblewrap update && yes | bubblewrap build'
           mv app-release-signed.apk WASudoku.apk
       - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: apk
           path: WASudoku.apk
