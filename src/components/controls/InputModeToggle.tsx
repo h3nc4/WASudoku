@@ -22,7 +22,7 @@ import type { InputMode } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /**
- * A toggle group for switching between Normal, Candidate, and Center input modes.
+ * A segmented control for the Pen, Corner and Center input modes.
  */
 export function InputModeToggle() {
   const { ui, solver } = useSudokuState()
@@ -41,15 +41,28 @@ export function InputModeToggle() {
       onValueChange={handleModeChange}
       className="w-full"
       aria-label="Input Mode"
+      indicator
       disabled={solver.gameMode === 'visualizing'}
     >
-      <ToggleGroupItem value="normal" className="flex-1" onMouseDown={(e) => e.preventDefault()}>
-        Normal
+      <ToggleGroupItem
+        value="normal"
+        className="h-11 flex-1 md:h-9"
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        Pen
       </ToggleGroupItem>
-      <ToggleGroupItem value="candidate" className="flex-1" onMouseDown={(e) => e.preventDefault()}>
-        Candidate
+      <ToggleGroupItem
+        value="candidate"
+        className="h-11 flex-1 md:h-9"
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        Corner
       </ToggleGroupItem>
-      <ToggleGroupItem value="center" className="flex-1" onMouseDown={(e) => e.preventDefault()}>
+      <ToggleGroupItem
+        value="center"
+        className="h-11 flex-1 md:h-9"
+        onMouseDown={(e) => e.preventDefault()}
+      >
         Center
       </ToggleGroupItem>
     </ToggleGroup>

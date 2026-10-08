@@ -210,4 +210,42 @@ describe('Sudoku Action Creators', () => {
     const expectedAction: SudokuAction = { type: 'CLEAR_TRANSIENT_CONFLICTS' }
     expect(actions.clearTransientConflicts()).toEqual(expectedAction)
   })
+
+  it('should create the hint actions', () => {
+    const result: SolveResult = { steps: [], solution: null }
+    expect(actions.requestHint()).toEqual({ type: 'REQUEST_HINT' })
+    expect(actions.hintSuccess(result)).toEqual({ type: 'HINT_SUCCESS', result })
+    expect(actions.hintFailure()).toEqual({ type: 'HINT_FAILURE' })
+    expect(actions.clearHint()).toEqual({ type: 'CLEAR_HINT' })
+  })
+
+  it('should create the pause actions', () => {
+    expect(actions.pauseGame()).toEqual({ type: 'PAUSE_GAME' })
+    expect(actions.resumeGame()).toEqual({ type: 'RESUME_GAME' })
+  })
+
+  it('should create the shared puzzle actions', () => {
+    const boardString = '.'.repeat(81)
+    expect(actions.offerPuzzle(boardString)).toEqual({ type: 'OFFER_PUZZLE', boardString })
+    expect(actions.dismissPuzzle()).toEqual({ type: 'DISMISS_PUZZLE' })
+    expect(actions.loadPuzzle(boardString)).toEqual({ type: 'LOAD_PUZZLE', boardString })
+  })
+
+  it('should create the intents that the reducer resolves against the active cell', () => {
+    expect(actions.inputValue(5)).toEqual({ type: 'INPUT_VALUE', value: 5 })
+    expect(actions.navigate('up')).toEqual({ type: 'NAVIGATE', direction: 'up' })
+    expect(actions.eraseActiveCell('backspace')).toEqual({
+      type: 'ERASE_ACTIVE_CELL',
+      mode: 'backspace',
+    })
+    expect(actions.cycleInputMode()).toEqual({ type: 'CYCLE_INPUT_MODE' })
+    expect(actions.stepVisualization(-1)).toEqual({ type: 'STEP_VISUALIZATION', delta: -1 })
+  })
+
+  it('should create the sticky numbers actions', () => {
+    expect(actions.toggleSticky()).toEqual({ type: 'TOGGLE_STICKY' })
+    expect(actions.setStickyValue(4)).toEqual({ type: 'SET_STICKY_VALUE', value: 4 })
+    expect(actions.setStickyValue(null)).toEqual({ type: 'SET_STICKY_VALUE', value: null })
+    expect(actions.tapCell(12)).toEqual({ type: 'TAP_CELL', index: 12 })
+  })
 })

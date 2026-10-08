@@ -18,13 +18,11 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { useSudokuState } from './context/sudoku.hooks'
-import { initialState } from './context/sudoku.reducer'
-import type { SudokuState } from './context/sudoku.types'
-import { useSudokuActions } from './hooks/useSudokuActions'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { makeState, mockSudoku, type StatePatch } from './test/sudoku-state'
 
 vi.mock('./context/sudoku.hooks')
 vi.mock('./hooks/useSudokuActions')
@@ -66,35 +64,36 @@ vi.mock('./components/mode-toggle', () => ({
 vi.mock('./components/SolverStepsPanel', () => ({
   SolverStepsPanel: vi.fn(() => <div data-testid="solver-steps-panel" />),
 }))
+vi.mock('./components/controls/HintButton', () => ({
+  HintButton: vi.fn(() => <button>Hint</button>),
+}))
+vi.mock('./components/ShareMenu', () => ({
+  ShareMenu: vi.fn(() => <button>Share puzzle</button>),
+}))
+vi.mock('./components/HintPanel', () => ({
+  HintPanel: vi.fn(() => <div data-testid="hint-panel" />),
+}))
+vi.mock('./components/WinDialog', () => ({
+  WinDialog: vi.fn(() => <div data-testid="win-dialog" />),
+}))
+vi.mock('./components/PendingPuzzleDialog', () => ({
+  PendingPuzzleDialog: vi.fn(() => <div data-testid="pending-puzzle-dialog" />),
+}))
+vi.mock('./hooks/useKeyboardShortcuts', () => ({ useKeyboardShortcuts: vi.fn() }))
 vi.mock('./components/SelectionScreen', () => ({
   SelectionScreen: vi.fn(() => <div data-testid="selection-screen" />),
 }))
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('App component', () => {
   const mockEraseActiveCell = vi.fn()
-  const mockExportBoard = vi.fn()
-  const defaultState: SudokuState = {
-    ...initialState,
-    solver: {
-      ...initialState.solver,
-      gameMode: 'playing',
-    },
-    ui: {
-      ...initialState.ui,
-      activeCellIndex: 5,
-    },
-  }
+  const defaultState = makeState({
+    solver: { gameMode: 'playing' },
+    ui: { activeCellIndex: 5 },
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(defaultState)
-    mockUseSudokuActions.mockReturnValue({
-      eraseActiveCell: mockEraseActiveCell,
-      exportBoard: mockExportBoard,
-    })
+    mockSudoku({ state: defaultState, actions: { eraseActiveCell: mockEraseActiveCell } })
   })
 
   it('renders the main layout and all control components', () => {
@@ -105,17 +104,47 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: 'NumberPad' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solve' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Export Board' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share puzzle' })).toBeInTheDocument()
+    expect(screen.getByTestId('hint-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('win-dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('pending-puzzle-dialog')).toBeInTheDocument()
+    expect(useKeyboardShortcuts).toHaveBeenCalled()
     expect(screen.getByRole('link', { name: /github repository/i })).toBeInTheDocument()
   })
 
-  it('calls exportBoard when export button is clicked', async () => {
-    const user = userEvent.setup()
+  it('puts the sticky numbers toggle after erase in a five-column tool row', () => {
     render(<App />)
+    const toggle = screen.getByRole('button', { name: 'Sticky numbers' })
+    const row = toggle.parentElement
+    expect(row).toHaveClass('grid-cols-5')
+    expect(row?.children).toHaveLength(5)
+    expect(toggle.previousElementSibling).toBe(
+      screen.getByRole('button', { name: 'Erase selected cell' }),
+    )
+  })
 
-    const exportButton = screen.getByRole('button', { name: 'Export Board' })
-    await user.click(exportButton)
-    expect(mockExportBoard).toHaveBeenCalledOnce()
+  it('replaces the hint with the solve control outside play', () => {
+    mockSudoku({ state: makeState({ solver: { gameMode: 'customInput' } }, defaultState) })
+    render(<App />)
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Solve' })).toHaveLength(1)
+  })
+
+  it('disables the erase button while paused', () => {
+    mockSudoku({ state: makeState({ ui: { isPaused: true } }, defaultState) })
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
+  })
+
+  it.each([
+    ['while solving', { solver: { isSolving: true } }],
+    ['once solved', { solver: { isSolved: true } }],
+    ['while validating', { solver: { gameMode: 'customInput', isValidating: true } }],
+  ] as [string, StatePatch][])('disables the erase button %s, like the Delete key', (_, patch) => {
+    mockSudoku({ state: makeState(patch, defaultState) })
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
   it('does not render the SolverStepsPanel in playing mode', () => {
@@ -124,13 +153,7 @@ describe('App component', () => {
   })
 
   it('renders the SolverStepsPanel and scroll cue in visualizing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: {
-        ...defaultState.solver,
-        gameMode: 'visualizing',
-      },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }, defaultState) })
     render(<App />)
     expect(screen.getByTestId('solver-steps-panel')).toBeInTheDocument()
     expect(screen.getByText('Scroll down for solving steps')).toBeInTheDocument()
@@ -148,29 +171,21 @@ describe('App component', () => {
   })
 
   it('disables erase button when no cell is active', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      ui: { ...initialState.ui, activeCellIndex: null },
-    })
+    mockSudoku({ state: makeState({ ui: { activeCellIndex: null } }, defaultState) })
     render(<App />)
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
   it('disables controls when not in an interactive mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...defaultState,
-      solver: { ...defaultState.solver, gameMode: 'visualizing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }, defaultState) })
     render(<App />)
     expect(screen.getByRole('button', { name: 'Erase selected cell' })).toBeDisabled()
   })
 
-  it('renders SelectionScreen and blurs main content when in selecting mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState, // gameMode is 'selecting' by default
-    })
+  it('renders SelectionScreen and dims main content when in selecting mode', () => {
+    mockSudoku({ state: makeState() }) // gameMode is 'selecting' by default
     render(<App />)
     expect(screen.getByTestId('selection-screen')).toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveClass('blur-sm pointer-events-none')
+    expect(screen.getByRole('main')).toHaveClass('opacity-35 pointer-events-none')
   })
 })

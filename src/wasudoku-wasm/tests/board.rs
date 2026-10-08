@@ -41,15 +41,17 @@ fn test_is_valid_move_false_for_row_conflict() {
 
 #[test]
 fn test_is_valid_move_false_for_col_conflict() {
-    let board = solved_board();
-    // Try to place a '5' at (1, 0), invalid due to '5' at (0,0)
-    assert!(!board.is_valid_move(1, 0, 5));
+    let mut board = Board { cells: [0; 81] };
+    board.cells[0] = 5;
+    // Row 4 holds no '5', so only the '5' at (0, 0) in its column rejects (4, 0)
+    assert!(!board.is_valid_move(4, 0, 5));
 }
 
 #[test]
 fn test_is_valid_move_false_for_box_conflict() {
-    let board = solved_board();
-    // Try to place a '7' at (0, 2), which is invalid due to '7' at (1, 1) in the same box
+    let mut board = Board { cells: [0; 81] };
+    board.cells[10] = 7;
+    // The '7' at (1, 1) shares only its box with (0, 2), not a row or column
     assert!(!board.is_valid_move(0, 2, 7));
 }
 

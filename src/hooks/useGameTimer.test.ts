@@ -19,9 +19,9 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { tickTimer } from '@/context/sudoku.actions'
+import { pauseGame, tickTimer } from '@/context/sudoku.actions'
 import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
+import { makeState } from '@/test/sudoku-state'
 
 import { useGameTimer } from './useGameTimer'
 
@@ -38,10 +38,9 @@ describe('useGameTimer', () => {
   })
 
   it('should dispatch TICK_TIMER every second when in playing mode', () => {
-    const playingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing', isSolved: false },
-    }
+    const playingState = makeState({
+      solver: { gameMode: 'playing', isSolved: false },
+    })
 
     renderHook(() => useGameTimer(playingState, mockDispatch))
 
@@ -57,10 +56,7 @@ describe('useGameTimer', () => {
   })
 
   it('should not dispatch tick when not playing', () => {
-    const selectingState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'selecting' },
-    }
+    const selectingState = makeState({ solver: { gameMode: 'selecting' } })
 
     renderHook(() => useGameTimer(selectingState, mockDispatch))
 
@@ -71,10 +67,7 @@ describe('useGameTimer', () => {
   })
 
   it('should stop ticking when solved', () => {
-    const solvedState: SudokuState = {
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'playing', isSolved: true },
-    }
+    const solvedState = makeState({ solver: { gameMode: 'playing', isSolved: true } })
 
     renderHook(() => useGameTimer(solvedState, mockDispatch))
 
@@ -82,5 +75,38 @@ describe('useGameTimer', () => {
       vi.advanceTimersByTime(5000)
     })
     expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('should not tick while paused', () => {
+    const pausedState = makeState({
+      solver: { gameMode: 'playing' },
+      ui: { isPaused: true },
+    })
+
+    renderHook(() => useGameTimer(pausedState, mockDispatch))
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('should pause the game when the tab is hidden, and not when it is shown', () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get')
+    const { unmount } = renderHook(() => useGameTimer(initialState, mockDispatch))
+
+    visibility.mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).not.toHaveBeenCalled()
+
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).toHaveBeenCalledWith(pauseGame())
+
+    unmount()
+    mockDispatch.mockClear()
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mockDispatch).not.toHaveBeenCalled()
+    visibility.mockRestore()
   })
 })

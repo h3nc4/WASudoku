@@ -20,35 +20,52 @@ import type {
   AutoFillCandidatesAction,
   ClearBoardAction,
   ClearErrorAction,
+  ClearHintAction,
   ClearTransientConflictsAction,
+  CycleInputModeAction,
+  DismissPuzzleAction,
+  EraseActiveCellAction,
   EraseCellAction,
   ExitVisualizationAction,
   GeneratePuzzleFailureAction,
   GeneratePuzzleStartAction,
   GeneratePuzzleSuccessAction,
+  HintFailureAction,
+  HintSuccessAction,
   ImportBoardAction,
+  InputValueAction,
+  LoadPuzzleAction,
+  NavigateAction,
+  OfferPuzzleAction,
+  PauseGameAction,
   PoolRefillFailureAction,
   PoolRefillSuccessAction,
   RedoAction,
+  RequestHintAction,
   RequestPoolRefillAction,
+  ResumeGameAction,
   SetActiveCellAction,
   SetCellValueAction,
   SetHighlightedValueAction,
   SetInputModeAction,
+  SetStickyValueAction,
   SetTransientConflictsAction,
   SolveFailureAction,
   SolveStartAction,
   SolveSuccessAction,
   StartCustomPuzzleAction,
+  StepVisualizationAction,
+  TapCellAction,
   TickTimerAction,
   TogglePencilMarkAction,
+  ToggleStickyAction,
   UndoAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleStartAction,
   ValidatePuzzleSuccessAction,
   ViewSolverStepAction,
 } from './sudoku.actions.types'
-import type { InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
 
 /** Creates an action to set the definitive value of a cell. */
 export const setCellValue = (index: number, value: number): SetCellValueAction => ({
@@ -118,7 +135,7 @@ export const solveFailure = (): SolveFailureAction => ({
 })
 
 /** Creates an action to signal the start of the puzzle generation process. */
-export const generatePuzzleStart = (difficulty: string): GeneratePuzzleStartAction => ({
+export const generatePuzzleStart = (difficulty: Difficulty): GeneratePuzzleStartAction => ({
   type: 'GENERATE_PUZZLE_START',
   difficulty,
 })
@@ -139,14 +156,14 @@ export const generatePuzzleFailure = (): GeneratePuzzleFailureAction => ({
 })
 
 /** Creates an action to note that a pool refill request has been sent to the worker. */
-export const requestPoolRefill = (difficulty: string): RequestPoolRefillAction => ({
+export const requestPoolRefill = (difficulty: Difficulty): RequestPoolRefillAction => ({
   type: 'REQUEST_POOL_REFILL',
   difficulty,
 })
 
 /** Creates an action to add a background-generated puzzle to the pool. */
 export const poolRefillSuccess = (
-  difficulty: string,
+  difficulty: Difficulty,
   puzzleString: string,
   solutionString: string,
 ): PoolRefillSuccessAction => ({
@@ -157,7 +174,7 @@ export const poolRefillSuccess = (
 })
 
 /** Creates an action to decrement the pending count if a background refill fails. */
-export const poolRefillFailure = (difficulty: string): PoolRefillFailureAction => ({
+export const poolRefillFailure = (difficulty: Difficulty): PoolRefillFailureAction => ({
   type: 'POOL_REFILL_FAILURE',
   difficulty,
 })
@@ -232,4 +249,98 @@ export const setTransientConflicts = (indices: Set<number>): SetTransientConflic
 /** Creates an action to clear any transient conflict highlights. */
 export const clearTransientConflicts = (): ClearTransientConflictsAction => ({
   type: 'CLEAR_TRANSIENT_CONFLICTS',
+})
+
+/** Creates an action to look for the next move on the current board. */
+export const requestHint = (): RequestHintAction => ({
+  type: 'REQUEST_HINT',
+})
+
+/** Creates an action with the solver result for a hint. */
+export const hintSuccess = (result: SolveResult): HintSuccessAction => ({
+  type: 'HINT_SUCCESS',
+  result,
+})
+
+/** Creates an action for when no hint could be produced. */
+export const hintFailure = (): HintFailureAction => ({
+  type: 'HINT_FAILURE',
+})
+
+/** Creates an action to dismiss the current hint. */
+export const clearHint = (): ClearHintAction => ({
+  type: 'CLEAR_HINT',
+})
+
+/** Creates an action to pause the game. */
+export const pauseGame = (): PauseGameAction => ({
+  type: 'PAUSE_GAME',
+})
+
+/** Creates an action to resume a paused game. */
+export const resumeGame = (): ResumeGameAction => ({
+  type: 'RESUME_GAME',
+})
+
+/** Creates an action offering a puzzle to the player. */
+export const offerPuzzle = (boardString: string): OfferPuzzleAction => ({
+  type: 'OFFER_PUZZLE',
+  boardString,
+})
+
+/** Creates an action to decline the offered puzzle. */
+export const dismissPuzzle = (): DismissPuzzleAction => ({
+  type: 'DISMISS_PUZZLE',
+})
+
+/** Creates an action to validate and start a puzzle from a string. */
+export const loadPuzzle = (boardString: string): LoadPuzzleAction => ({
+  type: 'LOAD_PUZZLE',
+  boardString,
+})
+
+/** Creates an action to input a value into the active cell. */
+export const inputValue = (value: number): InputValueAction => ({
+  type: 'INPUT_VALUE',
+  value,
+})
+
+/** Creates an action to move the active cell one step in a direction. */
+export const navigate = (direction: NavigateAction['direction']): NavigateAction => ({
+  type: 'NAVIGATE',
+  direction,
+})
+
+/** Creates an action to erase the active cell. */
+export const eraseActiveCell = (mode: EraseActiveCellAction['mode']): EraseActiveCellAction => ({
+  type: 'ERASE_ACTIVE_CELL',
+  mode,
+})
+
+/** Creates an action to switch to the next input mode. */
+export const cycleInputMode = (): CycleInputModeAction => ({
+  type: 'CYCLE_INPUT_MODE',
+})
+
+/** Creates an action to move the solver visualization one step back or forward. */
+export const stepVisualization = (delta: -1 | 1): StepVisualizationAction => ({
+  type: 'STEP_VISUALIZATION',
+  delta,
+})
+
+/** Creates an action to turn sticky numbers on or off. */
+export const toggleSticky = (): ToggleStickyAction => ({
+  type: 'TOGGLE_STICKY',
+})
+
+/** Creates an action to lock a digit for cell taps, or release the lock with null. */
+export const setStickyValue = (value: number | null): SetStickyValueAction => ({
+  type: 'SET_STICKY_VALUE',
+  value,
+})
+
+/** Creates an action for a pointer tap on a cell. */
+export const tapCell = (index: number): TapCellAction => ({
+  type: 'TAP_CELL',
+  index,
 })

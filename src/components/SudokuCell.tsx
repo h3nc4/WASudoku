@@ -16,13 +16,13 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { forwardRef, memo } from 'react'
+import { type CSSProperties, forwardRef, memo } from 'react'
 
-import { Input } from '@/components/ui/input'
 import type { CellState } from '@/context/sudoku.types'
+import type { BoardMoment } from '@/hooks/useBoardMove'
 import { cn } from '@/lib/utils'
 
-import { PencilMarks } from './PencilMarks'
+import { type MarkMotion, PencilMarks } from './PencilMarks'
 
 interface SudokuCellProps {
   /** The state of the cell, including value and pencil marks. */
@@ -51,10 +51,24 @@ interface SudokuCellProps {
   readonly isPlaced: boolean
   /** Callback function when the cell receives focus (e.g., via click). */
   readonly onFocus: (index: number) => void
+  /** A pointer tap, kept apart from focus, which arrow keys move too. */
+  readonly onTap?: (index: number) => void
   /** For visualization, a set of candidates eliminated in the current step. */
   readonly eliminatedCandidates?: ReadonlySet<number>
   /** Whether this cell is part of a momentary conflict highlight. */
   readonly isTransientConflict?: boolean
+  /** Whether a hint points at this cell. */
+  readonly isHintTarget?: boolean
+  /** Whether the player just changed this cell. A new digit then inks in and toggled notes fade. */
+  readonly animateEntry?: boolean
+  /** Whether a placement elsewhere just removed notes here, which strike out before leaving. */
+  readonly strikeRemovedNotes?: boolean
+  /** A one-shot board moment playing on this cell, drawn on its own layer above the fill. */
+  readonly moment?: BoardMoment['kind']
+  /** When this cell's part of the moment starts, in milliseconds. */
+  readonly momentDelay?: number
+  /** Changes per moment, so the layer remounts and its animation replays. */
+  readonly momentKey?: number
 }
 
 /**
@@ -62,77 +76,97 @@ interface SudokuCellProps {
  * @returns A string of Tailwind classes.
  */
 const getBackgroundStyles = ({
-  isConflict,
-  isError,
   isActive,
   isSolving,
   isCause,
-  isPlaced,
   isNumberHighlighted,
   isHighlighted,
-  isTransientConflict,
+  isHintTarget,
+  isPlaced,
 }: Pick<
   SudokuCellProps,
-  | 'isConflict'
-  | 'isError'
   | 'isActive'
   | 'isSolving'
   | 'isCause'
-  | 'isPlaced'
   | 'isNumberHighlighted'
   | 'isHighlighted'
-  | 'isTransientConflict'
+  | 'isHintTarget'
+  | 'isPlaced'
 >) => {
-  if (isTransientConflict) return '!bg-destructive/30 transition-colors duration-200'
-  if (isConflict || isError) return '!bg-destructive/20'
-  if (isActive) return 'bg-blue-100 dark:bg-sky-800/80'
-  if (isSolving) return 'cursor-not-allowed bg-muted/50'
-  if (isCause) return 'bg-purple-100 dark:bg-purple-800/80'
-  if (isPlaced) return 'bg-green-100 dark:bg-green-900/80'
-  if (isNumberHighlighted) return 'bg-blue-100 dark:bg-sky-900/80'
-  if (isHighlighted) return 'bg-blue-50 dark:bg-sky-900/60'
-  return ''
+  let fill = ''
+  if (isHintTarget) fill = 'solver-hatch'
+  // A walkthrough placement gets a lit cell, since amber digits alone read close to grey on light paper.
+  else if (isPlaced) fill = 'bg-solver-wash'
+  else if (isActive) fill = 'highlighter'
+  else if (isNumberHighlighted) fill = 'bg-same'
+  else if (isHighlighted) fill = 'bg-peer'
+
+  let ring = ''
+  if (isHintTarget) ring = 'ring-2 ring-inset ring-solver'
+  else if (isCause) ring = 'ring-[1.5px] ring-inset ring-solver'
+
+  return cn('cell-fill', fill, ring, (fill || ring) && 'cell-on', isSolving && 'cursor-not-allowed')
 }
 
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 /**
- * Computes the conditional class names for the cell's main input text.
+ * Computes the conditional class names for the cell's digit.
  * @returns A string of Tailwind classes.
  */
 const getInputTextStyles = ({
-  cell,
-  hasPencilMarks,
   isConflict,
   isError,
   isGiven,
   isSolved,
-  isNumberHighlighted,
   isPlaced,
   isTransientConflict,
+  isNumberHighlighted,
 }: Pick<
   SudokuCellProps,
-  | 'cell'
   | 'isConflict'
   | 'isError'
   | 'isGiven'
   | 'isSolved'
-  | 'isNumberHighlighted'
   | 'isPlaced'
   | 'isTransientConflict'
-> & {
-  hasPencilMarks: boolean
-}) => {
-  const isSolverResult = isSolved && !isGiven
-  const isUserInput = cell.value !== null && !isGiven && !isSolved && !isPlaced
-  return cn({
-    'text-transparent': hasPencilMarks && cell.value === null,
-    'text-xl md:text-2xl': !(hasPencilMarks && cell.value === null),
-    'text-primary font-bold': isGiven,
-    'text-green-600 dark:text-green-400 font-bold': isPlaced,
-    'font-bold text-blue-700 dark:text-blue-300': isNumberHighlighted && !isGiven && !isPlaced,
-    'text-blue-600 dark:text-blue-400': isUserInput,
-    'text-sky-600 dark:text-sky-400': isSolverResult,
-    '!text-destructive': isConflict || isError || isTransientConflict,
-  })
+  | 'isNumberHighlighted'
+>) => {
+  // Givens and walkthrough placements are inked, solver output speaks in mono, the rest is pencil.
+  let voice = 'voice-pencil'
+  if (isGiven || isPlaced) voice = 'voice-ink'
+  else if (isSolved) voice = 'voice-mono'
+
+  let color = 'text-pencil'
+  if (isConflict || isError || isTransientConflict) color = 'text-error'
+  else if (isPlaced) color = 'text-solver'
+  else if (isGiven) color = 'text-ink'
+
+  // Same-number digits go bold, which shows the state in letterform and makes 20px count as large text.
+  let weight = ''
+  if (isNumberHighlighted) weight = voice === 'voice-ink' ? 'font-extrabold' : 'font-bold'
+
+  return cn(
+    'text-xl md:text-2xl',
+    voice,
+    weight,
+    color,
+    color === 'text-error' && 'ink-alarm',
+    (isConflict || isError) &&
+      'underline-in underline decoration-error decoration-wavy decoration-[1.5px]',
+    isTransientConflict && (prefersReducedMotion() ? 'conflict-mark' : 'conflict-pulse'),
+  )
+}
+
+const getMarkMotion = (
+  animateEntry?: boolean,
+  strikeRemovedNotes?: boolean,
+): MarkMotion | undefined => {
+  if (animateEntry) return 'toggle'
+  if (strikeRemovedNotes) return 'strike'
+  return undefined
 }
 
 /**
@@ -141,23 +175,38 @@ const getInputTextStyles = ({
  * It receives a ref to allow the parent to manage focus.
  */
 const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) => {
-  const { cell, index, onFocus, eliminatedCandidates, ...styleProps } = props
+  const {
+    cell,
+    index,
+    onFocus,
+    onTap,
+    eliminatedCandidates,
+    animateEntry,
+    strikeRemovedNotes,
+    moment,
+    momentDelay,
+    momentKey,
+    ...styleProps
+  } = props
   const handleFocus = () => onFocus(index)
+  const handleClick = () => onTap?.(index)
 
   const row = Math.floor(index / 9)
   const col = index % 9
 
-  const hasPencilMarks = cell.candidates.size > 0 || cell.centers.size > 0
-
   const backgroundClasses = getBackgroundStyles(styleProps)
-  const textClasses = getInputTextStyles({
-    ...styleProps,
-    cell,
-    hasPencilMarks,
-  })
+  const textClasses = getInputTextStyles(styleProps)
 
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'relative',
+        col !== 8 &&
+          (col % 3 === 2 ? 'border-r-grid-thick border-r-2' : 'border-r-grid-thin border-r'),
+        row !== 8 &&
+          (row % 3 === 2 ? 'border-b-grid-thick border-b-2' : 'border-b-grid-thin border-b'),
+      )}
+    >
       <div
         data-testid="cell-background"
         className={cn(
@@ -165,29 +214,57 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
           backgroundClasses,
         )}
       >
-        {cell.value === null && (
+        {moment && (
+          <span
+            key={momentKey}
+            aria-hidden
+            data-testid="cell-moment"
+            data-moment={moment}
+            className="board-moment"
+            style={{ '--moment-delay': `${momentDelay ?? 0}ms` } as CSSProperties}
+          />
+        )}
+        {cell.value === null ? (
           <PencilMarks
             candidates={cell.candidates}
             centers={cell.centers}
             eliminations={eliminatedCandidates}
+            motion={getMarkMotion(animateEntry, strikeRemovedNotes)}
           />
+        ) : (
+          // Scaling the input would scale its ring too. The digit draws here instead, keyed to replay per entry.
+          <span
+            key={cell.value}
+            aria-hidden
+            data-testid="cell-digit"
+            className={cn(
+              'cell-ink leading-none underline-offset-4',
+              textClasses,
+              animateEntry && 'ink-in',
+            )}
+          >
+            {cell.value}
+          </span>
         )}
       </div>
 
-      <Input
+      {/* A bare input keeps focus and the accessible name without looking like a form field. */}
+      <input
         ref={ref}
         id={`cell-${index}`}
         type="tel"
         readOnly
         value={cell.value === null ? '' : String(cell.value)}
         onFocus={handleFocus}
+        onClick={handleClick}
         className={cn(
-          'border-border absolute inset-0 z-10 aspect-square size-full rounded-none bg-transparent p-0 text-center font-semibold transition-colors duration-200',
-          'focus:z-20 focus:shadow-inner',
-          'caret-transparent',
-          col % 3 === 2 && col !== 8 && 'border-r-primary border-r-2',
-          row % 3 === 2 && row !== 8 && 'border-b-primary border-b-2',
-          textClasses,
+          'cell-ink absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center caret-transparent outline-none',
+          'focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',
+          props.isHintTarget
+            ? 'ring-solver focus-visible:ring-solver'
+            : 'ring-ink focus-visible:ring-ink',
+          props.isActive && 'cell-on ring-2 ring-inset',
+          'text-transparent',
         )}
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
         aria-invalid={props.isConflict || props.isError}

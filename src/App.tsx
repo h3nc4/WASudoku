@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ChevronDown, Eraser, Share2 } from 'lucide-react'
+import { ChevronDown, Eraser } from 'lucide-react'
 import { useCallback } from 'react'
 import { SiGithub } from 'react-icons/si'
 
@@ -24,24 +24,35 @@ import { ModeToggle } from '@/components/mode-toggle'
 import { NumberPad } from '@/components/NumberPad'
 import { SudokuGrid } from '@/components/SudokuGrid'
 import { Button } from '@/components/ui/button'
+import { Wordmark } from '@/components/Wordmark'
 
 import { AutoFillButton } from './components/controls/AutoFillButton'
 import { ClearButton } from './components/controls/ClearButton'
+import { HintButton } from './components/controls/HintButton'
 import { InputModeToggle } from './components/controls/InputModeToggle'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
 import { SolveButton } from './components/controls/SolveButton'
+import { StickyToggle } from './components/controls/StickyToggle'
 import { UndoRedo } from './components/controls/UndoRedo'
 import { GameStatus } from './components/GameStatus'
+import { HintPanel } from './components/HintPanel'
+import { PendingPuzzleDialog } from './components/PendingPuzzleDialog'
 import { SelectionScreen } from './components/SelectionScreen'
+import { ShareMenu } from './components/ShareMenu'
 import { SolverStepsPanel } from './components/SolverStepsPanel'
+import { WinDialog } from './components/WinDialog'
 import { useSudokuState } from './context/sudoku.hooks'
+import { isGridReadOnly } from './context/sudoku.selectors'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSudokuActions } from './hooks/useSudokuActions'
 import { useSynchronizedHeight } from './hooks/useSynchronizedHeight'
 import { cn } from './lib/utils'
 
 function App() {
-  const { ui, solver } = useSudokuState()
-  const { eraseActiveCell, exportBoard } = useSudokuActions()
+  const state = useSudokuState()
+  const { ui, solver } = state
+  const { eraseActiveCell } = useSudokuActions()
+  useKeyboardShortcuts()
 
   const { sourceRef, targetRef } = useSynchronizedHeight(solver.gameMode === 'visualizing')
 
@@ -49,50 +60,57 @@ function App() {
     eraseActiveCell('delete')
   }, [eraseActiveCell])
 
-  const isGridInteractive = solver.gameMode === 'playing' || solver.gameMode === 'customInput'
-  const isControlDisabled = !isGridInteractive
+  const isPlaying = solver.gameMode === 'playing'
+  const isControlDisabled = isGridReadOnly(state)
   const showSelectionScreen = solver.gameMode === 'selecting'
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <header className="relative z-30 container mx-auto flex items-center justify-between p-4">
-        <h1 className="text-2xl font-bold md:text-3xl">WASudoku</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={exportBoard} title="Export Board">
-            <Share2 className="size-5" />
-          </Button>
-          <Button variant="outline" size="icon" asChild>
+    <div className="text-foreground flex min-h-screen flex-col">
+      <header className="relative z-30 container mx-auto flex items-center justify-between px-4 py-2 md:p-4">
+        <h1>
+          <Wordmark className="text-2xl tracking-tight md:text-3xl" />
+        </h1>
+        <div className="flex items-center gap-1">
+          <ShareMenu />
+          <Button variant="ghost" size="icon-lg" asChild>
             <a
               href="https://github.com/h3nc4/WASudoku"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub Repository"
             >
-              <SiGithub className="size-5" />
+              <SiGithub className="size-5" aria-hidden />
             </a>
           </Button>
           <ModeToggle />
         </div>
       </header>
 
+      {/* Inert behind the selection screen. Its dimmed controls then take no focus and stay out of screen readers. */}
       <main
+        inert={showSelectionScreen}
         className={cn(
-          'container mx-auto flex flex-1 flex-col items-center justify-center p-4 transition-all',
-          showSelectionScreen && 'pointer-events-none blur-sm',
+          'container mx-auto flex flex-1 flex-col items-center justify-start px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none md:p-4',
+          showSelectionScreen && 'pointer-events-none opacity-35',
         )}
       >
         <div className="flex w-full max-w-4xl flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
           {/* Main content: Grid + Controls */}
-          <div ref={sourceRef} className="flex w-full max-w-md flex-col gap-4 md:order-2 md:gap-6">
+          {/* The hint strip pads its content by this gap inside its clip. A closed strip takes no room. */}
+          <div
+            ref={sourceRef}
+            className="flex w-full max-w-md flex-col gap-(--column-gap) [--column-gap:--spacing(3)] md:order-2 md:[--column-gap:--spacing(6)]"
+          >
             <GameStatus />
             <SudokuGrid />
-            <div className="flex flex-col gap-4">
-              <div className="grid w-full grid-cols-4 place-items-center gap-2">
+            <HintPanel />
+            <div className="flex flex-col gap-3 md:gap-4">
+              <div className="grid w-full grid-cols-5 place-items-center gap-2">
                 <UndoRedo />
                 <AutoFillButton />
                 <Button
                   variant="outline"
-                  size="icon"
+                  size="icon-lg"
                   onClick={handleErase}
                   disabled={ui.activeCellIndex === null || isControlDisabled}
                   title="Erase selected cell"
@@ -100,20 +118,20 @@ function App() {
                 >
                   <Eraser />
                 </Button>
+                <StickyToggle />
               </div>
               <NumberPad />
               <InputModeToggle />
-              <div className="flex flex-col gap-2">
-                <div className="flex w-full flex-row gap-2">
-                  <NewPuzzleButton />
-                  <SolveButton />
-                </div>
-                <ClearButton />
+              <div className="grid w-full grid-cols-2 gap-2">
+                <NewPuzzleButton />
+                {isPlaying ? <HintButton /> : <SolveButton />}
+                {isPlaying && <SolveButton />}
+                <ClearButton className={cn(!isPlaying && 'col-span-2')} />
               </div>
 
               {/* Mobile visual cue for solving steps */}
               {solver.gameMode === 'visualizing' && (
-                <div className="text-primary mt-2 flex animate-bounce items-center justify-center md:hidden">
+                <div className="text-primary mt-2 flex animate-bounce items-center justify-center motion-reduce:animate-none md:hidden">
                   <span className="text-sm font-medium">Scroll down for solving steps</span>
                   <ChevronDown className="ml-1 size-5" />
                 </div>
@@ -131,13 +149,15 @@ function App() {
       </main>
 
       {showSelectionScreen && <SelectionScreen />}
+      <WinDialog />
+      <PendingPuzzleDialog />
 
-      <footer className="text-muted-foreground container mx-auto p-4 text-center text-sm">
+      <footer className="text-muted-foreground container mx-auto px-4 py-3 text-center text-xs md:p-4">
         <a
           href="https://h3nc4.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:no-underline"
+          className="hover:text-foreground inline-block transition-colors"
         >
           <p>🄯 2025-2026 Henrique Almeida.</p>
           <p>Because knowledge should be free.</p>

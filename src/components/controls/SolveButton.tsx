@@ -16,42 +16,33 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { BrainCircuit, Play, X } from 'lucide-react'
+import { BrainCircuit, Eye, Play, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canSolve } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
-/**
- * A button that triggers the Sudoku solver or exits visualization mode.
- * It derives its state and tooltip from the global context and guides
- * new users to try the feature.
- */
+import { ConfirmDialog } from '../ConfirmDialog'
+
+/** Triggers the solver or exits visualization. During play it asks first, as one tap spoils the game. */
 export function SolveButton() {
-  const { solver, derived } = useSudokuState()
+  const state = useSudokuState()
+  const { solver, derived } = state
   const { solve, exitVisualization, validatePuzzle } = useSudokuActions()
 
   const [isShowingSolvingState, setIsShowingSolvingState] = useState(false)
-  const [hasClickedSolve, setHasClickedSolve] = useState(
-    () =>
-      globalThis.window !== undefined && localStorage.getItem('wasudoku_has_seen_solve') === 'true',
-  )
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
-  const isSolveDisabled =
-    solver.isSolving ||
-    solver.isValidating ||
-    derived.isBoardEmpty ||
-    derived.isBoardFull ||
-    derived.conflicts.size > 0 ||
-    solver.solveFailed
+  const isSolveDisabled = !canSolve(state)
 
   const solveButtonTitle = useMemo(() => {
     if (derived.conflicts.size > 0) return 'Cannot solve with conflicts.'
     if (derived.isBoardFull) return 'Board is already full.'
     if (derived.isBoardEmpty) return 'Board is empty.'
     if (solver.solveFailed) return 'Solving failed. Please change the board to try again.'
-    return 'Solve the puzzle'
+    return 'Reveal the solution with every solving step'
   }, [derived.isBoardEmpty, derived.isBoardFull, derived.conflicts.size, solver.solveFailed])
 
   useEffect(() => {
@@ -72,16 +63,16 @@ export function SolveButton() {
   }, [solver.isSolving])
 
   const handleSolve = () => {
-    if (!hasClickedSolve) {
-      setHasClickedSolve(true)
-      localStorage.setItem('wasudoku_has_seen_solve', 'true')
+    if (solver.gameMode === 'playing') {
+      setIsConfirmOpen(true)
+    } else {
+      solve()
     }
-    solve()
   }
 
   if (solver.gameMode === 'visualizing') {
     return (
-      <Button onClick={exitVisualization} className="flex-1" variant="destructive">
+      <Button onClick={exitVisualization} size="lg" className="flex-1" variant="destructive">
         <X className="mr-2 size-4" />
         Exit Visualization
       </Button>
@@ -92,6 +83,7 @@ export function SolveButton() {
     return (
       <Button
         onClick={validatePuzzle}
+        size="lg"
         className="flex-1"
         disabled={derived.isBoardEmpty || solver.isValidating}
         title={derived.isBoardEmpty ? 'Board is empty.' : 'Start puzzle'}
@@ -111,21 +103,16 @@ export function SolveButton() {
     )
   }
 
-  const showTooltip = !hasClickedSolve && !isSolveDisabled && solver.gameMode === 'playing'
-
   return (
-    <div className="relative flex flex-1">
-      {showTooltip && (
-        <div className="bg-primary text-primary-foreground pointer-events-none absolute -top-12 left-1/2 z-50 -translate-x-1/2 animate-bounce rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap shadow-lg">
-          Click me!
-          <div className="border-t-primary absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-x-[6px] border-t-[6px] border-b-0 border-x-transparent" />
-        </div>
-      )}
+    <>
       <Button
         onClick={handleSolve}
-        className="w-full"
+        variant="outline"
+        size="lg"
+        className="flex-1"
         disabled={isSolveDisabled}
         title={solveButtonTitle}
+        onMouseDown={(e) => e.preventDefault()}
       >
         {isShowingSolvingState ? (
           <>
@@ -133,9 +120,20 @@ export function SolveButton() {
             Solving...
           </>
         ) : (
-          'Solve Puzzle'
+          <>
+            <Eye className="mr-2 size-4" />
+            Solve
+          </>
         )}
       </Button>
-    </div>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        title="Reveal the solution?"
+        description="Every remaining cell is filled in and the solving steps open beside the board. Exit the walkthrough to return to this game."
+        confirmLabel="Reveal solution"
+        onConfirm={solve}
+      />
+    </>
   )
 }

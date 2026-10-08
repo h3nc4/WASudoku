@@ -18,41 +18,75 @@
 
 import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuState } from '@/context/sudoku.hooks'
 import { initialState } from '@/context/sudoku.reducer'
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { InputModeToggle } from './InputModeToggle'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
 
-const mockUseSudokuState = useSudokuState as Mock
-const mockUseSudokuActions = useSudokuActions as Mock
-
 describe('InputModeToggle component', () => {
   const mockSetInputMode = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuState.mockReturnValue(initialState) // default mode is 'normal'
-    mockUseSudokuActions.mockReturnValue({ setInputMode: mockSetInputMode })
+    // The initial input mode is 'normal'
+    mockSudoku({ state: initialState, actions: { setInputMode: mockSetInputMode } })
   })
 
   it('renders with the correct initial mode selected', () => {
     render(<InputModeToggle />)
-    const normalButton = screen.getByRole('radio', { name: 'Normal' })
-    expect(normalButton).toBeChecked()
+    const penButton = screen.getByRole('radio', { name: 'Pen' })
+    expect(penButton).toBeChecked()
+  })
+
+  it('sets inactive modes in the foreground colour and the active one heavier', () => {
+    render(<InputModeToggle />)
+
+    expect(screen.getByRole('radio', { name: 'Corner' })).toHaveClass(
+      'text-foreground',
+      'font-normal',
+    )
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveAttribute('data-state', 'on')
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveClass('data-[state=on]:font-semibold')
+  })
+
+  it('slides one indicator under the active mode', () => {
+    mockSudoku({ state: makeState({ ui: { inputMode: 'center' } }) })
+    render(<InputModeToggle />)
+    const indicator = screen
+      .getByRole('radiogroup', { name: 'Input Mode' })
+      .querySelector<HTMLElement>('[data-slot="toggle-group-indicator"]')!
+
+    expect(indicator).toHaveAttribute('aria-hidden', 'true')
+    expect(indicator.style.getPropertyValue('--item-index')).toBe('2')
+    expect(indicator.style.getPropertyValue('--item-count')).toBe('3')
+    expect(screen.getByRole('radio', { name: 'Center' })).toHaveClass(
+      'data-[state=on]:bg-transparent',
+    )
+  })
+
+  it('keeps arrow keys moving focus between the modes', async () => {
+    const user = userEvent.setup()
+    render(<InputModeToggle />)
+
+    await user.tab()
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Corner' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'Pen' })).toHaveFocus()
   })
 
   it('calls setInputMode when a different mode is selected', async () => {
     const user = userEvent.setup()
     render(<InputModeToggle />)
 
-    const candidateButton = screen.getByRole('radio', { name: 'Candidate' })
-    await user.click(candidateButton)
+    const cornerButton = screen.getByRole('radio', { name: 'Corner' })
+    await user.click(cornerButton)
 
     expect(mockSetInputMode).toHaveBeenCalledWith('candidate')
   })
@@ -60,23 +94,17 @@ describe('InputModeToggle component', () => {
   it('does not call setInputMode if the onValueChange callback receives an empty value', async () => {
     const user = userEvent.setup()
     // Start with a mode selected
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      ui: { ...initialState.ui, inputMode: 'candidate' },
-    })
+    mockSudoku({ state: makeState({ ui: { inputMode: 'candidate' } }) })
     render(<InputModeToggle />)
 
-    const candidateButton = screen.getByRole('radio', { name: 'Candidate' })
-    await user.click(candidateButton)
+    const cornerButton = screen.getByRole('radio', { name: 'Corner' })
+    await user.click(cornerButton)
 
     expect(mockSetInputMode).not.toHaveBeenCalled()
   })
 
   it('is disabled when in visualizing mode', () => {
-    mockUseSudokuState.mockReturnValue({
-      ...initialState,
-      solver: { ...initialState.solver, gameMode: 'visualizing' },
-    })
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }) })
     render(<InputModeToggle />)
 
     // Check that the individual buttons inside the group are disabled.

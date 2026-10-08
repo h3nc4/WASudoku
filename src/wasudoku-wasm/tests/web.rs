@@ -18,8 +18,17 @@
 
 #![cfg(target_arch = "wasm32")]
 
+use serde::Deserialize;
+use serde::de::IgnoredAny;
 use wasm_bindgen_test::*;
 use wasudoku_wasm::{generate_sudoku, solve_sudoku, validate_puzzle};
+
+// `types::SolveResult` only derives `Serialize`, so the result is read through this mirror.
+#[derive(Deserialize)]
+struct SolveResult {
+    steps: Vec<IgnoredAny>,
+    solution: Option<String>,
+}
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -30,8 +39,7 @@ fn test_solve_sudoku_valid_puzzle() {
     let solution_str =
         "534678912672195348198342567859761423426853791713924856961537284287419635345286179";
     let result = solve_sudoku(puzzle_str).unwrap();
-    let solve_result: wasudoku_wasm::types::SolveResult =
-        serde_wasm_bindgen::from_value(result).unwrap();
+    let solve_result: SolveResult = serde_wasm_bindgen::from_value(result).unwrap();
 
     assert!(solve_result.solution.is_some(), "Expected a solution");
     assert_eq!(solve_result.solution.unwrap(), solution_str);
@@ -93,26 +101,13 @@ fn test_solve_sudoku_initial_conflict() {
     );
 }
 
-// This test is only compiled when the `test-panic` feature is enabled.
-#[cfg(feature = "test-panic")]
-#[wasm_bindgen_test]
-fn test_solve_sudoku_panic_handling() {
-    let puzzle_str =
-        "123..............................................................................";
-    let result = solve_sudoku(puzzle_str);
-    assert!(result.is_err(), "Expected an error from a panic");
-    assert_eq!(
-        result.err().unwrap().as_string().unwrap(),
-        "Solver crashed due to a critical error."
-    );
-}
-
 #[wasm_bindgen_test]
 fn test_generate_sudoku_valid() {
-    let puzzle_str = generate_sudoku("easy").unwrap();
-    assert_eq!(puzzle_str.len(), 81);
-    // Further validation (like checking if it has a unique solution) would be more complex
-    // and is better suited for Rust-side unit tests. Here we just check the interface.
+    let result = generate_sudoku("easy").unwrap();
+    let generated: wasudoku_wasm::GeneratedPuzzle = serde_wasm_bindgen::from_value(result).unwrap();
+    assert_eq!(generated.puzzle.len(), 81);
+    assert_eq!(generated.solution.len(), 81);
+    assert!(!generated.solution.contains('.'));
 }
 
 #[wasm_bindgen_test]
@@ -130,7 +125,9 @@ fn test_validate_puzzle_valid() {
     let puzzle_str =
         "..42.6.98......73...8.34...34.6.2...9...73..26.2.49.71.7.....2.5.3.8.6.78........";
     let result = validate_puzzle(puzzle_str).unwrap();
-    assert!(result, "Expected puzzle to be valid (unique solution)");
+    let solution = result.expect("Expected puzzle to be valid (unique solution)");
+    assert_eq!(solution.len(), 81);
+    assert!(!solution.contains('.'));
 }
 
 #[wasm_bindgen_test]
@@ -140,7 +137,7 @@ fn test_validate_puzzle_multiple_solutions() {
         "8..............................................................................";
     let result = validate_puzzle(puzzle_str).unwrap();
     assert!(
-        !result,
+        result.is_none(),
         "Expected puzzle to be invalid (multiple solutions)"
     );
 }

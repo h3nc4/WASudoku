@@ -17,19 +17,35 @@
  */
 
 import { useTheme } from 'next-themes'
+import { useSyncExternalStore } from 'react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
+
+const WIDE_QUERY = '(min-width: 768px)'
+
+const subscribeToWidth = (onChange: () => void) => {
+  const query = globalThis.matchMedia(WIDE_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme()
+  // On a phone the steps panel is below the board. Toasts go to the top there.
+  const isWide = useSyncExternalStore(
+    subscribeToWidth,
+    () => globalThis.matchMedia(WIDE_QUERY).matches,
+    () => true,
+  )
 
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
+      position={isWide ? 'bottom-right' : 'top-center'}
       toastOptions={{
         classNames: {
           toast:
-            'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+            'group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
           description: 'group-[.toast]:text-muted-foreground',
           actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
           cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',

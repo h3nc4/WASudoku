@@ -19,7 +19,16 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
-import type { BoardState } from '@/context/sudoku.types'
+import type { BoardState, Difficulty } from '@/context/sudoku.types'
+
+/** Name shown to the player for each difficulty. */
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+  expert: 'Expert',
+  extreme: 'Extreme',
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -57,6 +66,13 @@ export function getRelatedCellIndices(index: number): Set<number> {
   }
 
   return relatedIndices
+}
+
+/** Formats a number of seconds as "MM:SS". */
+export function formatTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 /**

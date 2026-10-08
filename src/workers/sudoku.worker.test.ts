@@ -93,13 +93,13 @@ describe('Sudoku Worker Logic', () => {
     })
   })
 
-  it('should handle "generate" request', async () => {
-    generate_sudoku.mockReturnValue('puzzle')
-    solve_sudoku.mockReturnValue({ solution: 'solution' })
+  it('should handle "generate" request without solving the puzzle again', async () => {
+    generate_sudoku.mockReturnValue({ puzzle: 'puzzle', solution: 'solution' })
 
     await simulateMessage({ id: 456, type: 'generate', difficulty: 'easy' })
 
     expect(generate_sudoku).toHaveBeenCalledWith('easy')
+    expect(solve_sudoku).not.toHaveBeenCalled()
     expect(mockPostMessage).toHaveBeenCalledWith({
       id: 456,
       status: 'success',
@@ -107,31 +107,13 @@ describe('Sudoku Worker Logic', () => {
     })
   })
 
-  it('should handle puzzle generation where solve returns no solution', async () => {
-    const difficulty = 'easy'
-    const puzzleString = '1....'
-    generate_sudoku.mockReturnValue(puzzleString)
-    // Return solution as undefined/null to hit the ?? '' branch
-    solve_sudoku.mockReturnValue({ solution: null })
-
-    await simulateMessage({ id: 456, type: 'generate', difficulty })
-
-    expect(generate_sudoku).toHaveBeenCalledWith(difficulty)
-    expect(solve_sudoku).toHaveBeenCalledWith(puzzleString)
-    expect(mockPostMessage).toHaveBeenCalledWith({
-      id: 456,
-      status: 'success',
-      payload: { puzzleString, solutionString: '' },
-    })
-  })
-
-  it('should handle "validate" request', async () => {
-    validate_puzzle.mockReturnValue(true)
-    solve_sudoku.mockReturnValue({ solution: 'sol' })
+  it('should handle "validate" request without solving the puzzle again', async () => {
+    validate_puzzle.mockReturnValue('sol')
 
     await simulateMessage({ id: 789, type: 'validate', boardString: '...' })
 
     expect(validate_puzzle).toHaveBeenCalledWith('...')
+    expect(solve_sudoku).not.toHaveBeenCalled()
     expect(mockPostMessage).toHaveBeenCalledWith({
       id: 789,
       status: 'success',
@@ -139,31 +121,13 @@ describe('Sudoku Worker Logic', () => {
     })
   })
 
-  it('should handle puzzle validation where solve returns no solution', async () => {
+  it('should report an invalid puzzle when validation finds no unique solution', async () => {
     const boardString = '.'.repeat(81)
-    validate_puzzle.mockReturnValue(true)
-    // Return solution as undefined/null to hit the ?? '' branch
-    solve_sudoku.mockReturnValue({ solution: null })
+    validate_puzzle.mockReturnValue(undefined)
 
     await simulateMessage({ id: 789, type: 'validate', boardString })
 
     expect(validate_puzzle).toHaveBeenCalledWith(boardString)
-    expect(solve_sudoku).toHaveBeenCalledWith(boardString)
-    expect(mockPostMessage).toHaveBeenCalledWith({
-      id: 789,
-      status: 'success',
-      payload: { isValid: true, solutionString: '' },
-    })
-  })
-
-  it('should not solve if validation fails', async () => {
-    const boardString = '.'.repeat(81)
-    validate_puzzle.mockReturnValue(false)
-
-    await simulateMessage({ id: 789, type: 'validate', boardString })
-
-    expect(validate_puzzle).toHaveBeenCalledWith(boardString)
-    expect(solve_sudoku).not.toHaveBeenCalled()
     expect(mockPostMessage).toHaveBeenCalledWith({
       id: 789,
       status: 'success',

@@ -22,6 +22,8 @@ import { toast } from 'sonner'
 import {
   generatePuzzleFailure,
   generatePuzzleSuccess,
+  hintFailure,
+  hintSuccess,
   poolRefillFailure,
   poolRefillSuccess,
   requestPoolRefill,
@@ -31,12 +33,11 @@ import {
   validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
-import type { SolveResult, SudokuState } from '@/context/sudoku.types'
+import { DIFFICULTIES, type SudokuState } from '@/context/sudoku.types'
 import { boardStateToString } from '@/lib/utils'
 import { Priority, WorkerPool } from '@/lib/worker-pool'
 
 const MIN_POOL_SIZE = 3
-const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']
 
 /**
  * Manages the Sudoku solver using a multi-threaded Worker Pool.
@@ -47,7 +48,7 @@ const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme']
  */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
   const poolRef = useRef<WorkerPool | null>(null)
-  const { isSolving, isGenerating, isValidating, generationDifficulty } = state.solver
+  const { isSolving, isGenerating, isValidating, isHinting, generationDifficulty } = state.solver
   const { board, puzzlePool, poolRequestCount } = state
 
   // Initialize Worker Pool
@@ -70,10 +71,10 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask<SolveResult>('solve', { boardString }, Priority.HIGH)
+      .runTask('solve', { boardString }, Priority.HIGH)
       .then((result) => {
         dispatch(solveSuccess(result))
-        toast.success('Sudoku solved successfully!')
+        toast.success('Solver finished. Step through its solution beside the board.')
       })
       .catch((error) => {
         console.error('Solve error:', error)
@@ -87,11 +88,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
     if (!isGenerating || !generationDifficulty || !poolRef.current) return
 
     poolRef.current
-      .runTask<{ puzzleString: string; solutionString: string }>(
-        'generate',
-        { difficulty: generationDifficulty },
-        Priority.HIGH,
-      )
+      .runTask('generate', { difficulty: generationDifficulty }, Priority.HIGH)
       .then(({ puzzleString, solutionString }) => {
         dispatch(generatePuzzleSuccess(puzzleString, solutionString))
         toast.success('New puzzle generated!')
@@ -109,11 +106,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask<{ isValid: boolean; solutionString: string }>(
-        'validate',
-        { boardString },
-        Priority.HIGH,
-      )
+      .runTask('validate', { boardString }, Priority.HIGH)
       .then(({ isValid, solutionString }) => {
         if (isValid && solutionString) {
           dispatch(validatePuzzleSuccess(solutionString))
@@ -129,24 +122,36 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isValidating, board, dispatch])
 
-  // 4. Handle Background Pool Refill (Low Priority)
+  // 4. Handle Hints, which solve the player's current board and keep only the first step
+  useEffect(() => {
+    if (!isHinting || !poolRef.current) return
+
+    const boardString = boardStateToString(board)
+    poolRef.current
+      .runTask('solve', { boardString }, Priority.HIGH)
+      .then((result) => {
+        dispatch(hintSuccess(result))
+      })
+      .catch((error) => {
+        console.error('Hint error:', error)
+        dispatch(hintFailure())
+      })
+  }, [isHinting, board, dispatch])
+
+  // 5. Handle Background Pool Refill (Low Priority)
   useEffect(() => {
     if (!poolRef.current) return
 
     DIFFICULTIES.forEach((difficulty) => {
-      const pool = puzzlePool[difficulty] || []
-      const pending = poolRequestCount[difficulty] || 0
+      const pool = puzzlePool[difficulty]
+      const pending = poolRequestCount[difficulty]
 
       if (pool.length + pending < MIN_POOL_SIZE) {
         // Optimistically increment pending count
         dispatch(requestPoolRefill(difficulty))
 
         poolRef.current
-          ?.runTask<{ puzzleString: string; solutionString: string }>(
-            'generate',
-            { difficulty },
-            Priority.LOW,
-          )
+          ?.runTask('generate', { difficulty }, Priority.LOW)
           .then(({ puzzleString, solutionString }) => {
             dispatch(poolRefillSuccess(difficulty, puzzleString, solutionString))
           })

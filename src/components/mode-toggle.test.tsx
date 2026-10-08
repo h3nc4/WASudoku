@@ -19,7 +19,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useTheme } from 'next-themes'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ModeToggle } from './mode-toggle'
 
@@ -31,8 +31,43 @@ vi.mock('next-themes', () => ({
 describe('ModeToggle component', () => {
   const mockSetTheme = vi.fn()
 
+  const stubReducedMotion = (matches: boolean) => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: matches && query.includes('reduce') })),
+    )
+  }
+
+  const clickToggle = async (theme: string) => {
+    vi.mocked(useTheme).mockReturnValue({
+      theme,
+      setTheme: mockSetTheme,
+      themes: ['light', 'dark'],
+    })
+    render(<ModeToggle />)
+    await userEvent.setup().click(screen.getByRole('button', { name: /toggle theme/i }))
+  }
+
+  // A real browser has the API on the prototype, and its transition calls back after the click resolves.
+  const nativeViewTransition = Object.getOwnPropertyDescriptor(
+    Document.prototype,
+    'startViewTransition',
+  )
+
   beforeEach(() => {
     vi.clearAllMocks()
+    stubReducedMotion(false)
+    Reflect.deleteProperty(Document.prototype, 'startViewTransition')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(document, 'startViewTransition')
+    if (nativeViewTransition) {
+      Object.defineProperty(Document.prototype, 'startViewTransition', nativeViewTransition)
+    }
+    document.documentElement.className = ''
+    document.documentElement.style.colorScheme = ''
   })
 
   it('toggles from light to dark mode when clicked', async () => {
@@ -63,5 +98,58 @@ describe('ModeToggle component', () => {
     await user.click(toggleButton)
 
     expect(mockSetTheme).toHaveBeenCalledWith('light')
+  })
+
+  describe('with the View Transitions API', () => {
+    const startViewTransition = vi.fn((update: () => void) => {
+      update()
+    })
+
+    beforeEach(() => {
+      startViewTransition.mockClear()
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: startViewTransition,
+      })
+    })
+
+    it('flips the class inside the transition callback so the snapshots differ', async () => {
+      document.documentElement.classList.add('light')
+      startViewTransition.mockImplementationOnce((update: () => void) => {
+        expect(mockSetTheme).not.toHaveBeenCalled()
+        expect(document.documentElement).toHaveClass('light')
+        update()
+      })
+
+      await clickToggle('light')
+
+      expect(startViewTransition).toHaveBeenCalledOnce()
+      expect(mockSetTheme).toHaveBeenCalledWith('dark')
+      expect(document.documentElement).toHaveClass('dark')
+      expect(document.documentElement).not.toHaveClass('light')
+      expect(document.documentElement).toHaveStyle({ colorScheme: 'dark' })
+      expect(document.documentElement).not.toHaveClass('theme-switching')
+    })
+
+    it('switches at once without a transition under reduced motion', async () => {
+      stubReducedMotion(true)
+
+      await clickToggle('dark')
+
+      expect(startViewTransition).not.toHaveBeenCalled()
+      expect(mockSetTheme).toHaveBeenCalledWith('light')
+    })
+  })
+
+  it('switches at once where the View Transitions API is missing', async () => {
+    expect('startViewTransition' in document).toBe(false)
+
+    await clickToggle('light')
+
+    expect(mockSetTheme).toHaveBeenCalledWith('dark')
+    // The instant path flips the class itself with transitions held off.
+    expect(document.documentElement).toHaveClass('dark')
+    expect(document.documentElement).not.toHaveClass('theme-switching')
+    expect(document.documentElement).toHaveStyle({ colorScheme: 'dark' })
   })
 })

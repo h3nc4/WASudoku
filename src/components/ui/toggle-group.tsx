@@ -25,30 +25,63 @@ import * as React from 'react'
 import { toggleVariants } from '@/lib/cva'
 import { cn } from '@/lib/utils'
 
-const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariants>>({
+const ToggleGroupContext = React.createContext<
+  VariantProps<typeof toggleVariants> & { readonly indicator?: boolean }
+>({
   size: 'default',
   variant: 'default',
 })
+
+type ToggleGroupProps = React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
+  VariantProps<typeof toggleVariants> & {
+    /** Draws the pressed state as one sliding element under equal-width items. */
+    readonly indicator?: boolean
+  }
+
+/** The position of the pressed item among the group's items, or -1 when none is pressed. */
+function pressedIndex(children: React.ReactNode, value: unknown): number {
+  const values = React.Children.toArray(children).map((child) =>
+    React.isValidElement<{ value?: string }>(child) ? child.props.value : undefined,
+  )
+  return typeof value === 'string' ? values.indexOf(value) : -1
+}
 
 function ToggleGroup({
   className,
   variant,
   size,
   children,
+  indicator = false,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Root> & VariantProps<typeof toggleVariants>) {
+}: ToggleGroupProps) {
+  const index = indicator ? pressedIndex(children, props.value) : -1
+  const count = React.Children.count(children)
+
   return (
     <ToggleGroupPrimitive.Root
       data-slot="toggle-group"
       data-variant={variant}
       data-size={size}
+      data-indicator={indicator || undefined}
       className={cn(
-        'group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs',
+        'group/toggle-group bg-muted dark:bg-background border-control-border flex w-fit items-center gap-[3px] rounded-md border p-[3px]',
+        indicator && 'relative isolate',
         className,
       )}
       {...props}
     >
-      <ToggleGroupContext.Provider value={{ variant, size }}>
+      {indicator && (
+        <span
+          aria-hidden
+          data-slot="toggle-group-indicator"
+          className="toggle-indicator"
+          data-hidden={index < 0 || undefined}
+          style={
+            { '--item-index': Math.max(index, 0), '--item-count': count } as React.CSSProperties
+          }
+        />
+      )}
+      <ToggleGroupContext.Provider value={{ variant, size, indicator }}>
         {children}
       </ToggleGroupContext.Provider>
     </ToggleGroupPrimitive.Root>
@@ -74,7 +107,10 @@ function ToggleGroupItem({
           variant: context.variant || variant,
           size: context.size || size,
         }),
-        'min-w-0 flex-1 shrink-0 rounded-none shadow-none first:rounded-l-md last:rounded-r-md focus:z-10 focus-visible:z-10 data-[variant=outline]:border-l-0 data-[variant=outline]:first:border-l',
+        'min-w-0 flex-1 shrink-0 focus:z-10 focus-visible:z-10',
+        // The sliding indicator draws the pressed background. The item draws none.
+        context.indicator &&
+          'data-[state=on]:bg-transparent data-[state=on]:shadow-none dark:data-[state=on]:bg-transparent',
         className,
       )}
       {...props}

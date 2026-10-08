@@ -1,15 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-  <rect width="24" height="24" fill="black" rx="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <style>
-    .stroked-square {
-      stroke: #e2e2e2;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+    .paper { fill: #fcfcf8 }
+    .thin { stroke: #b4bac3; stroke-width: 1.5; fill: none }
+    .swipe { fill: rgb(250 214 60 / 0.75) }
+    .ink { fill: #1d2a4d }
+    .frame { fill: none; stroke: #1d2a4d; stroke-width: 4 }
+    @media (prefers-color-scheme: dark) {
+      .paper { fill: #1a1d22 }
+      .thin { stroke: #444a54 }
+      .swipe { fill: rgb(236 230 120 / 0.3) }
+      .ink { fill: #eef1f5 }
+      .frame { stroke: #b9c1cc }
     }
   </style>
-  <rect class="stroked-square" width="9" height="9" x="1.5" y="1.5" rx="1"/>
-  <rect class="stroked-square" width="9" height="9" x="13.5" y="1.5" rx="1"/>
-  <rect class="stroked-square" width="9" height="9" x="13.5" y="13.5" rx="1"/>
-  <rect class="stroked-square" width="9" height="9" x="1.5" y="13.5" rx="1"/>
+  <rect class="paper" x="2" y="2" width="60" height="60" rx="6"/>
+  <path class="thin" d="M22 4V60M42 4V60M4 22H60M4 42H60"/>
+  <path class="swipe" d="M10 22H57L54 42H7Z"/>
+  <path class="ink" transform="translate(15.71 51) scale(0.05429 -0.05429)" d="M295 700Q299 700 314.0 700.0Q329 700 350.0 700.0Q371 700 392.0 700.0Q413 700 428.0 700.0Q443 700 446 700V680Q421 641 394.5 600.5Q368 560 341.0 518.0Q314 476 286.0 433.0Q258 390 229.0 345.5Q200 301 170 255L191 326V238L167 255Q195 271 222.0 278.5Q249 286 280.5 289.0Q312 292 352 292H549Q553 292 555.0 290.5Q557 289 558.5 287.0Q560 285 560 281Q560 278 560.0 265.5Q560 253 560.0 236.0Q560 219 560.0 202.0Q560 185 560.0 172.5Q560 160 560 157H51Q48 157 45.5 158.5Q43 160 41.5 162.5Q40 165 40 168V292Q40 292 52.5 313.5Q65 335 85.5 369.5Q106 404 131.0 446.0Q156 488 180.5 530.0Q205 572 226.0 607.5Q247 643 260.5 665.5Q274 688 275 690Q278 694 280.5 696.0Q283 698 286.5 699.0Q290 700 295 700ZM382 410Q386 410 401.5 410.0Q417 410 435.5 410.0Q454 410 469.5 410.0Q485 410 489 410Q493 410 495.0 408.5Q497 407 498.5 405.0Q500 403 500 399V98Q500 94 500.0 80.0Q500 66 500.0 49.0Q500 32 500.0 18.0Q500 4 500 0Q497 0 483.0 0.0Q469 0 450.0 0.0Q431 0 411.5 0.0Q392 0 378.0 0.0Q364 0 361 0Q356 0 353.0 3.0Q350 6 350 11Q350 14 350.0 39.5Q350 65 350.0 101.5Q350 138 350.0 174.0Q350 210 350.0 235.5Q350 261 350 264Q354 281 359.0 304.0Q364 327 369.0 349.5Q374 372 377.5 388.5Q381 405 382 410Z"/>
+  <rect class="frame" x="2" y="2" width="60" height="60" rx="6"/>
 </svg>

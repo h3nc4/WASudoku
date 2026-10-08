@@ -16,6 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Play } from 'lucide-react'
 import {
   type ClipboardEvent,
   createRef,
@@ -24,12 +25,16 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
 } from 'react'
 import { toast } from 'sonner'
 
+import { Button } from '@/components/ui/button'
 import { importBoard } from '@/context/sudoku.actions'
 import { useSudokuDispatch, useSudokuState } from '@/context/sudoku.hooks'
+import { isEditable, isGridReadOnly, isWrongValue } from '@/context/sudoku.selectors'
 import type { CellState } from '@/context/sudoku.types'
+import { useBoardMove } from '@/hooks/useBoardMove'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 import { getRelatedCellIndices, isBoardStringValid } from '@/lib/utils'
 
@@ -40,17 +45,31 @@ import SudokuCell from './SudokuCell'
  * It orchestrates focus management and dispatches actions for cell changes.
  */
 export function SudokuGrid() {
-  const { board, ui, solver, derived } = useSudokuState()
+  const state = useSudokuState()
+  const { board, ui, solver, derived } = state
+
+  // On resume the overlay is unmounted only when its fade-out animation ends.
+  const [wasPaused, setWasPaused] = useState(ui.isPaused)
+  const [overlayLeaving, setOverlayLeaving] = useState(false)
+  if (wasPaused !== ui.isPaused) {
+    setWasPaused(ui.isPaused)
+    setOverlayLeaving(!ui.isPaused)
+  }
   const dispatch = useSudokuDispatch()
   const actions = useSudokuActions()
 
   const displayBoard = solver.gameMode === 'visualizing' ? solver.visualizationBoard : board
-  const isReadOnly =
-    solver.gameMode === 'visualizing' ||
-    solver.isSolving ||
-    solver.isValidating ||
-    solver.gameMode === 'selecting' ||
-    solver.isSolved
+  const isReadOnly = isGridReadOnly(state)
+  const isPasteAllowed = isEditable(state)
+  const change = useBoardMove({
+    board,
+    history: state.history,
+    solution: solver.solution,
+    isSolved: solver.isSolved,
+    gameMode: solver.gameMode,
+  })
+  const move = solver.gameMode === 'visualizing' ? null : change.move
+  const moment = solver.gameMode === 'visualizing' ? null : change.moment
 
   const cellRefs = useMemo(
     () => Array.from({ length: 81 }, () => createRef<HTMLInputElement>()),
@@ -92,6 +111,24 @@ export function SudokuGrid() {
     return new Set(placements.map((p) => p.index))
   }, [solver.gameMode, solver.currentStepIndex, solver.steps])
 
+  const hintIndices = useMemo(() => {
+    const cause = new Set<number>()
+    const target = new Set<number>()
+    const hint = ui.hint
+    if (solver.gameMode !== 'playing' || hint === null) return { cause, target }
+
+    if (hint.kind === 'step') {
+      hint.step.cause.forEach((c) => cause.add(c.index))
+      // A placement is the news. Its incidental peer eliminations stay unmarked.
+      const { placements, eliminations } = hint.step
+      const targets = placements.length > 0 ? placements : eliminations
+      targets.forEach((t) => target.add(t.index))
+    } else {
+      target.add(hint.index)
+    }
+    return { cause, target }
+  }, [solver.gameMode, ui.hint])
+
   // Effect to declaratively manage focus based on the activeCellIndex state.
   useEffect(() => {
     if (ui.activeCellIndex !== null && cellRefs[ui.activeCellIndex]?.current) {
@@ -107,41 +144,55 @@ export function SudokuGrid() {
     [actions, isReadOnly],
   )
 
+  // Reading the paste event's own data avoids the clipboard permission prompt.
   const handlePaste = useCallback(
-    async (event: ClipboardEvent) => {
-      if (solver.gameMode !== 'customInput') return
+    (event: ClipboardEvent) => {
+      if (!isPasteAllowed) return
+      const isPlaying = solver.gameMode === 'playing'
       event.preventDefault()
-      try {
-        const text = await navigator.clipboard.readText()
-        if (isBoardStringValid(text)) {
-          dispatch(importBoard(text))
-          toast.success('Board imported from clipboard.')
-        } else {
-          toast.error('Invalid board format in clipboard.')
-        }
-      } catch (err) {
-        console.error('Failed to read from clipboard:', err)
-        toast.error('Could not read from clipboard.')
+      const text = event.clipboardData.getData('text').replaceAll(/\s/g, '')
+      if (!isBoardStringValid(text)) {
+        toast.error('Invalid board format in clipboard.')
+      } else if (isPlaying) {
+        actions.offerPuzzle(text)
+      } else {
+        dispatch(importBoard(text))
+        toast.success('Board imported from clipboard.')
       }
     },
-    [dispatch, solver.gameMode],
+    [actions, dispatch, isPasteAllowed, solver.gameMode],
   )
 
   // Centralized keyboard handler for the entire grid.
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (isReadOnly) return
+      // Modified keys belong to the browser and to the global shortcuts, such as paste and undo.
+      if (isReadOnly || e.ctrlKey || e.metaKey || e.altKey) return
 
       const key = e.key
       // Prevent default for handled keys to avoid scrolling.
       if (
-        (key >= '1' && key <= '9') ||
-        ['Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)
+        (key >= '0' && key <= '9') ||
+        [
+          'Backspace',
+          'Delete',
+          'ArrowUp',
+          'ArrowDown',
+          'ArrowLeft',
+          'ArrowRight',
+          ' ',
+          'n',
+          'N',
+        ].includes(key)
       ) {
         e.preventDefault()
       }
 
-      if (key >= '1' && key <= '9') {
+      if (key === ' ' || key === 'n' || key === 'N') {
+        actions.cycleInputMode()
+      } else if (key === '0') {
+        actions.eraseActiveCell('delete')
+      } else if (key >= '1' && key <= '9') {
         const value = Number.parseInt(key, 10)
         actions.inputValue(value)
         actions.setHighlightedValue(value)
@@ -173,72 +224,109 @@ export function SudokuGrid() {
     [actions],
   )
 
+  const hintEliminations = useMemo(() => {
+    if (solver.gameMode !== 'playing' || ui.hint?.kind !== 'step') return null
+    const byCell = new Map<number, Set<number>>()
+    for (const { index, value } of ui.hint.step.eliminations) {
+      byCell.set(index, (byCell.get(index) ?? new Set()).add(value))
+    }
+    return byCell
+  }, [solver.gameMode, ui.hint])
+
   if (!displayBoard) {
     return null
   }
 
   return (
-    <div
-      role="grid"
-      tabIndex={-1}
-      onKeyDown={handleKeyDown}
-      onBlur={handleGridBlur}
-      onPaste={handlePaste}
-      className="border-primary grid aspect-square grid-cols-9 overflow-hidden rounded-lg border-2 shadow-lg outline-none"
-    >
-      {displayBoard.map((currentCell, index) => {
-        const isVisualizing = solver.gameMode === 'visualizing'
+    <div className="relative">
+      <div
+        role="grid"
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+        onBlur={handleGridBlur}
+        onPaste={handlePaste}
+        aria-hidden={ui.isPaused || undefined}
+        data-paused={ui.isPaused || undefined}
+        className="pause-board bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none"
+      >
+        {displayBoard.map((currentCell, index) => {
+          const isVisualizing = solver.gameMode === 'visualizing'
 
-        const displayCell: CellState = isVisualizing
-          ? {
-              value: currentCell.value,
-              isGiven: currentCell.isGiven,
-              candidates: solver.candidatesForViz?.[index] ?? new Set(),
-              centers: new Set(),
-            }
-          : currentCell
+          const displayCell: CellState = isVisualizing
+            ? {
+                value: currentCell.value,
+                isGiven: currentCell.isGiven,
+                candidates: solver.candidatesForViz?.[index] ?? new Set(),
+                centers: new Set(),
+              }
+            : currentCell
 
-        const eliminatedCandidates = isVisualizing
-          ? new Set(solver.eliminationsForViz?.filter((e) => e.index === index).map((e) => e.value))
-          : undefined
+          const eliminatedCandidates = isVisualizing
+            ? new Set(
+                solver.eliminationsForViz?.filter((e) => e.index === index).map((e) => e.value),
+              )
+            : undefined
 
-        const row = Math.floor(index / 9)
-        const col = index % 9
+          const row = Math.floor(index / 9)
+          const col = index % 9
 
-        const isError =
-          solver.gameMode === 'playing' &&
-          !displayCell.isGiven &&
-          displayCell.value !== null &&
-          solver.solution !== null &&
-          solver.solution[index] !== displayCell.value
+          const isError = isWrongValue(state, index)
+          // Only cells in the moment get its props, so memoised cells outside it skip the render.
+          const momentDelay = moment?.delays.get(index)
 
-        return (
-          <SudokuCell
-            ref={cellRefs[index]}
-            // For a static 9x9 grid, the row and column form a stable, unique key.
-            key={`cell-r${row}-c${col}`}
-            index={index}
-            cell={displayCell}
-            isGiven={displayCell.isGiven}
-            isSolving={solver.isSolving}
-            isSolved={solver.isSolved}
-            isConflict={derived.conflicts.has(index)}
-            isError={isError}
-            isActive={!solver.isSolved && ui.activeCellIndex === index}
-            isHighlighted={!solver.isSolved && highlightedIndices.has(index)}
-            isNumberHighlighted={
-              !solver.isSolved &&
-              displayCell.value !== null &&
-              displayCell.value === ui.highlightedValue
-            }
-            isCause={causeIndices.has(index)}
-            isPlaced={placedIndices.has(index)}
-            onFocus={handleCellFocus}
-            eliminatedCandidates={eliminatedCandidates}
-            isTransientConflict={ui.transientConflicts?.has(index) ?? false}
-          />
-        )
-      })}
+          return (
+            <SudokuCell
+              ref={cellRefs[index]}
+              // For a static 9x9 grid, the row and column form a stable, unique key.
+              key={`cell-r${row}-c${col}`}
+              index={index}
+              cell={displayCell}
+              isGiven={displayCell.isGiven}
+              isSolving={solver.isSolving}
+              isSolved={solver.isSolved && isVisualizing}
+              isConflict={derived.conflicts.has(index)}
+              isError={isError}
+              isActive={!solver.isSolved && ui.activeCellIndex === index}
+              isHighlighted={!solver.isSolved && highlightedIndices.has(index)}
+              isNumberHighlighted={
+                !solver.isSolved &&
+                displayCell.value !== null &&
+                displayCell.value === ui.highlightedValue
+              }
+              isCause={causeIndices.has(index) || hintIndices.cause.has(index)}
+              isPlaced={placedIndices.has(index)}
+              isHintTarget={hintIndices.target.has(index)}
+              onFocus={handleCellFocus}
+              onTap={actions.tapCell}
+              eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
+              isTransientConflict={ui.transientConflicts?.has(index) ?? false}
+              animateEntry={move?.index === index}
+              strikeRemovedNotes={
+                move?.kind === 'place' && move.index !== index && move.touched.has(index)
+              }
+              moment={momentDelay === undefined ? undefined : moment?.kind}
+              momentDelay={momentDelay}
+              momentKey={momentDelay === undefined ? undefined : change.id}
+            />
+          )
+        })}
+      </div>
+      {(ui.isPaused || overlayLeaving) && (
+        <div
+          data-state={ui.isPaused ? 'open' : 'closed'}
+          inert={!ui.isPaused}
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget && !ui.isPaused) setOverlayLeaving(false)
+          }}
+          className="pause-overlay bg-paper border-grid-thick absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-[3px] border-2"
+        >
+          <p className="text-ink voice-ink text-2xl">Paused</p>
+          <Button onClick={actions.resumeGame}>
+            <Play className="mr-2 size-4" />
+            Resume
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

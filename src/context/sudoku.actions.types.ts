@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
 
 /** Action to set the definitive value of a cell. */
 export interface SetCellValueAction {
@@ -84,7 +84,7 @@ export interface SolveFailureAction {
 /** Action to begin the puzzle generation process. */
 export interface GeneratePuzzleStartAction {
   type: 'GENERATE_PUZZLE_START'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action for when the generator successfully creates a puzzle. */
@@ -102,13 +102,13 @@ export interface GeneratePuzzleFailureAction {
 /** Action to signal that a pool refill request has been sent. */
 export interface RequestPoolRefillAction {
   type: 'REQUEST_POOL_REFILL'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action to store a generated puzzle in the pool. */
 export interface PoolRefillSuccessAction {
   type: 'POOL_REFILL_SUCCESS'
-  difficulty: string
+  difficulty: Difficulty
   puzzleString: string
   solutionString: string
 }
@@ -116,7 +116,7 @@ export interface PoolRefillSuccessAction {
 /** Action for when a background pool refill fails. */
 export interface PoolRefillFailureAction {
   type: 'POOL_REFILL_FAILURE'
-  difficulty: string
+  difficulty: Difficulty
 }
 
 /** Action to begin validating a custom puzzle. */
@@ -191,6 +191,100 @@ export interface ClearTransientConflictsAction {
   type: 'CLEAR_TRANSIENT_CONFLICTS'
 }
 
+/** Action to look for the next move on the current board. */
+export interface RequestHintAction {
+  type: 'REQUEST_HINT'
+}
+
+/** Action for when the solver returns the steps for a hint. */
+export interface HintSuccessAction {
+  type: 'HINT_SUCCESS'
+  result: SolveResult
+}
+
+/** Action for when the solver cannot produce a hint. */
+export interface HintFailureAction {
+  type: 'HINT_FAILURE'
+}
+
+/** Action to dismiss the current hint. */
+export interface ClearHintAction {
+  type: 'CLEAR_HINT'
+}
+
+/** Action to pause the game. */
+export interface PauseGameAction {
+  type: 'PAUSE_GAME'
+}
+
+/** Action to resume a paused game. */
+export interface ResumeGameAction {
+  type: 'RESUME_GAME'
+}
+
+/** Action to ask the player whether to load a puzzle from a link or the clipboard. */
+export interface OfferPuzzleAction {
+  type: 'OFFER_PUZZLE'
+  boardString: string
+}
+
+/** Action to decline the offered puzzle. */
+export interface DismissPuzzleAction {
+  type: 'DISMISS_PUZZLE'
+}
+
+/** Action to start a puzzle from a string, validating it first. */
+export interface LoadPuzzleAction {
+  type: 'LOAD_PUZZLE'
+  boardString: string
+}
+
+/** Action to input a value into the active cell, respecting the input mode. */
+export interface InputValueAction {
+  type: 'INPUT_VALUE'
+  value: number
+}
+
+/** Action to move the active cell one step in a direction. */
+export interface NavigateAction {
+  type: 'NAVIGATE'
+  direction: 'up' | 'down' | 'left' | 'right'
+}
+
+/** Action to erase the active cell, moving left afterwards on backspace. */
+export interface EraseActiveCellAction {
+  type: 'ERASE_ACTIVE_CELL'
+  mode: 'delete' | 'backspace'
+}
+
+/** Action to switch to the next input mode. */
+export interface CycleInputModeAction {
+  type: 'CYCLE_INPUT_MODE'
+}
+
+/** Action to move the solver visualization one step back or forward. */
+export interface StepVisualizationAction {
+  type: 'STEP_VISUALIZATION'
+  delta: -1 | 1
+}
+
+/** Action to turn sticky numbers on or off. */
+export interface ToggleStickyAction {
+  type: 'TOGGLE_STICKY'
+}
+
+/** Action to lock a digit for cell taps, or release the lock with null. */
+export interface SetStickyValueAction {
+  type: 'SET_STICKY_VALUE'
+  value: number | null
+}
+
+/** Action for a pointer tap on a cell, which applies the locked digit. */
+export interface TapCellAction {
+  type: 'TAP_CELL'
+  index: number
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -223,3 +317,20 @@ export type SudokuAction =
   | TickTimerAction
   | SetTransientConflictsAction
   | ClearTransientConflictsAction
+  | RequestHintAction
+  | HintSuccessAction
+  | HintFailureAction
+  | ClearHintAction
+  | PauseGameAction
+  | ResumeGameAction
+  | OfferPuzzleAction
+  | DismissPuzzleAction
+  | LoadPuzzleAction
+  | InputValueAction
+  | NavigateAction
+  | EraseActiveCellAction
+  | CycleInputModeAction
+  | StepVisualizationAction
+  | ToggleStickyAction
+  | SetStickyValueAction
+  | TapCellAction

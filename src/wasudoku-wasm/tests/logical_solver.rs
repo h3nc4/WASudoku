@@ -18,7 +18,7 @@
 
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::logical_solver::{self, LogicalBoard, TechniqueLevel, analyze_difficulty};
-use wasudoku_wasm::types::{Elimination, SolvingStep};
+use wasudoku_wasm::types::{Elimination, SolvingStep, Technique};
 
 fn board_from_str(s: &str) -> LogicalBoard {
     let simple_board: Board = s.parse().unwrap();
@@ -28,7 +28,7 @@ fn board_from_str(s: &str) -> LogicalBoard {
 fn assert_nth_logical_step(
     puzzle_str: &str,
     step_index: usize,
-    expected_technique: &str,
+    expected_technique: Technique,
 ) -> SolvingStep {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
@@ -65,7 +65,7 @@ fn test_candidate_initialization() {
 fn test_naked_single_step_generation() {
     let puzzle_str =
         "...2..7...5..96832.8.7....641.....78.2..745..7.31854....2531..4.3164..5...9...61.";
-    let first_step = assert_nth_logical_step(puzzle_str, 0, "NakedSingle");
+    let first_step = assert_nth_logical_step(puzzle_str, 0, Technique::NakedSingle);
 
     assert_eq!(first_step.placements[0].index, 9);
     assert_eq!(first_step.placements[0].value, 1);
@@ -84,7 +84,7 @@ fn test_naked_single_step_generation() {
 fn test_hidden_single_detection_in_box() {
     let puzzle_str =
         ".38.917.571...38.9...78.3419738526148649175325213..9781..67..83386.29.57..7.38.96";
-    let first_step = assert_nth_logical_step(puzzle_str, 0, "HiddenSingle");
+    let first_step = assert_nth_logical_step(puzzle_str, 0, Technique::HiddenSingle);
 
     assert_eq!(first_step.placements[0].index, 0);
     assert_eq!(first_step.placements[0].value, 4);
@@ -111,7 +111,7 @@ fn test_hidden_single_with_naked_single_scenario() {
 
     assert!(step.is_some());
     let s = step.unwrap();
-    assert_eq!(s.technique, "HiddenSingle");
+    assert_eq!(s.technique, Technique::HiddenSingle);
     assert_eq!(s.placements[0].index, 0);
     assert_eq!(s.placements[0].value, 1);
 
@@ -126,7 +126,7 @@ fn test_hidden_single_with_naked_single_scenario() {
 fn test_naked_pair_detection() {
     let puzzle_str =
         ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....";
-    let step = assert_nth_logical_step(puzzle_str, 31, "NakedPair");
+    let step = assert_nth_logical_step(puzzle_str, 31, Technique::NakedPair);
 
     assert_eq!(step.cause.len(), 2);
     assert!(step.cause.iter().any(|c| c.index == 14));
@@ -147,7 +147,7 @@ fn test_naked_pair_detection() {
 fn test_pointing_pair_detection() {
     let puzzle_str =
         ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....";
-    let step = assert_nth_logical_step(puzzle_str, 32, "PointingPair");
+    let step = assert_nth_logical_step(puzzle_str, 32, Technique::PointingPair);
 
     assert_eq!(step.cause.len(), 2);
     assert!(step.cause.iter().any(|c| c.index == 15));
@@ -170,7 +170,7 @@ fn test_claiming_candidate_detection() {
 
     let step = steps
         .iter()
-        .find(|s| s.technique == "ClaimingCandidate")
+        .find(|s| s.technique == Technique::ClaimingCandidate)
         .expect("Expected a ClaimingCandidate step");
 
     assert!(!step.eliminations.is_empty());
@@ -184,7 +184,7 @@ fn test_hidden_pair_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_hidden_pair = steps.iter().any(|s| s.technique == "HiddenPair");
+    let has_hidden_pair = steps.iter().any(|s| s.technique == Technique::HiddenPair);
     assert!(has_hidden_pair, "Expected HiddenPair technique usage");
 }
 
@@ -195,7 +195,7 @@ fn test_naked_triple_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_naked_triple = steps.iter().any(|s| s.technique == "NakedTriple");
+    let has_naked_triple = steps.iter().any(|s| s.technique == Technique::NakedTriple);
     assert!(has_naked_triple, "Expected NakedTriple technique usage");
 }
 
@@ -206,7 +206,9 @@ fn test_pointing_triple_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_pointing_triple = steps.iter().any(|s| s.technique == "PointingTriple");
+    let has_pointing_triple = steps
+        .iter()
+        .any(|s| s.technique == Technique::PointingTriple);
     assert!(
         has_pointing_triple,
         "Expected PointingTriple technique usage"
@@ -222,7 +224,7 @@ fn test_x_wing_detection() {
 
     let step = steps
         .iter()
-        .find(|s| s.technique == "X-Wing")
+        .find(|s| s.technique == Technique::XWing)
         .expect("Expected an X-Wing step");
 
     let x_wing_val = step.cause[0].candidates[0];
@@ -240,7 +242,7 @@ fn test_swordfish_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_swordfish = steps.iter().any(|s| s.technique == "Swordfish");
+    let has_swordfish = steps.iter().any(|s| s.technique == Technique::Swordfish);
     assert!(has_swordfish, "Expected Swordfish technique usage");
 }
 
@@ -251,7 +253,7 @@ fn test_xy_wing_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_xy_wing = steps.iter().any(|s| s.technique == "XY-Wing");
+    let has_xy_wing = steps.iter().any(|s| s.technique == Technique::XyWing);
     assert!(has_xy_wing, "Expected XY-Wing technique usage");
 }
 
@@ -262,7 +264,7 @@ fn test_xyz_wing_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_xyz_wing = steps.iter().any(|s| s.technique == "XYZ-Wing");
+    let has_xyz_wing = steps.iter().any(|s| s.technique == Technique::XyzWing);
     assert!(has_xyz_wing, "Expected XYZ-Wing technique usage");
 }
 
@@ -273,7 +275,7 @@ fn test_skyscraper_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_skyscraper = steps.iter().any(|s| s.technique == "Skyscraper");
+    let has_skyscraper = steps.iter().any(|s| s.technique == Technique::Skyscraper);
     assert!(has_skyscraper, "Expected Skyscraper technique usage");
 }
 
@@ -284,7 +286,9 @@ fn test_two_string_kite_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_kite = steps.iter().any(|s| s.technique == "TwoStringKite");
+    let has_kite = steps
+        .iter()
+        .any(|s| s.technique == Technique::TwoStringKite);
     assert!(has_kite, "Expected Two-String Kite technique usage");
 }
 
@@ -296,7 +300,7 @@ fn test_jellyfish_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_jellyfish = steps.iter().any(|s| s.technique == "Jellyfish");
+    let has_jellyfish = steps.iter().any(|s| s.technique == Technique::Jellyfish);
     assert!(has_jellyfish, "Expected Jellyfish technique usage");
 }
 
@@ -308,7 +312,9 @@ fn test_unique_rectangle_type1_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_ur = steps.iter().any(|s| s.technique == "UniqueRectangleType1");
+    let has_ur = steps
+        .iter()
+        .any(|s| s.technique == Technique::UniqueRectangleType1);
     assert!(has_ur, "Expected Unique Rectangle Type 1 technique usage");
 }
 
@@ -320,7 +326,7 @@ fn test_w_wing_detection() {
     let initial_board: Board = puzzle_str.parse().unwrap();
     let (steps, _) = logical_solver::solve_with_steps(&initial_board);
 
-    let has_w_wing = steps.iter().any(|s| s.technique == "W-Wing");
+    let has_w_wing = steps.iter().any(|s| s.technique == Technique::WWing);
     assert!(has_w_wing, "Expected W-Wing technique usage");
 }
 
@@ -342,25 +348,19 @@ fn test_logical_board_set_cell_returns_false_if_filled() {
 fn test_analyze_difficulty_classification() {
     let steps = vec![
         SolvingStep {
-            technique: "Jellyfish".to_string(),
+            technique: Technique::Jellyfish,
             placements: vec![],
             eliminations: vec![],
             cause: vec![],
         },
         SolvingStep {
-            technique: "UniqueRectangleType1".to_string(),
+            technique: Technique::UniqueRectangleType1,
             placements: vec![],
             eliminations: vec![],
             cause: vec![],
         },
         SolvingStep {
-            technique: "W-Wing".to_string(),
-            placements: vec![],
-            eliminations: vec![],
-            cause: vec![],
-        },
-        SolvingStep {
-            technique: "UnknownTechnique".to_string(),
+            technique: Technique::WWing,
             placements: vec![],
             eliminations: vec![],
             cause: vec![],
@@ -395,8 +395,8 @@ fn test_hidden_triple_found() {
     // Set other cells in Row 0 to contain only {4, 5, 6, 7, 8} (Mask: 496)
     // {4,5,6,7,8} = 8 | 16 | 32 | 64 | 128 = 248
     let other_mask = 8 | 16 | 32 | 64 | 128;
-    for i in 3..9 {
-        board.candidates[row_indices[i]] = other_mask;
+    for &idx in &row_indices[3..9] {
+        board.candidates[idx] = other_mask;
     }
 
     // Fill the rest of the board with empty/full candidates to avoid interference
@@ -408,9 +408,63 @@ fn test_hidden_triple_found() {
     let step =
         logical_solver::subsets::find_hidden_triple(&board).expect("Should find HiddenTriple");
 
-    assert_eq!(step.technique, "HiddenTriple");
+    assert_eq!(step.technique, Technique::HiddenTriple);
     assert_eq!(step.cause.len(), 3);
     // Should eliminate '9' from cells 0, 1, 2
     assert_eq!(step.eliminations.len(), 3);
     assert!(step.eliminations.iter().all(|e| e.value == 9));
+}
+
+const GOLDEN_PUZZLES: [&str; 11] = [
+    ".....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....",
+    "538421769421769...769538....8.17.6.2..29........28.3..857312946...6.71...1.8...7.",
+    ".613.5.8.3.5.8.26..8..6.3.561254....8....615.5..9.....12..5...893....5..75...2.4.",
+    "4..6...95.2..95478.954..6..........2.125.7.3.3..2......417.256.26795....53..64..7",
+    "68.5172.451.2946....468351.8.67.59419.14683.5.451.986..628.14..1.89427.64..3.61..",
+    ".92..175.5..2....8....3.2...75..496.2...6..75.697...3...8.9..2.7....3.899.38...4.",
+    ".89.2....2..5.94.8...8..9.21629875..5..4.2.89948....2.79.2.83..32.6..89.8...9.2..",
+    "4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7",
+    ".....3....4.91.7..9.6....43.2......4...675...3......7.27....6.1..5.69.2....2.....",
+    "3........97..1....6..583...2.....9..5..621..3..8.....5...435..2....9..56........1",
+    "5286...4913649..257942.563....1..2....78263....25.9.6.24.3..9768.97.2413.7.9.4582",
+];
+
+fn serialize_steps(steps: &[SolvingStep]) -> String {
+    let mut out = String::new();
+    for step in steps {
+        out.push_str(&format!("{:?} p", step.technique));
+        for p in &step.placements {
+            out.push_str(&format!(" {}={}", p.index, p.value));
+        }
+        out.push_str(" e");
+        for e in &step.eliminations {
+            out.push_str(&format!(" {}={}", e.index, e.value));
+        }
+        out.push_str(" c");
+        for c in &step.cause {
+            out.push_str(&format!(" {}={:?}", c.index, c.candidates));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn golden_dump() -> String {
+    GOLDEN_PUZZLES
+        .iter()
+        .map(|puzzle| {
+            let (steps, _) = logical_solver::solve_with_steps(&puzzle.parse().unwrap());
+            format!("PUZZLE {puzzle}\n{}", serialize_steps(&steps))
+        })
+        .collect()
+}
+
+// Recorded before the peer and subset helpers were shared, so any drift in steps shows here.
+#[test]
+fn test_full_step_list_matches_golden() {
+    let actual = golden_dump();
+    if std::env::var_os("WASUDOKU_GOLDEN_WRITE").is_some() {
+        std::fs::write("tests/golden/logical_steps.txt", &actual).unwrap();
+    }
+    assert_eq!(actual, include_str!("golden/logical_steps.txt"));
 }

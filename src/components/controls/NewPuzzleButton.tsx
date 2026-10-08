@@ -28,25 +28,53 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { isBusy } from '@/context/sudoku.selectors'
+import { DIFFICULTIES, type Difficulty } from '@/context/sudoku.types'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { areBoardsEqual, DIFFICULTY_LABELS } from '@/lib/utils'
 
-const DIFFICULTY_LEVELS = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme']
+import { ConfirmDialog } from '../ConfirmDialog'
+
+type PendingChoice = { kind: 'generate'; difficulty: Difficulty } | { kind: 'custom' }
 
 /**
  * A button with a dropdown menu to generate a new Sudoku puzzle.
  * It shows a loading state while the puzzle is being generated in a web worker.
  */
 export function NewPuzzleButton() {
-  const { solver } = useSudokuState()
+  const state = useSudokuState()
+  const { solver, board, initialBoard, derived } = state
   const { generatePuzzle, startCustomPuzzle } = useSudokuActions()
 
   const [isShowingGeneratingState, setIsShowingGeneratingState] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [pending, setPending] = useState<PendingChoice | null>(null)
 
-  const isButtonDisabled = solver.isGenerating || solver.isSolving || solver.isValidating
+  const isButtonDisabled = isBusy(state)
 
-  const handleSelectDifficulty = (difficulty: string) => {
-    generatePuzzle(difficulty.toLowerCase())
+  const hasProgress =
+    (solver.gameMode === 'customInput' && !derived.isBoardEmpty) ||
+    (solver.gameMode === 'visualizing' && !areBoardsEqual(board, initialBoard)) ||
+    (solver.gameMode === 'playing' && !solver.isSolved && !areBoardsEqual(board, initialBoard))
+
+  const runChoice = (choice: PendingChoice) => {
+    if (choice.kind === 'generate') {
+      generatePuzzle(choice.difficulty)
+    } else {
+      startCustomPuzzle()
+    }
+  }
+
+  const handleChoice = (choice: PendingChoice) => {
+    if (hasProgress) {
+      setPending(choice)
+    } else {
+      runChoice(choice)
+    }
+  }
+
+  const handleSelectDifficulty = (difficulty: Difficulty) => {
+    handleChoice({ kind: 'generate', difficulty })
   }
 
   // Effect to manage the "Generating..." label with a delay,
@@ -70,7 +98,7 @@ export function NewPuzzleButton() {
 
   if (isShowingGeneratingState) {
     return (
-      <Button disabled className="flex-1">
+      <Button disabled size="lg" className="flex-1">
         <Loader2 className="mr-2 size-4 animate-spin" />
         Generating...
       </Button>
@@ -78,35 +106,54 @@ export function NewPuzzleButton() {
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="secondary"
-          className="flex-1"
-          disabled={isButtonDisabled}
-          onClick={() => setIsOpen(true)}
-          onPointerDown={(e) => e.preventDefault()}
-        >
-          <Wand2 className="mr-2 size-4" />
-          New Puzzle
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        {DIFFICULTY_LEVELS.map((level) => (
-          <DropdownMenuItem key={level} onSelect={() => handleSelectDifficulty(level)}>
-            {level}
-          </DropdownMenuItem>
-        ))}
-        {solver.gameMode !== 'selecting' && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={startCustomPuzzle}>
-              <Edit3 className="mr-2 size-4" />
-              Custom
+    <>
+      {/* Non-modal, so the confirmation dialog opened from an item keeps pointer events. */}
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen} modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            // Start Puzzle is the primary action while a custom board is entered.
+            variant={solver.gameMode === 'customInput' ? 'outline' : 'default'}
+            size="lg"
+            className="flex-1"
+            disabled={isButtonDisabled}
+            onClick={() => setIsOpen(true)}
+            onPointerDown={(e) => e.preventDefault()}
+          >
+            <Wand2 className="mr-2 size-4" />
+            New Puzzle
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {DIFFICULTIES.map((difficulty) => (
+            <DropdownMenuItem
+              key={DIFFICULTY_LABELS[difficulty]}
+              onSelect={() => handleSelectDifficulty(difficulty)}
+            >
+              {DIFFICULTY_LABELS[difficulty]}
             </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          ))}
+          {solver.gameMode !== 'selecting' && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleChoice({ kind: 'custom' })}>
+                <Edit3 className="mr-2 size-4" />
+                Custom
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmDialog
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        title="Abandon current game?"
+        description="The board in progress is replaced and cannot be restored."
+        confirmLabel={pending?.kind === 'custom' ? 'Create puzzle' : 'Start new puzzle'}
+        onConfirm={() => {
+          if (pending) runChoice(pending)
+        }}
+        destructive
+      />
+    </>
   )
 }
