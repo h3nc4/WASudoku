@@ -22,6 +22,12 @@
   Strict-Transport-Security: max-age=31536000
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
+# Unhashed, so a cached copy would hold back every later deploy.
+/sw.js
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000
+
 # Vite fingerprints everything under here, so a name never changes meaning.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

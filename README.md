@@ -2,7 +2,7 @@
 
 Sudoku in the browser, with a solver written in Rust and compiled to WebAssembly. It generates puzzles at five levels and solves a grid the way a person would, by named techniques, falling back to backtracking where those run out. Each digit placed by logic comes with the technique that justified it, and a puzzle typed in by hand is checked for a unique solution before play starts.
 
-Solving and generating happen inside the tab, in Web Workers, without a network request. The app has neither an account nor a backend.
+Solving and generating happen inside the tab, in Web Workers, without a network request. The app has neither an account nor a backend, and once loaded it works offline.
 
 ## Live
 
@@ -122,7 +122,7 @@ The generator keeps the solution unique at all five levels. It removes givens in
 
 The board, the notes, the undo history, the timer, the mistake count and the pool of pre-generated puzzles live in the browser's local storage. A closed tab reopens where it was left.
 
-The site has a web manifest, so a browser can install it as an app. It lacks a service worker, which means the page, and an installed copy too, needs a connection to open. Once open, it keeps working without one.
+The site has a web manifest, so a browser can install it as an app. On the first visit a service worker stores the whole build in the browser, after which the page and an installed copy both open without a connection. Navigations try the network before that copy, so a reload after a release gets the new build. An open tab meanwhile offers the release through an **Update available** toast with a **Reload** button.
 
 ## Theme and motion
 
