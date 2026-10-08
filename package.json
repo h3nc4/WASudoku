@@ -23,6 +23,7 @@
     "test:wasm": "cd src/wasudoku-wasm && cargo llvm-cov --cobertura --output-path ../../coverage-wasm.xml",
     "test:ui": "vitest run --coverage; s=$?; mv coverage/lcov.info coverage-ui.lcov; rm -rf coverage; exit $s",
     "test:browser": "vitest --config vitest.config.browser.ts",
+    "test:e2e": "playwright test",
     "pretest": "npm run wasm:build:dev",
     "test": "rm -f coverage-*; npm run test:wasm && npm run test:ui",
     "audit": "npm audit --audit-level=high",
@@ -31,6 +32,7 @@
     "wasm:build:prod": "wasm-pack build src/wasudoku-wasm --target web --release -- --no-default-features"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "10.0.1",
     "@fontsource-variable/recursive": "5.3.0",
     "@playwright/test": "1.63.0",

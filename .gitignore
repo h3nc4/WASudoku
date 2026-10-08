@@ -12,6 +12,10 @@ target/
 # Coverage reports
 coverage-*.*
 
+# Playwright
+playwright-report/
+test-results/
+
 # Android
 android.keystore
 licenses/
