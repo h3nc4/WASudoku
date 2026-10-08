@@ -35,7 +35,16 @@ import unusedImports from 'eslint-plugin-unused-imports'
 const reactVersion = createRequire(import.meta.url)('react/package.json').version
 
 export default [
-  { ignores: ['dist', 'src/wasudoku-wasm/pkg', 'coverage', 'coverage-wasm.xml'] },
+  {
+    ignores: [
+      'dist',
+      'src/wasudoku-wasm/pkg',
+      'coverage',
+      'coverage-wasm.xml',
+      'playwright-report',
+      'test-results',
+    ],
+  },
   js.configs.recommended,
   ...tseslintConfigs.recommended,
   reactPlugin.configs.flat.recommended,
