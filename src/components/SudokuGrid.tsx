@@ -307,6 +307,8 @@ export function SudokuGrid() {
         onBlur={handleGridBlur}
         onPaste={handlePaste}
         aria-hidden={ui.isPaused || undefined}
+        // Inert drops the active cell from focus too, which aria-hidden alone leaves reachable.
+        inert={ui.isPaused}
         data-paused={ui.isPaused || undefined}
         className="pause-board bg-paper border-grid-thick grid aspect-square grid-cols-9 overflow-hidden rounded-[3px] border-2 outline-none"
       >
