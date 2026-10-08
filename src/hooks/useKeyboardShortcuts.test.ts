@@ -34,7 +34,13 @@ const press = (key: string, init: KeyboardEventInit = {}) => {
 }
 
 describe('useKeyboardShortcuts', () => {
-  const actions = { undo: vi.fn(), redo: vi.fn(), stepVisualization: vi.fn() }
+  const actions = {
+    undo: vi.fn(),
+    redo: vi.fn(),
+    stepVisualization: vi.fn(),
+    toggleSticky: vi.fn(),
+    setStickyValue: vi.fn(),
+  }
   const playing = makeState({ solver: { gameMode: 'playing' } })
 
   beforeEach(() => {
@@ -95,6 +101,73 @@ describe('useKeyboardShortcuts', () => {
     renderHook(() => useKeyboardShortcuts())
     expect(press('ArrowLeft').defaultPrevented).toBe(false)
     expect(actions.stepVisualization).not.toHaveBeenCalled()
+  })
+
+  describe('sticky numbers', () => {
+    const locked = makeState({ ui: { sticky: true, stickyValue: 4 } }, playing)
+
+    const pressOn = (target: Element, key: string) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      target.dispatchEvent(event)
+      return event
+    }
+
+    it('toggles on S in either case', () => {
+      renderHook(() => useKeyboardShortcuts())
+      expect(press('s').defaultPrevented).toBe(true)
+      press('S', { shiftKey: true })
+      expect(actions.toggleSticky).toHaveBeenCalledTimes(2)
+    })
+
+    it('leaves Ctrl+S and Alt+S to the browser', () => {
+      renderHook(() => useKeyboardShortcuts())
+      expect(press('s', { ctrlKey: true }).defaultPrevented).toBe(false)
+      press('s', { altKey: true })
+      expect(actions.toggleSticky).not.toHaveBeenCalled()
+    })
+
+    it('releases the lock on Escape', () => {
+      mockSudoku({ state: locked })
+      renderHook(() => useKeyboardShortcuts())
+      press('Escape')
+      expect(actions.setStickyValue).toHaveBeenCalledWith(null)
+    })
+
+    it('ignores Escape with nothing locked', () => {
+      renderHook(() => useKeyboardShortcuts())
+      press('Escape')
+      expect(actions.setStickyValue).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['while paused', makeState({ ui: { isPaused: true } }, locked)],
+      ['while solving', makeState({ solver: { isSolving: true } }, locked)],
+      ['in the walkthrough', makeState({ solver: { gameMode: 'visualizing' } }, locked)],
+    ] as [string, SudokuState][])('is ignored %s', (_, state) => {
+      mockSudoku({ state })
+      renderHook(() => useKeyboardShortcuts())
+      press('s')
+      press('Escape')
+      expect(actions.toggleSticky).not.toHaveBeenCalled()
+      expect(actions.setStickyValue).not.toHaveBeenCalled()
+    })
+
+    it('leaves the letter to a field that takes typing, but not to a read-only cell', () => {
+      renderHook(() => useKeyboardShortcuts())
+      const field = document.createElement('input')
+      const area = document.createElement('textarea')
+      const cell = document.createElement('input')
+      cell.readOnly = true
+      document.body.append(field, area, cell)
+      expect(pressOn(field, 's').defaultPrevented).toBe(false)
+      pressOn(area, 's')
+      expect(actions.toggleSticky).not.toHaveBeenCalled()
+      pressOn(cell, 's')
+      expect(actions.toggleSticky).toHaveBeenCalledOnce()
+      field.remove()
+      area.remove()
+      cell.remove()
+    })
   })
 
   it('stays out of the way while a dialog is open', () => {

@@ -62,6 +62,8 @@ export const initialState: SudokuState = {
     hint: null,
     isPaused: false,
     pendingPuzzle: null,
+    sticky: false,
+    stickyValue: null,
   },
   solver: {
     isSolving: false,
@@ -107,6 +109,8 @@ export const startGame = (
   overrides: Omit<Partial<SudokuState>, 'puzzlePool' | 'poolRequestCount'>,
 ): SudokuState => ({
   ...initialState,
+  // Sticky numbers is a preference kept across puzzles, while its lock resets with each one.
+  ui: { ...initialState.ui, sticky: state.ui.sticky },
   ...overrides,
   puzzlePool: state.puzzlePool,
   poolRequestCount: state.poolRequestCount,

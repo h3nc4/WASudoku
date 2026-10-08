@@ -108,6 +108,10 @@ export interface UiState {
   readonly isPaused: boolean
   /** A puzzle string waiting for the player to confirm loading it. */
   readonly pendingPuzzle: string | null
+  /** Sticky numbers, where a pad key locks its digit and each cell tap applies it. */
+  readonly sticky: boolean
+  /** The locked digit, or null while sticky numbers has none locked or is off. */
+  readonly stickyValue: number | null
 }
 
 export interface SolverState {

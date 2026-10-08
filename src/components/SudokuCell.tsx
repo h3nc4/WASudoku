@@ -51,6 +51,8 @@ interface SudokuCellProps {
   readonly isPlaced: boolean
   /** Callback function when the cell receives focus (e.g., via click). */
   readonly onFocus: (index: number) => void
+  /** A pointer tap, kept apart from focus, which arrow keys move too. */
+  readonly onTap?: (index: number) => void
   /** For visualization, a set of candidates eliminated in the current step. */
   readonly eliminatedCandidates?: ReadonlySet<number>
   /** Whether this cell is part of a momentary conflict highlight. */
@@ -168,6 +170,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
     cell,
     index,
     onFocus,
+    onTap,
     eliminatedCandidates,
     animateEntry,
     strikeRemovedNotes,
@@ -177,6 +180,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
     ...styleProps
   } = props
   const handleFocus = () => onFocus(index)
+  const handleClick = () => onTap?.(index)
 
   const row = Math.floor(index / 9)
   const col = index % 9
@@ -243,6 +247,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         readOnly
         value={cell.value === null ? '' : String(cell.value)}
         onFocus={handleFocus}
+        onClick={handleClick}
         className={cn(
           'cell-ink absolute inset-0 z-10 size-full appearance-none rounded-none border-0 bg-transparent p-0 text-center caret-transparent outline-none',
           'focus:z-20 focus-visible:ring-2 focus-visible:ring-inset',

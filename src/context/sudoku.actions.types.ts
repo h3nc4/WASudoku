@@ -268,6 +268,23 @@ export interface StepVisualizationAction {
   delta: -1 | 1
 }
 
+/** Action to turn sticky numbers on or off. */
+export interface ToggleStickyAction {
+  type: 'TOGGLE_STICKY'
+}
+
+/** Action to lock a digit for cell taps, or release the lock with null. */
+export interface SetStickyValueAction {
+  type: 'SET_STICKY_VALUE'
+  value: number | null
+}
+
+/** Action for a pointer tap on a cell, which applies the locked digit. */
+export interface TapCellAction {
+  type: 'TAP_CELL'
+  index: number
+}
+
 /** A union of all possible actions that can be dispatched to the sudokuReducer. */
 export type SudokuAction =
   | SetCellValueAction
@@ -314,3 +331,6 @@ export type SudokuAction =
   | EraseActiveCellAction
   | CycleInputModeAction
   | StepVisualizationAction
+  | ToggleStickyAction
+  | SetStickyValueAction
+  | TapCellAction

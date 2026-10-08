@@ -25,6 +25,7 @@ import {
   canRequestHint,
   canSolve,
   canUndoRedo,
+  canUseSticky,
   isBusy,
   isClockRunning,
   isEditable,
@@ -94,6 +95,24 @@ describe('sudoku selectors', () => {
       ['solved', solved],
     ])('is true while %s', (_, state) => {
       expect(isGridReadOnly(state)).toBe(true)
+    })
+  })
+
+  describe('canUseSticky', () => {
+    it('is true while cells take input', () => {
+      expect(canUseSticky(playing)).toBe(true)
+      expect(canUseSticky(custom)).toBe(true)
+    })
+
+    it.each([
+      ['selecting', initialState],
+      ['in the walkthrough', withSolver({ gameMode: 'visualizing' })],
+      ['solving', solving],
+      ['validating', validating],
+      ['paused', paused],
+      ['solved', solved],
+    ])('is false while %s', (_, state) => {
+      expect(canUseSticky(state)).toBe(false)
     })
   })
 

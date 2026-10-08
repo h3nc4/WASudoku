@@ -38,6 +38,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 interface MockSudokuCellProps {
   index: number
   onFocus: (index: number) => void
+  onTap?: (index: number) => void
   isHighlighted: boolean
   isNumberHighlighted: boolean
   isActive: boolean
@@ -66,6 +67,7 @@ vi.mock('./SudokuCell', () => ({
           ref={ref}
           aria-label={`cell-${props.index}`}
           onFocus={() => props.onFocus(props.index)}
+          onClick={() => props.onTap?.(props.index)}
           tabIndex={-1}
         />
       )
@@ -86,6 +88,7 @@ describe('SudokuGrid component', () => {
     cycleInputMode: vi.fn(),
     offerPuzzle: vi.fn(),
     resumeGame: vi.fn(),
+    tapCell: vi.fn(),
   }
   const defaultState = makeState({
     solver: {
@@ -123,6 +126,15 @@ describe('SudokuGrid component', () => {
     const cell10 = screen.getByLabelText('cell-10')
     fireEvent.focus(cell10)
     expect(mockActions.setActiveCell).toHaveBeenCalledWith(10)
+  })
+
+  it('passes a pointer tap on a cell to tapCell, apart from focus', () => {
+    render(<SudokuGrid />)
+    const cell10 = screen.getByLabelText('cell-10')
+    fireEvent.focus(cell10)
+    expect(mockActions.tapCell).not.toHaveBeenCalled()
+    fireEvent.click(cell10)
+    expect(mockActions.tapCell).toHaveBeenCalledWith(10)
   })
 
   it('allows a "given" cell to become active on focus', () => {

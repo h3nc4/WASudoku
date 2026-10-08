@@ -36,6 +36,7 @@ const playingState = makeState({ solver: { gameMode: 'playing' } })
 describe('NumberPad component', () => {
   const mockInputValue = vi.fn()
   const mockSetHighlightedValue = vi.fn()
+  const mockSetStickyValue = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -44,6 +45,7 @@ describe('NumberPad component', () => {
       actions: {
         inputValue: mockInputValue,
         setHighlightedValue: mockSetHighlightedValue,
+        setStickyValue: mockSetStickyValue,
       },
     })
   })
@@ -72,6 +74,52 @@ describe('NumberPad component', () => {
 
     expect(mockSetHighlightedValue).toHaveBeenCalledWith(5)
     expect(mockInputValue).toHaveBeenCalledWith(5)
+  })
+
+  describe('sticky numbers', () => {
+    const sticky = (stickyValue: number | null) =>
+      makeState({ ui: { sticky: true, stickyValue } }, playingState)
+
+    it('leaves keys unpressable with the mode off', () => {
+      render(<NumberPad />)
+      expect(screen.getByRole('button', { name: 'Enter number 5' })).not.toHaveAttribute(
+        'aria-pressed',
+      )
+    })
+
+    it('locks the tapped digit instead of entering it', async () => {
+      mockSudoku({ state: sticky(null) })
+      render(<NumberPad />)
+      const key = screen.getByRole('button', { name: 'Enter number 5' })
+      expect(key).toHaveAttribute('aria-pressed', 'false')
+
+      await userEvent.setup().click(key)
+      expect(mockSetStickyValue).toHaveBeenCalledWith(5)
+      expect(mockInputValue).not.toHaveBeenCalled()
+      expect(mockSetHighlightedValue).not.toHaveBeenCalled()
+    })
+
+    it('draws the locked key pressed in filled ink', () => {
+      mockSudoku({ state: sticky(5) })
+      render(<NumberPad />)
+      const key = screen.getByRole('button', { name: 'Enter number 5' })
+      expect(key).toHaveAttribute('aria-pressed', 'true')
+      expect(key).toHaveClass('bg-primary')
+      expect(within(key).getByText('5')).toHaveClass('text-primary-foreground')
+      expect(within(key).getByText('9')).toHaveClass('text-primary-foreground')
+      const other = screen.getByRole('button', { name: 'Enter number 4' })
+      expect(other).toHaveAttribute('aria-pressed', 'false')
+      expect(within(other).getByText('4')).toHaveClass('text-ink')
+    })
+
+    it('switches the lock to another key and releases it on the locked key', async () => {
+      mockSudoku({ state: sticky(5) })
+      const user = userEvent.setup()
+      render(<NumberPad />)
+      await user.click(screen.getByRole('button', { name: 'Enter number 7' }))
+      await user.click(screen.getByRole('button', { name: 'Enter number 5' }))
+      expect(mockSetStickyValue.mock.calls).toEqual([[7], [null]])
+    })
   })
 
   it('disables a number button if that number is on the board 9 times', () => {

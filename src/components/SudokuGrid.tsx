@@ -297,6 +297,7 @@ export function SudokuGrid() {
               isPlaced={placedIndices.has(index)}
               isHintTarget={hintIndices.target.has(index)}
               onFocus={handleCellFocus}
+              onTap={actions.tapCell}
               eliminatedCandidates={eliminatedCandidates ?? hintEliminations?.get(index)}
               isTransientConflict={ui.transientConflicts?.has(index) ?? false}
               animateEntry={move?.index === index}
