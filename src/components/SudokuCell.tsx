@@ -177,6 +177,19 @@ const getMarkMotion = (
   return undefined
 }
 
+/** A cell-wide X behind a wrong or clashing digit. It marks the error by shape rather than by hue. */
+const ErrorMark = () => (
+  <svg
+    aria-hidden
+    data-testid="cell-error-mark"
+    className="error-mark"
+    viewBox="0 0 100 100"
+    preserveAspectRatio="none"
+  >
+    <path d="M10 10 90 90M90 10 10 90" />
+  </svg>
+)
+
 /**
  * Renders a single cell within the Sudoku grid.
  * This is a controlled component where all user input is handled by the parent grid.
@@ -232,6 +245,10 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
             style={{ '--moment-delay': `${momentDelay ?? 0}ms` } as CSSProperties}
           />
         )}
+        {cell.value !== null &&
+          (styleProps.isConflict || styleProps.isError || styleProps.isTransientConflict) && (
+            <ErrorMark />
+          )}
         {cell.value === null ? (
           <PencilMarks
             candidates={cell.candidates}

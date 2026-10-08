@@ -16,7 +16,16 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { cell, cellFace, expect, expectAccessible, mistakes, savedGame, test } from './fixtures'
+import {
+  cell,
+  cellFace,
+  errorMark,
+  expect,
+  expectAccessible,
+  mistakes,
+  savedGame,
+  test,
+} from './fixtures'
 
 // R1C3 takes 1, 2 or 4 and its answer is 4. R1C4 takes 2 or 6.
 const R1C3 = 2
@@ -67,6 +76,8 @@ test('corner and center notes, a conflict and the mistakes counter', async ({ pa
   await page.keyboard.press('5')
   await expect(cell(page, R1C3)).toHaveValue('5')
   await expect(cell(page, R1C3)).toHaveAttribute('aria-invalid', 'true')
+  await expect(errorMark(page, R1C3)).toBeVisible()
+  await expect(cellFace(page, R1C3).getByTestId('cell-digit')).not.toHaveCSS('text-shadow', 'none')
   await expect(mistakes(page)).toHaveText('1/3')
   await expect(page.getByRole('button', { name: 'Solve' })).toBeDisabled()
   await expectAccessible(page, 'board with a conflict')
@@ -74,6 +85,7 @@ test('corner and center notes, a conflict and the mistakes counter', async ({ pa
   await page.keyboard.press('Delete')
   await expect(cell(page, R1C3)).toHaveValue('')
   await expect(cell(page, R1C3)).toHaveAttribute('aria-invalid', 'false')
+  await expect(errorMark(page, R1C3)).toHaveCount(0)
   await expect(mistakes(page)).toHaveText('1/3')
 
   await page.keyboard.press('4')

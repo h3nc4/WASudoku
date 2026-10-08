@@ -259,6 +259,57 @@ describe('SudokuCell component', () => {
       expect(digit).not.toHaveClass('conflict-pulse-b')
     })
 
+    describe('Error mark', () => {
+      const withDigit = { ...defaultProps, cell: { ...defaultProps.cell, value: 5 } }
+
+      it('draws an X across the cell behind a wrong digit', () => {
+        render(<SudokuCell {...withDigit} isError />)
+        const mark = screen.getByTestId('cell-error-mark')
+        expect(mark).toHaveClass('error-mark')
+        expect(mark).toHaveAttribute('aria-hidden', 'true')
+        expect(screen.getByTestId('cell-background')).toContainElement(mark)
+        expect(screen.getByTestId('cell-digit')).not.toContainElement(mark)
+        // The paper halo in index.css selects the digit as the mark's next sibling.
+        expect(mark.nextElementSibling).toBe(screen.getByTestId('cell-digit'))
+      })
+
+      it('draws the X behind a conflicting digit', () => {
+        render(<SudokuCell {...withDigit} isConflict />)
+        expect(screen.getByTestId('cell-error-mark')).toBeInTheDocument()
+      })
+
+      it('draws the X behind a transiently clashing digit', () => {
+        render(<SudokuCell {...withDigit} isTransientConflict />)
+        expect(screen.getByTestId('cell-error-mark')).toBeInTheDocument()
+      })
+
+      it('draws no X behind a correct digit or a given', () => {
+        const { rerender } = render(<SudokuCell {...withDigit} />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+        rerender(<SudokuCell {...withDigit} isGiven />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+
+      it('draws no X over notes, even in an errored cell', () => {
+        render(
+          <SudokuCell
+            {...defaultProps}
+            isConflict
+            isError
+            cell={{ ...defaultProps.cell, candidates: new Set([1, 2]) }}
+            eliminatedCandidates={new Set([2])}
+          />,
+        )
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+
+      it('removes the X once the digit is corrected', () => {
+        const { rerender } = render(<SudokuCell {...withDigit} isError />)
+        rerender(<SudokuCell {...withDigit} />)
+        expect(screen.queryByTestId('cell-error-mark')).not.toBeInTheDocument()
+      })
+    })
+
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
       expect(screen.getByTestId('cell-digit')).toHaveClass('text-ink voice-ink')
