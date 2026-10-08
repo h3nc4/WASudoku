@@ -18,24 +18,29 @@
 
 import { type Dispatch, useEffect } from 'react'
 
-import { tickTimer } from '@/context/sudoku.actions'
+import { pauseGame, tickTimer } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
+import { isClockRunning } from '@/context/sudoku.selectors'
 import type { SudokuState } from '@/context/sudoku.types'
 
-/**
- * Manages the game timer interval. It ticks only when the game is in 'playing' mode
- * and not yet solved.
- *
- * @param state The current Sudoku state.
- * @param dispatch The dispatch function.
- */
+/** Ticks the timer during unsolved, unpaused play, and pauses the game when the tab is hidden. */
 export function useGameTimer(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
-  const { gameMode, isSolved } = state.solver
+  const isRunning = isClockRunning(state)
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        dispatch(pauseGame())
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [dispatch])
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
 
-    if (gameMode === 'playing' && !isSolved) {
+    if (isRunning) {
       interval = setInterval(() => {
         dispatch(tickTimer())
       }, 1000)
@@ -46,5 +51,5 @@ export function useGameTimer(state: SudokuState, dispatch: Dispatch<SudokuAction
         clearInterval(interval)
       }
     }
-  }, [gameMode, isSolved, dispatch])
+  }, [isRunning, dispatch])
 }

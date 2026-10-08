@@ -18,34 +18,42 @@
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { makeState, mockSudoku } from '@/test/sudoku-state'
 
 import { SelectionScreen } from './SelectionScreen'
 
+vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
-vi.mock('./controls/NewPuzzleButton', () => ({
-  NewPuzzleButton: vi.fn(() => <button>New Puzzle</button>),
-}))
-
-const mockUseSudokuActions = useSudokuActions as Mock
 
 describe('SelectionScreen component', () => {
   const mockStartCustomPuzzle = vi.fn()
+  const mockGeneratePuzzle = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSudokuActions.mockReturnValue({
-      startCustomPuzzle: mockStartCustomPuzzle,
+    mockSudoku({
+      state: makeState(),
+      actions: { startCustomPuzzle: mockStartCustomPuzzle, generatePuzzle: mockGeneratePuzzle },
     })
   })
 
-  it('renders the welcome message and control buttons', () => {
+  it('renders the welcome message, every difficulty and the custom option', () => {
     render(<SelectionScreen />)
     expect(screen.getByRole('heading', { name: /welcome to wasudoku/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New Puzzle' })).toBeInTheDocument()
+    for (const level of ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme']) {
+      expect(screen.getByRole('button', { name: level })).toBeInTheDocument()
+    }
     expect(screen.getByRole('button', { name: /create your own/i })).toBeInTheDocument()
+  })
+
+  it('starts a puzzle with a single tap on a difficulty', async () => {
+    const user = userEvent.setup()
+    render(<SelectionScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Hard' }))
+    expect(mockGeneratePuzzle).toHaveBeenCalledWith('hard')
   })
 
   it('calls startCustomPuzzle when the "Create Your Own" button is clicked', async () => {

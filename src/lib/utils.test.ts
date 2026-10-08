@@ -26,6 +26,7 @@ import {
   boardStateToString,
   calculateCandidates,
   formatCell,
+  formatTime,
   getConflictingPeers,
   getRelatedCellIndices,
   isBoardStringValid,
@@ -56,6 +57,14 @@ describe('Sudoku Utilities', () => {
     it('should return an empty set for an out-of-bounds index', () => {
       expect(getRelatedCellIndices(-1).size).toBe(0)
       expect(getRelatedCellIndices(81).size).toBe(0)
+    })
+  })
+
+  describe('formatTime', () => {
+    it('pads minutes and seconds', () => {
+      expect(formatTime(0)).toBe('00:00')
+      expect(formatTime(754)).toBe('12:34')
+      expect(formatTime(6000)).toBe('100:00')
     })
   })
 

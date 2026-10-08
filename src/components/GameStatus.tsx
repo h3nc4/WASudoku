@@ -16,20 +16,17 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Pause, Play } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { cn } from '@/lib/utils'
+import { useSudokuActions } from '@/hooks/useSudokuActions'
+import { cn, DIFFICULTY_LABELS, formatTime } from '@/lib/utils'
 
-function formatTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-}
-
-/**
- * Displays the current game timer and mistake count.
- */
+/** Displays the difficulty, timer and mistake count, with a pause control. */
 export function GameStatus() {
-  const { game, solver } = useSudokuState()
+  const { game, solver, ui } = useSudokuState()
+  const { pauseGame, resumeGame } = useSudokuActions()
 
   // Only show in playing mode
   if (solver.gameMode !== 'playing') {
@@ -38,14 +35,34 @@ export function GameStatus() {
 
   const { timer, mistakes } = game
   const isLimitReached = mistakes >= 3
+  const difficulty = solver.difficulty ? DIFFICULTY_LABELS[solver.difficulty] : 'Custom'
 
   return (
-    <div className="flex w-full items-center justify-between text-sm font-medium text-gray-600 dark:text-gray-400">
-      <div className="flex items-center gap-2">
-        <span>Mistakes:</span>
-        <span className={cn(isLimitReached && 'font-bold text-red-500')}>{mistakes}/3</span>
+    <div className="voice-mono text-muted-foreground bg-paper flex min-h-10 w-full items-center justify-between rounded-md px-3 text-sm tabular-nums">
+      <div className="flex items-center gap-3">
+        <span className="text-foreground">{difficulty}</span>
+        <span className="flex items-center gap-1.5">
+          <span>Mistakes:</span>
+          <span className={cn(isLimitReached && 'text-error font-bold')}>{mistakes}/3</span>
+        </span>
       </div>
-      <div>{formatTime(timer)}</div>
+      <div className="flex items-center gap-2">
+        {solver.isSolved && <span className="text-ink font-bold">Solved</span>}
+        <span className="text-foreground">{formatTime(timer)}</span>
+        {!solver.isSolved && (
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            className="-mr-3"
+            onClick={ui.isPaused ? resumeGame : pauseGame}
+            aria-label={ui.isPaused ? 'Resume game' : 'Pause game'}
+            title={ui.isPaused ? 'Resume game' : 'Pause game'}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {ui.isPaused ? <Play /> : <Pause />}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

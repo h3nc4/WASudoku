@@ -19,6 +19,7 @@
 import { type ReactNode, useReducer } from 'react'
 
 import { useGameTimer } from '@/hooks/useGameTimer'
+import { useSharedPuzzleLink } from '@/hooks/useSharedPuzzleLink'
 import { useSudokuFeedback } from '@/hooks/useSudokuFeedback'
 import { useSudokuPersistence } from '@/hooks/useSudokuPersistence'
 import { useSudokuSolver } from '@/hooks/useSudokuSolver'
@@ -43,6 +44,7 @@ export function SudokuProvider({ children }: SudokuProviderProps) {
   useSudokuSolver(state, dispatch)
   useSudokuFeedback(state, dispatch)
   useGameTimer(state, dispatch)
+  useSharedPuzzleLink(dispatch)
 
   return (
     <SudokuStateContext.Provider value={state}>

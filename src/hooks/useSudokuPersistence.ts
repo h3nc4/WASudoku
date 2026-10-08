@@ -16,78 +16,57 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
-import { STORAGE_KEYS } from '@/context/sudoku.reducer'
-import type {
-  BoardState,
-  PersistedGameState,
-  PersistedPool,
-  SudokuState,
-} from '@/context/sudoku.types'
+import { saveGame, saveMetrics, savePool, scheduleIdle } from '@/context/sudoku.persistence'
+import type { SavedGame, SudokuState } from '@/context/sudoku.types'
 
 /**
- * Custom JSON replacer to handle serializing `Set` objects.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function replacer(_key: string, value: any) {
-  if (value instanceof Set) {
-    return {
-      __dataType: 'Set',
-      value: [...value],
-    }
-  }
-  return value
-}
-
-/**
- * Saves a portion of the game state to local storage.
- * @param key - The localStorage key.
- * @param data - The data object to save.
- */
-function saveToStorage<T>(key: string, data: T) {
-  try {
-    const json = JSON.stringify(data, replacer)
-    globalThis.localStorage.setItem(key, json)
-  } catch (error) {
-    console.error(`Failed to save ${key} to local storage:`, error)
-  }
-}
-
-/**
- * A hook that listens to specific changes in the Sudoku state and persists them
- * to the browser's local storage using separated keys to improve performance.
- *
- * @param state - The current Sudoku state from the reducer.
+ * Persists the Sudoku state to local storage under separate keys.
+ * The board history is written when the browser is idle and flushed when the page hides.
  */
 export function useSudokuPersistence(state: SudokuState) {
-  // 1. Persist Core Game State (Board, History, Initial Board, Solution)
-  // This updates only when the board/history changes (user moves).
-  useEffect(() => {
-    const data: PersistedGameState = {
-      history: {
-        stack: state.history.stack as BoardState[],
-        index: state.history.index,
-      },
-      initialBoard: state.initialBoard,
-      solution: state.solver.solution as number[] | null,
-    }
-    saveToStorage(STORAGE_KEYS.GAME, data)
-  }, [state.history, state.initialBoard, state.solver.solution])
+  const pendingGame = useRef<SavedGame | null>(null)
+  const cancelScheduled = useRef<(() => void) | null>(null)
 
-  // 2. Persist Metrics (Timer, Mistakes)
-  // This updates every second when the timer ticks. The payload is tiny.
+  const flushGame = useCallback(() => {
+    cancelScheduled.current?.()
+    cancelScheduled.current = null
+    if (pendingGame.current) {
+      saveGame(pendingGame.current)
+      pendingGame.current = null
+    }
+  }, [])
+
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.METRICS, state.game)
+    const flushIfHidden = () => {
+      if (document.visibilityState === 'hidden') flushGame()
+    }
+    globalThis.addEventListener('pagehide', flushGame)
+    document.addEventListener('visibilitychange', flushIfHidden)
+    return () => {
+      globalThis.removeEventListener('pagehide', flushGame)
+      document.removeEventListener('visibilitychange', flushIfHidden)
+      flushGame()
+    }
+  }, [flushGame])
+
+  useEffect(() => {
+    pendingGame.current = {
+      history: state.history,
+      initialBoard: state.initialBoard,
+      solution: state.solver.solution,
+      difficulty: state.solver.difficulty,
+    }
+    cancelScheduled.current ??= scheduleIdle(flushGame)
+  }, [flushGame, state.history, state.initialBoard, state.solver.solution, state.solver.difficulty])
+
+  // The timer ticks every second, and its payload is two numbers.
+  useEffect(() => {
+    saveMetrics(state.game)
   }, [state.game])
 
-  // 3. Persist Puzzle Pool
-  // This updates only when a background generation finishes. The payload is large.
   useEffect(() => {
-    const data: PersistedPool = {
-      puzzlePool: state.puzzlePool,
-      poolRequestCount: state.poolRequestCount,
-    }
-    saveToStorage(STORAGE_KEYS.POOL, data)
-  }, [state.puzzlePool, state.poolRequestCount])
+    savePool(state.puzzlePool)
+  }, [state.puzzlePool])
 }

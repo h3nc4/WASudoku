@@ -18,20 +18,41 @@
 
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { flushSync } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
+
+// Flips the theme with transitions held off, so no colour fades between the two themes.
+function applyTheme(next: string, setTheme: (theme: string) => void) {
+  const root = document.documentElement
+  root.classList.add('theme-switching')
+  // next-themes sets the class in an effect, so set it here too or a snapshot still shows the old theme.
+  root.classList.remove('light', 'dark')
+  root.classList.add(next)
+  root.style.colorScheme = next
+  flushSync(() => setTheme(next))
+  // Forcing layout settles every colour while transitions are held off, so none start afterwards.
+  root.getBoundingClientRect()
+  root.classList.remove('theme-switching')
+}
 
 export function ModeToggle() {
   const { theme, setTheme } = useTheme()
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+    const next = theme === 'dark' ? 'light' : 'dark'
+    const reduce = globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!('startViewTransition' in document) || reduce) {
+      applyTheme(next, setTheme)
+      return
+    }
+    document.startViewTransition(() => applyTheme(next, setTheme))
   }
 
   return (
-    <Button variant="outline" size="icon" onClick={toggleTheme}>
-      <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+    <Button variant="ghost" size="icon-lg" onClick={toggleTheme}>
+      <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-transform duration-200 motion-reduce:transition-none dark:scale-0 dark:-rotate-90" />
+      <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-transform duration-200 motion-reduce:transition-none dark:scale-100 dark:rotate-0" />
       <span className="sr-only">Toggle theme</span>
     </Button>
   )

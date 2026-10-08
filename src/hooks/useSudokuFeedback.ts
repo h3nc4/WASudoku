@@ -23,6 +23,9 @@ import { clearError, clearTransientConflicts } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
 import type { SudokuState } from '@/context/sudoku.types'
 
+/** Matches the two pulses of `conflict-pulse` in index.css, and the static outline lasts as long. */
+export const CONFLICT_PULSE_MS = 600
+
 /**
  * Manages user-facing feedback, such as toasts for errors. It listens for changes
  * in the `lastError` state property and displays a toast when an error is set.
@@ -46,7 +49,7 @@ export function useSudokuFeedback(state: SudokuState, dispatch: Dispatch<SudokuA
     if (transientConflicts) {
       const timer = setTimeout(() => {
         dispatch(clearTransientConflicts())
-      }, 1000)
+      }, CONFLICT_PULSE_MS)
       return () => clearTimeout(timer)
     }
   }, [transientConflicts, dispatch])

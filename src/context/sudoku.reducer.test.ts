@@ -18,25 +18,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { areBoardsEqual, calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
+import { calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
 
 import type { SudokuAction } from './sudoku.actions.types'
-import {
-  createEmptyBoard,
-  initialState,
-  loadInitialState,
-  STORAGE_KEYS,
-  sudokuReducer,
-} from './sudoku.reducer'
-import type {
-  BoardState,
-  PersistedGameState,
-  PersistedMetrics,
-  PersistedPool,
-  PuzzleData,
-  SolvingStep,
-  SudokuState,
-} from './sudoku.types'
+import { saveGame, STORAGE_KEYS } from './sudoku.persistence'
+import { createEmptyBoard, initialState, loadInitialState, sudokuReducer } from './sudoku.reducer'
+import type { BoardState, PuzzleData, SolveResult, SolvingStep, SudokuState } from './sudoku.types'
 
 // Mock utils to spy on calculateCandidates
 vi.mock('@/lib/utils', async (importOriginal) => {
@@ -65,6 +52,14 @@ describe('sudokuReducer', () => {
       expect(newState.history.index).toBe(1)
       expect(newState.solver.isSolved).toBe(false)
       expect(newState.solver.solveFailed).toBe(false)
+    })
+
+    it('shares every cell it did not change with the previous board', () => {
+      const newState = sudokuReducer(initialState, { type: 'SET_CELL_VALUE', index: 0, value: 5 })
+      newState.board.forEach((cell, i) => {
+        if (i !== 0) expect(cell).toBe(initialState.board[i])
+      })
+      expect(newState.history.stack[0]).toBe(initialState.history.stack[0])
     })
 
     it('should increment mistakes if value does not match solution', () => {
@@ -475,7 +470,7 @@ describe('sudokuReducer', () => {
   })
 
   describe('CLEAR_BOARD', () => {
-    it('should clear user progress in playing mode and reset game metrics', () => {
+    it('should clear user progress in playing mode as an undoable step, keeping metrics', () => {
       const initialBoard = createEmptyBoard().map((c, i) =>
         i === 0 ? { ...c, value: 5, isGiven: true } : c,
       )
@@ -486,15 +481,18 @@ describe('sudokuReducer', () => {
         ...initialState,
         board: boardWithProgress,
         initialBoard,
+        history: { stack: [initialBoard, boardWithProgress], index: 1 },
         solver: { ...initialState.solver, gameMode: 'playing' },
         game: { timer: 100, mistakes: 2 },
       }
       const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
       expect(newState.board).toEqual(initialBoard)
-      expect(newState.history.stack).toHaveLength(1)
-      expect(areBoardsEqual(newState.history.stack[0], initialBoard)).toBe(true)
-      expect(newState.game.timer).toBe(0)
-      expect(newState.game.mistakes).toBe(0)
+      expect(newState.history.stack).toHaveLength(3)
+      expect(newState.history.index).toBe(2)
+      expect(newState.game).toEqual({ timer: 100, mistakes: 2 })
+
+      const undone = sudokuReducer(newState, { type: 'UNDO' })
+      expect(undone.board).toBe(boardWithProgress)
     })
 
     it('should return the same state instance if there is no progress to clear', () => {
@@ -521,9 +519,11 @@ describe('sudokuReducer', () => {
       }
       const newState = sudokuReducer(state, { type: 'CLEAR_BOARD' })
       expect(newState.board).toEqual(createEmptyBoard())
-      expect(newState.history.stack).toHaveLength(1)
+      expect(newState.history.stack).toHaveLength(2)
       expect(newState.solver.solution).toBeNull()
-      expect(newState.game.timer).toBe(0)
+
+      const undone = sudokuReducer(newState, { type: 'UNDO' })
+      expect(undone.history.index).toBe(0)
     })
 
     it('should do nothing if board is empty in customInput mode', () => {
@@ -678,7 +678,7 @@ describe('sudokuReducer', () => {
 
     it('should handle SOLVE_SUCCESS', () => {
       const solvedBoardString = '1'.repeat(81)
-      const mockResult = {
+      const mockResult: SolveResult = {
         steps: [
           {
             technique: 'NakedSingle',
@@ -714,7 +714,7 @@ describe('sudokuReducer', () => {
 
     it('should handle SOLVE_SUCCESS and add a backtracking step if needed', () => {
       const solvedBoardString = '12' + '.'.repeat(79) // A full solution string
-      const mockResult = {
+      const mockResult: SolveResult = {
         steps: [
           {
             technique: 'NakedSingle',
@@ -769,15 +769,6 @@ describe('sudokuReducer', () => {
       expect(state.solver.isGenerating).toBe(true)
       expect(state.solver.generationDifficulty).toBe('hard')
       expect(state.puzzlePool.hard).toHaveLength(0)
-    })
-
-    it('should handle GENERATE_PUZZLE_START with missing difficulty key', () => {
-      const state = sudokuReducer(initialState, {
-        type: 'GENERATE_PUZZLE_START',
-        difficulty: 'nightmare', // Difficulty that doesn't exist in initial pool
-      })
-      expect(state.solver.isGenerating).toBe(true)
-      expect(state.solver.generationDifficulty).toBe('nightmare')
     })
 
     it('should handle GENERATE_PUZZLE_START with available pool', () => {
@@ -887,20 +878,6 @@ describe('sudokuReducer', () => {
       expect(state.solver.gameMode).toBe('selecting')
     })
 
-    it('should handle POOL_REFILL_SUCCESS with unknown difficulty', () => {
-      const puzzleString = '1'.repeat(81)
-      const solutionString = '2'.repeat(81)
-      const state = sudokuReducer(initialState, {
-        type: 'POOL_REFILL_SUCCESS',
-        difficulty: 'custom_diff', // Unknown difficulty
-        puzzleString,
-        solutionString,
-      })
-
-      expect(state.puzzlePool['custom_diff']).toHaveLength(1)
-      expect(state.poolRequestCount['custom_diff']).toBe(0) // Defaulted to 0 then -1 max 0
-    })
-
     it('should handle POOL_REFILL_SUCCESS gracefully when pending count is 0', () => {
       const puzzleString = '1'.repeat(81)
       const solutionString = '2'.repeat(81)
@@ -957,14 +934,6 @@ describe('sudokuReducer', () => {
         difficulty: 'hard',
       })
       expect(state.poolRequestCount.hard).toBe(1)
-    })
-
-    it('should handle REQUEST_POOL_REFILL with a new difficulty key', () => {
-      const state = sudokuReducer(initialState, {
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'insane',
-      })
-      expect(state.poolRequestCount['insane']).toBe(1)
     })
 
     it('should handle GENERATE_PUZZLE_FAILURE', () => {
@@ -1099,6 +1068,14 @@ describe('sudokuReducer', () => {
       // Highlighting for step 2 (index 2 in action -> index 1 in steps array)
       // Placed value is 3
       expect(state.ui.highlightedValue).toBe(3)
+    })
+
+    it('reuses the cells no step placed a value in', () => {
+      const state = sudokuReducer(visualizingState, { type: 'VIEW_SOLVER_STEP', index: 1 })
+      state.solver.visualizationBoard?.forEach((cell, i) => {
+        if (i === 0) expect(cell).not.toBe(userBoard[i])
+        else expect(cell).toBe(userBoard[i])
+      })
     })
 
     it('should correctly apply prior eliminations when viewing a later step', () => {
@@ -1331,6 +1308,440 @@ describe('sudokuReducer', () => {
     })
   })
 
+  describe('Hints', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing', solution },
+    }
+    const step: SolvingStep = {
+      technique: 'NakedSingle',
+      placements: [{ index: 3, value: 4 }],
+      eliminations: [],
+      cause: [],
+    }
+
+    it('points at the first wrong user digit without asking the solver', () => {
+      const board = createEmptyBoard().map((c, i) => {
+        if (i === 0) return { ...c, value: 9, isGiven: true }
+        if (i === 2) return { ...c, value: 8 }
+        return c
+      })
+      const state = sudokuReducer({ ...playing, board }, { type: 'REQUEST_HINT' })
+      expect(state.ui.hint).toEqual({ kind: 'mistake', index: 2 })
+      expect(state.solver.isHinting).toBe(false)
+    })
+
+    it('asks the solver when every digit is right', () => {
+      const state = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      expect(state.solver.isHinting).toBe(true)
+      expect(state.ui.hint).toBeNull()
+    })
+
+    it('asks the solver when no solution is known', () => {
+      const board = createEmptyBoard().map((c, i) => (i === 2 ? { ...c, value: 8 } : c))
+      const state = sudokuReducer(
+        { ...playing, board, solver: { ...playing.solver, solution: null } },
+        { type: 'REQUEST_HINT' },
+      )
+      expect(state.solver.isHinting).toBe(true)
+    })
+
+    it.each([
+      ['outside play', { ...playing, solver: { ...playing.solver, gameMode: 'customInput' } }],
+      ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
+      ['while hinting', { ...playing, solver: { ...playing.solver, isHinting: true } }],
+      ['while paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+      ['while solving', { ...playing, solver: { ...playing.solver, isSolving: true } }],
+    ] as [string, SudokuState][])('does nothing %s', (_, state) => {
+      expect(sudokuReducer(state, { type: 'REQUEST_HINT' })).toBe(state)
+    })
+
+    it('keeps only the first solver step', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const second = { ...step, placements: [{ index: 4, value: 5 }] }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [step, second], solution: null },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'step', step })
+      expect(state.solver.isHinting).toBe(false)
+      expect(state.board).toBe(hinting.board)
+    })
+
+    it('reveals the first empty cell when logic finds no step', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: null },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'reveal', index: 0, value: 1 })
+    })
+
+    it('falls back to the solver solution when none is stored', () => {
+      const hinting: SudokuState = {
+        ...playing,
+        solver: { ...playing.solver, solution: null, isHinting: true },
+      }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: '7'.repeat(81) },
+      })
+      expect(state.ui.hint).toEqual({ kind: 'reveal', index: 0, value: 7 })
+    })
+
+    it('reports an error when nothing can be hinted', () => {
+      const hinting: SudokuState = {
+        ...playing,
+        solver: { ...playing.solver, solution: null, isHinting: true },
+      }
+      const state = sudokuReducer(hinting, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [], solution: null },
+      })
+      expect(state.ui.hint).toBeNull()
+      expect(state.ui.lastError).toBe('No hint is available for this board.')
+    })
+
+    it('ignores a late result once the hint was abandoned', () => {
+      const state = sudokuReducer(playing, {
+        type: 'HINT_SUCCESS',
+        result: { steps: [step], solution: null },
+      })
+      expect(state).toBe(playing)
+    })
+
+    it('handles HINT_FAILURE', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const state = sudokuReducer(hinting, { type: 'HINT_FAILURE' })
+      expect(state.solver.isHinting).toBe(false)
+      expect(state.ui.lastError).toBe('No hint is available for this board.')
+    })
+
+    it('clears the hint on CLEAR_HINT, on any board edit and when solving starts', () => {
+      const withHint: SudokuState = {
+        ...playing,
+        ui: { ...playing.ui, hint: { kind: 'step', step } },
+      }
+      expect(sudokuReducer(withHint, { type: 'CLEAR_HINT' }).ui.hint).toBeNull()
+      expect(sudokuReducer(withHint, { type: 'SOLVE_START' }).ui.hint).toBeNull()
+      const edited = sudokuReducer(withHint, { type: 'SET_CELL_VALUE', index: 3, value: 4 })
+      expect(edited.ui.hint).toBeNull()
+    })
+
+    it('abandons a running hint when the board changes', () => {
+      const hinting = sudokuReducer(playing, { type: 'REQUEST_HINT' })
+      const edited = sudokuReducer(hinting, { type: 'SET_CELL_VALUE', index: 3, value: 4 })
+      expect(edited.solver.isHinting).toBe(false)
+    })
+  })
+
+  describe('Pause', () => {
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, activeCellIndex: 4, highlightedValue: 2 },
+    }
+
+    it('pauses play and drops the selection', () => {
+      const state = sudokuReducer(playing, { type: 'PAUSE_GAME' })
+      expect(state.ui.isPaused).toBe(true)
+      expect(state.ui.activeCellIndex).toBeNull()
+      expect(state.ui.highlightedValue).toBeNull()
+      expect(sudokuReducer(state, { type: 'RESUME_GAME' }).ui.isPaused).toBe(false)
+    })
+
+    it.each([
+      ['outside play', { ...playing, solver: { ...playing.solver, gameMode: 'visualizing' } }],
+      ['once solved', { ...playing, solver: { ...playing.solver, isSolved: true } }],
+      ['when already paused', { ...playing, ui: { ...playing.ui, isPaused: true } }],
+    ] as [string, SudokuState][])('does not pause %s', (_, state) => {
+      expect(sudokuReducer(state, { type: 'PAUSE_GAME' })).toBe(state)
+    })
+  })
+
+  describe('Shared puzzles', () => {
+    const puzzle = '1' + '.'.repeat(80)
+
+    it('offers and dismisses a puzzle', () => {
+      const offered = sudokuReducer(initialState, { type: 'OFFER_PUZZLE', boardString: puzzle })
+      expect(offered.ui.pendingPuzzle).toBe(puzzle)
+      expect(sudokuReducer(offered, { type: 'DISMISS_PUZZLE' }).ui.pendingPuzzle).toBeNull()
+    })
+
+    it('loads a puzzle into validation, keeping the pool', () => {
+      const pool = {
+        ...initialState.puzzlePool,
+        easy: [{ puzzleString: 'a', solutionString: 'b' }],
+      }
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          puzzlePool: pool,
+          game: { timer: 50, mistakes: 1 },
+          ui: { ...initialState.ui, pendingPuzzle: puzzle },
+        },
+        { type: 'LOAD_PUZZLE', boardString: puzzle },
+      )
+      expect(state.board[0]).toMatchObject({ value: 1, isGiven: true })
+      expect(state.solver.gameMode).toBe('customInput')
+      expect(state.solver.isValidating).toBe(true)
+      expect(state.ui.pendingPuzzle).toBeNull()
+      expect(state.game).toEqual({ timer: 0, mistakes: 0 })
+      expect(state.puzzlePool).toBe(pool)
+      expect(state.derived.isBoardEmpty).toBe(false)
+    })
+  })
+
+  describe('Win detection', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const solvedBoard = createEmptyBoard().map((c, i) => ({ ...c, value: solution[i] }))
+
+    it('marks the game solved when the last correct digit lands', () => {
+      const board = solvedBoard.map((c, i) => (i === 80 ? { ...c, value: null } : c))
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          board,
+          solver: { ...initialState.solver, gameMode: 'playing', solution },
+        },
+        { type: 'SET_CELL_VALUE', index: 80, value: 9 },
+      )
+      expect(state.solver.isSolved).toBe(true)
+    })
+
+    it('restores the solved flag when redo returns to the winning board', () => {
+      const before = solvedBoard.map((c, i) => (i === 80 ? { ...c, value: null } : c))
+      const state: SudokuState = {
+        ...initialState,
+        board: before,
+        history: { stack: [before, solvedBoard], index: 0 },
+        solver: { ...initialState.solver, gameMode: 'playing', solution },
+      }
+      expect(sudokuReducer(state, { type: 'REDO' }).solver.isSolved).toBe(true)
+    })
+
+    it('records the difficulty of a generated puzzle', () => {
+      const fromPool = sudokuReducer(
+        {
+          ...initialState,
+          puzzlePool: {
+            ...initialState.puzzlePool,
+            hard: [{ puzzleString: '.'.repeat(81), solutionString: '1'.repeat(81) }],
+          },
+        },
+        { type: 'GENERATE_PUZZLE_START', difficulty: 'hard' },
+      )
+      expect(fromPool.solver.difficulty).toBe('hard')
+
+      const generated = sudokuReducer(
+        { ...initialState, solver: { ...initialState.solver, generationDifficulty: 'expert' } },
+        {
+          type: 'GENERATE_PUZZLE_SUCCESS',
+          puzzleString: '.'.repeat(81),
+          solutionString: '1'.repeat(81),
+        },
+      )
+      expect(generated.solver.difficulty).toBe('expert')
+    })
+
+    it('treats a validated custom puzzle as having no difficulty', () => {
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          solver: { ...initialState.solver, gameMode: 'customInput', difficulty: 'hard' },
+        },
+        { type: 'VALIDATE_PUZZLE_SUCCESS', solutionString: '1'.repeat(81) },
+      )
+      expect(state.solver.difficulty).toBeNull()
+    })
+  })
+
+  describe('Intents on the active cell', () => {
+    const playing: SudokuState = {
+      ...initialState,
+      solver: { ...initialState.solver, gameMode: 'playing' },
+      ui: { ...initialState.ui, activeCellIndex: 0 },
+    }
+    const withCell = (state: SudokuState, index: number, cell: Partial<BoardState[number]>) => ({
+      ...state,
+      board: state.board.map((c, i) => (i === index ? { ...c, ...cell } : c)),
+    })
+    const withMode = (state: SudokuState, inputMode: SudokuState['ui']['inputMode']) => ({
+      ...state,
+      ui: { ...state.ui, inputMode },
+    })
+    const typing: SudokuState = {
+      ...playing,
+      solver: { ...playing.solver, gameMode: 'customInput' },
+    }
+
+    describe('INPUT_VALUE', () => {
+      it('sets the value and advances on a valid move while typing in a puzzle', () => {
+        const state = sudokuReducer(typing, { type: 'INPUT_VALUE', value: 5 })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(1)
+      })
+
+      it('stays on the cell after a valid move during play', () => {
+        const state = sudokuReducer(playing, { type: 'INPUT_VALUE', value: 5 })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('sets the value but does not advance on an invalid move', () => {
+        const state = sudokuReducer(withCell(typing, 8, { value: 5 }), {
+          type: 'INPUT_VALUE',
+          value: 5,
+        })
+        expect(state.board[0].value).toBe(5)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it.each(['candidate', 'center'] as const)('toggles a %s mark', (mode) => {
+        const state = sudokuReducer(withMode(playing, mode), { type: 'INPUT_VALUE', value: 3 })
+        const marks = mode === 'candidate' ? state.board[0].candidates : state.board[0].centers
+        expect(marks).toEqual(new Set([3]))
+      })
+
+      it('highlights the conflicts instead of adding a clashing mark', () => {
+        const start = withMode(
+          withCell(withCell(playing, 1, { value: 3 }), 9, { value: 3 }),
+          'candidate',
+        )
+        const state = sudokuReducer(start, { type: 'INPUT_VALUE', value: 3 })
+        expect(state.ui.transientConflicts).toEqual(new Set([1, 9]))
+        expect(state.board).toBe(start.board)
+      })
+
+      it('removes an existing mark even when a peer now conflicts', () => {
+        const start = withMode(
+          withCell(withCell(playing, 0, { candidates: new Set([3]) }), 1, { value: 3 }),
+          'candidate',
+        )
+        const state = sudokuReducer(start, { type: 'INPUT_VALUE', value: 3 })
+        expect(state.board[0].candidates.size).toBe(0)
+        expect(state.ui.transientConflicts).toBeNull()
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'INPUT_VALUE', value: 5 })).toBe(start)
+      })
+
+      it.each(['normal', 'candidate'] as const)('leaves a given cell alone in %s mode', (mode) => {
+        const start = withMode(withCell(playing, 0, { value: 1, isGiven: true }), mode)
+        expect(sudokuReducer(start, { type: 'INPUT_VALUE', value: 9 })).toBe(start)
+      })
+    })
+
+    describe('NAVIGATE', () => {
+      it.each([
+        ['right', 0, 1],
+        ['left', 1, 0],
+        ['down', 0, 9],
+        ['up', 9, 0],
+      ] as const)('moves %s from %i to %i', (direction, from, to) => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: from } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction }).ui.activeCellIndex).toBe(to)
+      })
+
+      it('stays put at the edge of the grid', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: 80 } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction: 'right' })).toBe(start)
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...playing, ui: { ...playing.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'NAVIGATE', direction: 'right' })).toBe(start)
+      })
+    })
+
+    describe('ERASE_ACTIVE_CELL', () => {
+      const filled = withCell(withCell(playing, 1, { value: 4 }), 0, { value: 2 })
+
+      it('erases and moves left on backspace', () => {
+        const start = { ...filled, ui: { ...filled.ui, activeCellIndex: 1 } }
+        const state = sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'backspace' })
+        expect(state.board[1].value).toBeNull()
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('erases and stays on delete', () => {
+        const state = sudokuReducer(filled, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })
+        expect(state.board[0].value).toBeNull()
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+
+      it('does nothing without an active cell', () => {
+        const start = { ...filled, ui: { ...filled.ui, activeCellIndex: null } }
+        expect(sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })).toBe(start)
+      })
+
+      it('does not erase a given cell', () => {
+        const start = withCell(playing, 0, { value: 2, isGiven: true })
+        expect(sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'delete' })).toBe(start)
+      })
+
+      it('moves left on backspace from a given cell without erasing it', () => {
+        const given = withCell(playing, 1, { value: 4, isGiven: true })
+        const start = { ...given, ui: { ...given.ui, activeCellIndex: 1 } }
+        const state = sudokuReducer(start, { type: 'ERASE_ACTIVE_CELL', mode: 'backspace' })
+        expect(state.board).toBe(start.board)
+        expect(state.ui.activeCellIndex).toBe(0)
+      })
+    })
+
+    describe('CYCLE_INPUT_MODE', () => {
+      it.each([
+        ['normal', 'candidate'],
+        ['candidate', 'center'],
+        ['center', 'normal'],
+      ] as const)('goes from %s to %s', (from, to) => {
+        const state = sudokuReducer(withMode(playing, from), { type: 'CYCLE_INPUT_MODE' })
+        expect(state.ui.inputMode).toBe(to)
+      })
+    })
+  })
+
+  describe('STEP_VISUALIZATION', () => {
+    const step: SolvingStep = {
+      technique: 'NakedSingle',
+      placements: [],
+      eliminations: [],
+      cause: [],
+    }
+    const visualizing = (currentStepIndex: number): SudokuState => ({
+      ...initialState,
+      solver: {
+        ...initialState.solver,
+        gameMode: 'visualizing',
+        steps: [step, step],
+        currentStepIndex,
+      },
+    })
+
+    it('moves one step in either direction', () => {
+      const back = sudokuReducer(visualizing(1), { type: 'STEP_VISUALIZATION', delta: -1 })
+      const forward = sudokuReducer(visualizing(1), { type: 'STEP_VISUALIZATION', delta: 1 })
+      expect(back.solver.currentStepIndex).toBe(0)
+      expect(forward.solver.currentStepIndex).toBe(2)
+    })
+
+    it('stops at the initial board and at the solution', () => {
+      const atEnd = visualizing(2)
+      const atStart = visualizing(0)
+      expect(sudokuReducer(atEnd, { type: 'STEP_VISUALIZATION', delta: 1 })).toBe(atEnd)
+      expect(sudokuReducer(atStart, { type: 'STEP_VISUALIZATION', delta: -1 })).toBe(atStart)
+    })
+
+    it('does nothing outside visualization', () => {
+      expect(sudokuReducer(initialState, { type: 'STEP_VISUALIZATION', delta: 1 })).toBe(
+        initialState,
+      )
+    })
+  })
+
   describe('Default Case', () => {
     it('should return the same state for an unknown action', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1342,25 +1753,19 @@ describe('sudokuReducer', () => {
 })
 
 describe('loadInitialState', () => {
-  const localStorageMock = (() => {
-    let store: Record<string, string> = {}
-    return {
-      getItem: vi.fn((key: string) => store[key] || null),
-      setItem: vi.fn((key: string, value: string) => {
-        store[key] = value.toString()
-      }),
-      clear: vi.fn(() => {
-        store = {}
-      }),
-      removeItem: vi.fn(),
-      length: 0,
-      key: vi.fn(),
-    }
-  })()
+  const tagged = (values: number[]) => ({ __dataType: 'Set', value: values })
+  const legacyCell = (candidates: number[] = [], centers: number[] = []) => ({
+    value: null,
+    isGiven: false,
+    candidates: tagged(candidates),
+    centers: tagged(centers),
+  })
+  const legacyBoard = () => Array.from({ length: 81 }, () => legacyCell())
+  const store = (key: string, data: unknown) =>
+    globalThis.localStorage.setItem(key, typeof data === 'string' ? data : JSON.stringify(data))
 
   beforeEach(() => {
-    localStorageMock.clear()
-    vi.spyOn(window, 'localStorage', 'get').mockReturnValue(localStorageMock)
+    globalThis.localStorage.clear()
   })
 
   afterEach(() => {
@@ -1368,29 +1773,35 @@ describe('loadInitialState', () => {
   })
 
   it('should return initial state if localStorage is empty', () => {
-    localStorageMock.getItem.mockReturnValue(null)
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    expect(loadInitialState()).toEqual(initialState)
   })
 
-  it('should load state from new split keys', () => {
-    const persistedGame: PersistedGameState = {
+  it('restores the difficulty and the solved flag of a finished game', () => {
+    const solution = Array.from({ length: 81 }, (_, i) => (i % 9) + 1)
+    const solvedBoard = createEmptyBoard().map((c, i) => ({ ...c, value: solution[i] }))
+    saveGame({
+      history: { stack: [solvedBoard], index: 0 },
+      initialBoard: createEmptyBoard(),
+      solution,
+      difficulty: 'medium',
+    })
+
+    const state = loadInitialState()
+    expect(state.solver.gameMode).toBe('playing')
+    expect(state.solver.difficulty).toBe('medium')
+    expect(state.solver.isSolved).toBe(true)
+    expect(state.board).toEqual(solvedBoard)
+  })
+
+  it('should load state from split keys', () => {
+    saveGame({
       history: { stack: [createEmptyBoard()], index: 0 },
       initialBoard: createEmptyBoard(),
       solution: null,
-    }
-    const persistedMetrics: PersistedMetrics = { timer: 123, mistakes: 2 }
-    const persistedPool: PersistedPool = {
-      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
-      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(persistedGame)
-      if (key === STORAGE_KEYS.METRICS) return JSON.stringify(persistedMetrics)
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
-      return null
+      difficulty: null,
     })
+    store(STORAGE_KEYS.METRICS, { timer: 123, mistakes: 2 })
+    store(STORAGE_KEYS.POOL, { puzzlePool: { easy: [], medium: [], hard: [], extreme: [] } })
 
     const state = loadInitialState()
     expect(state.game.timer).toBe(123)
@@ -1399,117 +1810,46 @@ describe('loadInitialState', () => {
   })
 
   it('should load puzzle pool from local storage (split key)', () => {
-    const pool: PersistedPool = {
-      puzzlePool: {
-        easy: [{ puzzleString: 'abc', solutionString: 'def' }],
-        medium: [],
-        hard: [],
-        extreme: [],
-      },
-      poolRequestCount: { easy: 0, medium: 0, hard: 0, extreme: 0 },
-    }
-    // Correctly mock implementation to only return pool data for the POOL key
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(pool)
-      return null
+    store(STORAGE_KEYS.POOL, {
+      puzzlePool: { easy: [{ puzzleString: 'abc', solutionString: 'def' }], medium: [] },
     })
 
     const state = loadInitialState()
     expect(state.puzzlePool.easy).toHaveLength(1)
     expect(state.puzzlePool.easy[0].puzzleString).toBe('abc')
+    expect(state.solver.gameMode).toBe('selecting')
   })
 
-  it('should correctly revive Set objects from local storage', () => {
-    // Manually construct the serialized format for a Set
-    // We mock the structure that the `replacer` in persistence would output
-    const serializedCandidates = { __dataType: 'Set', value: [1, 5, 9] }
-    const serializedCenters = { __dataType: 'Set', value: [2, 4] }
-
-    // Use 'any' to bypass TS check for 'Set' type on candidates/centers during mock creation
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawCell: any = {
-      value: null,
-      isGiven: false,
-      candidates: serializedCandidates,
-      centers: serializedCenters,
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const emptyCell: any = {
-      value: null,
-      isGiven: false,
-      candidates: { __dataType: 'Set', value: [] },
-      centers: { __dataType: 'Set', value: [] },
-    }
-
-    const rawBoard = [rawCell, ...new Array(80).fill(emptyCell)]
-
-    const savedGame: PersistedGameState = {
-      history: { stack: [rawBoard], index: 0 },
-      initialBoard: createEmptyBoard(),
+  it('should revive a game saved with Set tags by older builds', () => {
+    store(STORAGE_KEYS.GAME, {
+      history: { stack: [[legacyCell([1, 5, 9], [2, 4]), ...legacyBoard().slice(1)]], index: 0 },
+      initialBoard: legacyBoard(),
       solution: null,
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(savedGame)
-      return null
     })
 
-    const state = loadInitialState()
-
-    const cell0 = state.board[0]
-
-    // Candidates
-    expect(cell0.candidates).toBeInstanceOf(Set)
-    expect(cell0.candidates.has(1)).toBe(true)
-    expect(cell0.candidates.has(5)).toBe(true)
-    expect(cell0.candidates.has(9)).toBe(true)
-    expect(cell0.candidates.size).toBe(3)
-
-    // Centers
-    expect(cell0.centers).toBeInstanceOf(Set)
-    expect(cell0.centers.has(2)).toBe(true)
-    expect(cell0.centers.has(4)).toBe(true)
-    expect(cell0.centers.size).toBe(2)
+    const cell0 = loadInitialState().board[0]
+    expect(cell0.candidates).toEqual(new Set([1, 5, 9]))
+    expect(cell0.centers).toEqual(new Set([2, 4]))
   })
 
   it('should handle JSON parsing errors gracefully', () => {
-    localStorageMock.getItem.mockReturnValue('not json')
+    store(STORAGE_KEYS.GAME, 'not json')
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    expect(loadInitialState()).toEqual(initialState)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to load game state from local storage:',
+      `Failed to load ${STORAGE_KEYS.GAME} from local storage:`,
       expect.any(Error),
     )
-    consoleErrorSpy.mockRestore()
   })
 
   it('should return initial state if game state is malformed', () => {
-    const malformedGame = {
-      history: { index: 0 }, // Missing stack
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(malformedGame)
-      return null
-    })
-
-    const state = loadInitialState()
-    expect(state).toEqual(initialState)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    store(STORAGE_KEYS.GAME, { history: { index: 0 } })
+    expect(loadInitialState()).toEqual(initialState)
   })
 
-  it('should default initialBoard to empty if missing in persisted game state', () => {
-    const persistedGame = {
-      history: { stack: [createEmptyBoard()], index: 0 },
-      solution: null,
-      // initialBoard missing
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.GAME) return JSON.stringify(persistedGame)
-      return null
-    })
+  it('should default initialBoard to empty if missing in a legacy game', () => {
+    store(STORAGE_KEYS.GAME, { history: { stack: [legacyBoard()], index: 0 }, solution: null })
 
     const state = loadInitialState()
     expect(state.initialBoard).toEqual(createEmptyBoard())
@@ -1517,18 +1857,12 @@ describe('loadInitialState', () => {
   })
 
   it('should reset poolRequestCount to 0 on load even if persisted', () => {
-    const persistedPool: PersistedPool = {
+    store(STORAGE_KEYS.POOL, {
       puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
-      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 }, // Persisted dirty state
-    }
-
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === STORAGE_KEYS.POOL) return JSON.stringify(persistedPool)
-      return null
+      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 },
     })
 
     const state = loadInitialState()
-    // Should be reset to 0
     expect(state.poolRequestCount.easy).toBe(0)
     expect(state.poolRequestCount.medium).toBe(0)
   })

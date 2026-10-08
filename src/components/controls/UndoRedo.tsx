@@ -20,6 +20,7 @@ import { Redo, Undo } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canUndoRedo } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /**
@@ -27,18 +28,18 @@ import { useSudokuActions } from '@/hooks/useSudokuActions'
  * It derives its enabled/disabled state from the global context.
  */
 export function UndoRedo() {
-  const { history, solver } = useSudokuState()
+  const state = useSudokuState()
+  const { history } = state
   const { undo, redo } = useSudokuActions()
 
-  const isVisualizing = solver.gameMode === 'visualizing'
-  const canUndo = history.index > 0 && !isVisualizing
-  const canRedo = history.index < history.stack.length - 1 && !isVisualizing
+  const canUndo = history.index > 0 && canUndoRedo(state)
+  const canRedo = history.index < history.stack.length - 1 && canUndoRedo(state)
 
   return (
     <>
       <Button
         variant="outline"
-        size="icon"
+        size="icon-lg"
         onClick={undo}
         disabled={!canUndo}
         title="Undo"
@@ -48,7 +49,7 @@ export function UndoRedo() {
       </Button>
       <Button
         variant="outline"
-        size="icon"
+        size="icon-lg"
         onClick={redo}
         disabled={!canRedo}
         title="Redo"

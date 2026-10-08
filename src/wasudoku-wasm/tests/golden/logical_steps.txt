@@ -1,0 +1,421 @@
+PUZZLE .....8..5..97...1..1.....687.51..........3..46......57.6...5.9..8........4.9.....
+HiddenSingle p 4=1 e 58=1 67=1 76=1 4=2 4=3 4=4 4=6 4=9 c
+HiddenSingle p 6=9 e 24=9 33=9 42=9 51=9 6=2 6=3 6=4 6=7 c
+HiddenSingle p 9=8 e 36=8 9=2 9=3 9=4 9=5 c
+HiddenSingle p 40=7 e 58=7 67=7 76=7 40=2 40=5 40=6 40=8 40=9 c
+HiddenSingle p 39=5 e 21=5 39=2 39=6 39=8 c
+HiddenSingle p 42=6 e 33=6 35=6 69=6 78=6 42=1 42=2 42=8 c
+HiddenSingle p 63=9 e 36=9 63=1 63=2 63=3 63=5 c
+HiddenSingle p 37=9 e 28=9 46=9 37=2 c
+HiddenSingle p 69=5 e 78=5 69=1 69=2 69=3 69=4 69=7 c
+HiddenSingle p 72=5 e 18=5 72=1 72=2 72=3 c
+HiddenSingle p 22=5 e 13=5 22=2 22=3 22=4 22=9 c
+HiddenSingle p 10=5 e 10=2 10=3 c
+HiddenSingle p 23=9 e 32=9 50=9 23=2 23=4 c
+HiddenSingle p 49=9 e 31=9 49=2 49=4 49=8 c
+HiddenSingle p 35=9 e 35=2 35=3 c
+HiddenSingle p 1=7 e 2=7 7=7 20=7 1=2 1=3 c
+HiddenSingle p 24=7 e 60=7 78=7 24=2 24=3 24=4 c
+HiddenSingle p 56=7 e 65=7 74=7 56=1 56=2 56=3 c
+HiddenSingle p 2=6 e 3=6 2=2 2=3 2=4 c
+HiddenSingle p 66=6 e 67=6 68=6 71=6 76=6 77=6 66=2 66=3 66=4 c
+HiddenSingle p 80=6 e 80=1 80=2 80=3 c
+HiddenSingle p 47=4 e 20=4 48=4 50=4 47=1 47=2 47=3 47=8 c
+NakedSingle p 50=2 e 14=2 31=2 32=2 46=2 48=2 51=2 68=2 77=2 c
+NakedSingle p 46=3 e 28=3 51=3 c
+NakedSingle p 28=2 e 33=2 34=2 36=2 38=2 c
+NakedSingle p 36=1 e 38=1 54=1 c
+NakedSingle p 38=8 e 43=8 c
+NakedSingle p 43=2 e 7=2 70=2 79=2 c
+NakedSingle p 48=8 e 31=8 51=8 57=8 c
+NakedSingle p 51=1 e 60=1 78=1 c
+HiddenSingle p 62=1 e 71=1 62=2 62=3 c
+NakedPair p e 68=4 c 14=[4, 6] 32=[4, 6]
+PointingPair p e 13=2 c 15=[2] 17=[2]
+PointingPair p e 57=2 c 3=[2] 21=[2]
+XyzWing p e 60=3 c 78=[2, 3, 8] 33=[3, 8] 71=[2, 3]
+TwoStringKite p e 13=4 c 70=[4] 60=[4] 67=[4] 15=[4]
+WWing p e 3=3 c 7=[4, 3] 57=[4, 3] 67=[4] 70=[4]
+XyWing p e 0=2 c 57=[3, 4] 3=[2, 4] 54=[2, 3]
+HiddenSingle p 3=2 e 21=2 3=4 c
+Skyscraper p e 14=4 c 21=[4] 15=[4] 57=[4] 60=[4]
+NakedSingle p 14=6 e 13=6 32=6 c
+NakedSingle p 13=3 e 15=3 17=3 21=3 58=3 67=3 76=3 c
+NakedSingle p 17=2 e 15=2 71=2 c
+NakedSingle p 15=4 e 7=4 60=4 c
+NakedSingle p 7=3 e 0=3 34=3 70=3 79=3 c
+NakedSingle p 0=4 e 18=4 c
+NakedSingle p 21=4 e 57=4 c
+NakedSingle p 32=4 e 31=4 c
+NakedSingle p 31=6 e c
+NakedSingle p 34=8 e 33=8 79=8 c
+NakedSingle p 33=3 e 78=3 c
+NakedSingle p 57=3 e 54=3 c
+NakedSingle p 54=2 e 18=2 58=2 60=2 65=2 74=2 c
+NakedSingle p 18=3 e 20=3 c
+NakedSingle p 20=2 e c
+NakedSingle p 60=8 e 58=8 78=8 c
+NakedSingle p 58=4 e 67=4 c
+NakedSingle p 67=2 e 76=2 c
+NakedSingle p 71=3 e 65=3 c
+NakedSingle p 65=1 e 68=1 74=1 c
+NakedSingle p 68=7 e 70=7 77=7 c
+NakedSingle p 70=4 e c
+NakedSingle p 74=3 e c
+NakedSingle p 76=8 e c
+NakedSingle p 77=1 e c
+NakedSingle p 78=2 e c
+NakedSingle p 79=7 e c
+PUZZLE 538421769421769...769538....8.17.6.2..29........28.3..857312946...6.71...1.8...7.
+NakedTriple p e 44=5 44=8 53=5 c 17=[3, 5, 8] 71=[3, 5, 8] 80=[3, 5, 8]
+HiddenPair p e 36=1 41=4 41=5 c 36=[3, 6] 41=[3, 6]
+HiddenSingle p 45=1 e 52=1 53=1 45=6 45=9 c
+NakedPair p e 16=5 43=5 70=5 c 34=[5, 9] 52=[5, 9]
+NakedPair p e 42=5 c 34=[5, 9] 52=[5, 9]
+HiddenSingle p 40=5 e 32=5 50=5 67=5 76=5 40=4 c
+HiddenSingle p 71=5 e 17=5 78=5 80=5 71=3 71=8 c
+NakedSingle p 78=2 e 24=2 70=2 72=2 c
+NakedSingle p 24=4 e 26=4 42=4 c
+NakedSingle p 26=1 e 25=1 44=1 c
+NakedSingle p 25=2 e c
+NakedSingle p 42=8 e 15=8 43=8 c
+NakedSingle p 15=5 e c
+NakedSingle p 43=1 e c
+NakedSingle p 80=3 e 17=3 70=3 72=3 74=3 c
+NakedSingle p 17=8 e 16=8 c
+NakedSingle p 16=3 e c
+NakedSingle p 70=8 e c
+HiddenSingle p 63=2 e 63=3 63=9 c
+HiddenSingle p 65=3 e 29=3 65=4 c
+HiddenSingle p 77=5 e 77=4 c
+XyzWing p e 46=4 c 47=[4, 5, 6] 29=[4, 5] 50=[4, 6]
+WWing p e 47=6 c 50=[4, 6] 74=[4, 6] 29=[4] 32=[4]
+HiddenSingle p 50=6 e 41=6 50=4 c
+NakedSingle p 41=3 e 32=3 36=3 c
+NakedSingle p 32=4 e 29=4 c
+NakedSingle p 29=5 e 34=5 47=5 c
+NakedSingle p 34=9 e 27=9 52=9 c
+NakedSingle p 27=3 e c
+NakedSingle p 36=6 e 72=6 c
+NakedSingle p 47=4 e 37=4 53=4 74=4 c
+NakedSingle p 37=7 e 44=7 46=7 c
+NakedSingle p 44=4 e c
+NakedSingle p 46=9 e 64=9 c
+NakedSingle p 52=5 e c
+NakedSingle p 53=7 e c
+NakedSingle p 64=4 e 67=4 c
+NakedSingle p 67=9 e 76=9 c
+NakedSingle p 72=9 e c
+NakedSingle p 74=6 e c
+NakedSingle p 76=4 e c
+PUZZLE .613.5.8.3.5.8.26..8..6.3.561254....8....615.5..9.....12..5...893....5..75...2.4.
+NakedPair p e 10=4 20=4 c 0=[2, 4] 18=[2, 4]
+NakedTriple p e 38=4 47=4 c 56=[4, 6, 8] 65=[4, 6, 8] 74=[4, 6, 8]
+PointingPair p e 44=9 c 37=[9] 38=[9]
+PointingPair p e 68=8 c 32=[8] 50=[8]
+HiddenPair p e 59=4 59=7 76=1 c 59=[3, 9] 76=[3, 9]
+TwoStringKite p e 21=1 c 80=[1] 70=[1] 75=[1] 25=[1]
+PUZZLE 4..6...95.2..95478.954..6..........2.125.7.3.3..2......417.256.26795....53..64..7
+NakedTriple p e 32=1 32=3 32=8 50=1 50=8 c 5=[1, 3, 8] 23=[1, 3, 8] 68=[1, 3, 8]
+NakedTriple p e 4=1 4=3 4=8 22=1 22=3 22=8 c 5=[1, 3, 8] 12=[1, 3, 8] 23=[1, 3, 8]
+PointingPair p e 68=8 c 5=[8] 23=[8]
+ClaimingCandidate p e 78=8 79=8 c 69=[8] 70=[8]
+NakedPair p e 34=1 52=1 70=1 c 25=[1, 2] 79=[1, 2]
+ClaimingCandidate p e 30=1 c 31=[1] 49=[1]
+Swordfish p e 23=1 26=1 78=1 c 9=[1] 18=[1] 12=[1] 75=[1] 25=[1] 79=[1]
+NakedSingle p 26=3 e 6=3 23=3 62=3 71=3 c
+NakedSingle p 23=8 e 5=8 18=8 c
+NakedSingle p 62=9 e 44=9 53=9 54=9 78=9 c
+NakedSingle p 54=8 e 27=8 36=8 58=8 74=8 c
+NakedSingle p 58=3 e 31=3 68=3 c
+NakedSingle p 68=1 e 5=1 69=1 71=1 75=1 c
+NakedSingle p 5=3 e 2=3 12=3 c
+NakedSingle p 2=8 e 1=8 29=8 47=8 c
+NakedSingle p 1=7 e 4=7 18=7 28=7 46=7 c
+NakedSingle p 4=2 e 6=2 22=2 c
+NakedSingle p 6=1 e 25=1 33=1 51=1 c
+NakedSingle p 12=1 e 9=1 c
+NakedSingle p 9=6 e 11=6 27=6 36=6 c
+NakedSingle p 11=3 e c
+NakedSingle p 18=1 e c
+NakedSingle p 22=7 e c
+NakedSingle p 25=2 e 79=2 c
+NakedSingle p 36=9 e 27=9 29=9 42=9 47=9 c
+NakedSingle p 27=7 e 33=7 c
+NakedSingle p 42=8 e 33=8 34=8 40=8 51=8 52=8 69=8 c
+NakedSingle p 33=9 e 32=9 51=9 c
+NakedSingle p 32=6 e 29=6 50=6 c
+NakedSingle p 29=4 e 31=4 34=4 47=4 c
+NakedSingle p 34=5 e 28=5 52=5 c
+NakedSingle p 28=8 e 30=8 31=8 46=8 c
+NakedSingle p 30=3 e c
+NakedSingle p 31=1 e 49=1 c
+NakedSingle p 40=4 e 44=4 49=4 c
+NakedSingle p 44=6 e 53=6 c
+NakedSingle p 46=5 e c
+NakedSingle p 47=6 e c
+NakedSingle p 49=8 e c
+NakedSingle p 50=9 e c
+NakedSingle p 51=7 e c
+NakedSingle p 52=4 e 53=4 70=4 c
+NakedSingle p 53=1 e c
+NakedSingle p 69=3 e c
+NakedSingle p 70=8 e c
+NakedSingle p 71=4 e c
+NakedSingle p 74=9 e c
+NakedSingle p 75=8 e c
+NakedSingle p 78=2 e c
+NakedSingle p 79=1 e c
+PUZZLE 68.5172.451.2946....468351.8.67.59419.14683.5.451.986..628.14..1.89427.64..3.61..
+NakedTriple p e 79=5 79=9 80=9 c 73=[5, 7, 9] 74=[5, 7, 9] 76=[5, 7, 9]
+NakedTriple p e 16=3 c 7=[3, 5, 9] 61=[3, 5, 9] 70=[3, 5, 9]
+XyWing p e 18=7 c 62=[3, 9] 26=[7, 9] 54=[3, 7]
+NakedSingle p 18=2 e 19=2 45=2 c
+Skyscraper p e 16=7 53=7 c 26=[7] 43=[7] 19=[7] 37=[7]
+NakedSingle p 16=8 e 17=8 79=8 c
+NakedSingle p 53=2 e 43=2 49=2 80=2 c
+NakedSingle p 43=7 e 37=7 c
+NakedSingle p 37=2 e 28=2 c
+NakedSingle p 28=3 e 31=3 45=3 64=3 c
+NakedSingle p 31=2 e c
+NakedSingle p 45=7 e 54=7 c
+NakedSingle p 49=3 e c
+NakedSingle p 54=3 e 61=3 62=3 c
+NakedSingle p 62=9 e 26=9 61=9 c
+NakedSingle p 26=7 e 17=7 19=7 c
+NakedSingle p 17=3 e 7=3 11=3 c
+NakedSingle p 7=9 e 2=9 c
+NakedSingle p 2=3 e c
+NakedSingle p 11=7 e 74=7 c
+NakedSingle p 19=9 e 73=9 c
+NakedSingle p 61=5 e 58=5 70=5 c
+NakedSingle p 58=7 e 76=7 c
+NakedSingle p 64=5 e 73=5 c
+NakedSingle p 70=3 e c
+NakedSingle p 73=7 e c
+NakedSingle p 74=9 e c
+NakedSingle p 76=5 e c
+NakedSingle p 79=2 e c
+NakedSingle p 80=8 e c
+PUZZLE .92..175.5..2....8....3.2...75..496.2...6..75.697...3...8.9..2.7....3.899.38...4.
+NakedPair p e 15=1 26=1 c 16=[1, 9] 25=[1, 9]
+XWing p e 18=8 45=8 49=8 c 0=[8] 4=[8] 27=[8] 31=[8]
+NakedPair p e 27=1 37=1 37=4 c 38=[1, 4] 45=[1, 4]
+NakedTriple p e 0=4 0=6 c 18=[1, 4, 6] 45=[1, 4, 6] 54=[1, 4, 6]
+XyzWing p e 51=1 c 53=[1, 2, 4] 35=[1, 2] 45=[1, 4]
+PUZZLE .89.2....2..5.94.8...8..9.21629875..5..4.2.89948....2.79.2.83..32.6..89.8...9.2..
+NakedPair p e 40=3 42=7 c 37=[3, 7] 38=[3, 7]
+NakedPair p e 11=6 20=4 20=6 c 0=[4, 6] 18=[4, 6]
+NakedPair p e 53=3 c 34=[3, 4] 35=[3, 4]
+PointingPair p e 25=5 c 19=[5] 20=[5]
+Skyscraper p e 6=6 c 16=[6] 42=[6] 13=[6] 40=[6]
+ClaimingCandidate p e 53=6 c 42=[6] 51=[6]
+TwoStringKite p e 8=7 c 67=[7] 75=[7] 71=[7] 3=[7]
+PUZZLE 4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7
+HiddenSingle p 52=4 e 70=4 52=1 52=3 52=5 52=8 c
+HiddenSingle p 71=4 e 17=4 60=4 62=4 71=3 71=5 71=8 c
+NakedSingle p 62=8 e 17=8 35=8 44=8 56=8 57=8 58=8 60=8 70=8 78=8 79=8 c
+HiddenSingle p 15=4 e 15=2 15=3 15=5 15=8 c
+HiddenSingle p 55=4 e 55=1 55=6 55=7 c
+HiddenSingle p 76=2 e 31=2 49=2 76=1 76=5 76=8 c
+HiddenSingle p 1=7 e 2=7 4=7 5=7 20=7 1=3 1=5 1=6 c
+HiddenSingle p 20=9 e 22=9 23=9 20=2 20=3 20=5 20=6 c
+HiddenSingle p 31=6 e 28=6 31=1 31=3 31=5 31=8 c
+HiddenSingle p 60=9 e 57=9 58=9 60=6 c
+HiddenSingle p 56=6 e 2=6 38=6 73=6 74=6 56=7 c
+HiddenSingle p 37=6 e 36=6 37=1 37=3 37=5 c
+HiddenSingle p 18=6 e 24=6 25=6 18=2 18=3 c
+HiddenSingle p 24=2 e 17=2 33=2 42=2 24=3 24=5 c
+HiddenSingle p 9=2 e 36=2 45=2 9=3 c
+HiddenSingle p 65=7 e 66=7 67=7 65=3 65=8 c
+HiddenSingle p 43=1 e 36=1 39=1 41=1 43=3 43=5 43=8 c
+HiddenSingle p 45=1 e 28=1 48=1 49=1 50=1 45=3 45=8 c
+HiddenSingle p 73=1 e 75=1 73=3 c
+HiddenSingle p 7=8 e 4=8 5=8 6=8 7=3 7=5 7=6 c
+HiddenSingle p 6=6 e 78=6 6=3 6=5 c
+HiddenSingle p 79=6 e 79=3 79=5 c
+NakedPair p e 13=3 13=5 14=5 c 10=[3, 5] 17=[3, 5]
+PointingPair p e 49=3 c 4=[3] 22=[3]
+NakedTriple p e 4=5 22=5 c 13=[5, 8, 9] 49=[5, 8, 9] 67=[5, 8, 9]
+PointingPair p e 32=5 41=5 50=5 c 5=[5] 23=[5]
+HiddenPair p e 39=3 39=5 39=8 41=2 41=8 c 39=[7, 9] 41=[7, 9]
+TwoStringKite p e 42=3 c 74=[3] 63=[3] 78=[3] 36=[3]
+XyWing p e 33=5 35=5 38=5 c 36=[3, 8] 28=[3, 5] 42=[5, 8]
+Jellyfish p e 48=5 66=5 c 10=[5] 17=[5] 28=[5] 30=[5] 42=[5] 44=[5] 75=[5] 78=[5]
+XyWing p e 30=8 c 78=[3, 5] 33=[3, 8] 75=[5, 8]
+XyWing p e 38=8 c 78=[3, 5] 42=[5, 8] 74=[3, 8]
+WWing p e 33=3 c 28=[5, 3] 78=[5, 3] 30=[5] 75=[5]
+NakedSingle p 33=8 e 32=8 42=8 c
+NakedSingle p 42=5 e 44=5 78=5 c
+NakedSingle p 78=3 e 70=3 74=3 c
+NakedSingle p 70=5 e 25=5 67=5 c
+NakedSingle p 25=3 e 17=3 22=3 c
+NakedSingle p 17=5 e 10=5 c
+NakedSingle p 10=3 e 2=3 28=3 c
+NakedSingle p 2=5 e 5=5 47=5 c
+NakedSingle p 5=1 e 4=1 32=1 c
+NakedSingle p 4=3 e c
+NakedSingle p 22=7 e 23=7 58=7 c
+NakedSingle p 23=5 e c
+NakedSingle p 28=5 e 30=5 c
+NakedSingle p 32=2 e 35=2 50=2 c
+NakedSingle p 35=3 e 30=3 44=3 c
+NakedSingle p 30=1 e 57=1 c
+NakedSingle p 44=2 e 38=2 c
+NakedSingle p 38=3 e 36=3 47=3 c
+NakedSingle p 36=8 e 47=8 63=8 c
+NakedSingle p 47=2 e c
+NakedSingle p 50=8 e 14=8 48=8 49=8 c
+NakedSingle p 14=9 e 13=9 41=9 c
+NakedSingle p 13=8 e 67=8 c
+NakedSingle p 41=7 e 39=7 c
+NakedSingle p 39=9 e 66=9 c
+NakedSingle p 48=3 e c
+NakedSingle p 49=5 e c
+NakedSingle p 57=7 e c
+NakedSingle p 58=1 e c
+NakedSingle p 63=3 e c
+NakedSingle p 66=8 e 75=8 c
+NakedSingle p 67=9 e c
+NakedSingle p 74=8 e c
+NakedSingle p 75=5 e c
+PUZZLE .....3....4.91.7..9.6....43.2......4...675...3......7.27....6.1..5.69.2....2.....
+HiddenSingle p 11=3 e 56=3 74=3 11=2 11=8 c
+HiddenSingle p 2=2 e 4=2 6=2 8=2 2=1 2=7 2=8 c
+HiddenSingle p 29=7 e 27=7 29=1 29=8 29=9 c
+HiddenSingle p 0=7 e 3=7 0=1 0=5 0=8 c
+HiddenSingle p 14=6 e 16=6 17=6 14=2 14=8 c
+HiddenSingle p 17=2 e 24=2 44=2 53=2 17=5 17=8 c
+HiddenSingle p 42=2 e 51=2 42=1 42=3 42=8 42=9 c
+HiddenSingle p 43=3 e 33=3 34=3 61=3 79=3 43=1 43=8 43=9 c
+NakedTriple p e 7=5 7=8 7=9 34=5 34=8 34=9 c 16=[5, 8, 9] 61=[5, 8, 9] 79=[5, 8, 9]
+PointingPair p e 37=1 46=1 64=1 73=1 c 1=[1] 19=[1]
+NakedPair p e 36=8 38=8 38=9 c 37=[8, 9] 44=[8, 9]
+NakedPair p e 27=1 47=1 47=4 c 36=[1, 4] 38=[1, 4]
+NakedPair p e 27=8 46=8 46=9 c 37=[8, 9] 47=[8, 9]
+HiddenPair p e 69=8 78=5 78=8 78=9 c 69=[3, 4] 78=[3, 4]
+HiddenPair p e 66=3 66=4 66=8 77=4 77=8 c 66=[1, 7] 77=[1, 7]
+ClaimingCandidate p e 76=3 c 57=[3] 58=[3]
+ClaimingCandidate p e 80=9 c 61=[9] 79=[9]
+Skyscraper p e 6=5 24=5 c 16=[5] 33=[5] 9=[5] 27=[5]
+ClaimingCandidate p e 53=5 c 33=[5] 51=[5]
+WWing p e 23=8 33=8 c 24=[1, 8] 32=[1, 8] 7=[1] 34=[1]
+ClaimingCandidate p e 48=8 49=8 50=8 c 30=[8] 31=[8] 32=[8]
+XyWing p e 50=4 57=4 c 32=[1, 8] 48=[1, 4] 59=[4, 8]
+HiddenSingle p 59=4 e 56=4 58=4 76=4 59=8 c
+HiddenSingle p 32=8 e 30=8 31=8 32=1 c
+NakedPair p e 74=8 74=9 c 47=[8, 9] 56=[8, 9]
+XyzWing p e 79=8 c 80=[5, 7, 8] 71=[7, 8] 76=[5, 8]
+UniqueRectangleType1 p e 72=1 72=4 c 36=[1, 4] 38=[1, 4] 74=[1, 4]
+NakedTriple p e 63=8 c 9=[5, 6, 8] 27=[5, 6, 8] 72=[5, 6, 8]
+XWing p e 1=8 19=8 73=8 8=8 53=8 80=8 c 37=[8] 44=[8] 64=[8] 71=[8]
+HiddenSingle p 9=8 e 16=8 72=8 9=5 c
+NakedSingle p 16=5 e 8=5 61=5 79=5 c
+NakedSingle p 72=6 e 27=6 73=6 c
+NakedSingle p 27=5 e 33=5 46=5 c
+NakedSingle p 46=6 e 53=6 c
+NakedSingle p 53=9 e 8=9 33=9 44=9 47=9 49=9 51=9 c
+NakedSingle p 8=6 e 7=6 c
+NakedSingle p 7=1 e 1=1 6=1 24=1 34=1 c
+NakedSingle p 1=5 e 3=5 4=5 19=5 c
+NakedSingle p 19=1 e c
+NakedSingle p 24=8 e 6=8 21=8 22=8 51=8 c
+NakedSingle p 6=9 e c
+NakedSingle p 33=1 e 30=1 51=1 c
+NakedSingle p 30=3 e 31=3 57=3 c
+NakedSingle p 31=9 e c
+NakedSingle p 34=6 e c
+NakedSingle p 44=8 e 37=8 71=8 c
+NakedSingle p 37=9 e 73=9 c
+NakedSingle p 47=8 e 56=8 c
+NakedSingle p 51=5 e c
+NakedSingle p 56=9 e 61=9 c
+NakedSingle p 61=8 e 57=8 58=8 c
+NakedSingle p 57=5 e 21=5 58=5 76=5 c
+NakedSingle p 21=7 e 23=7 66=7 c
+NakedSingle p 23=2 e 22=2 50=2 c
+NakedSingle p 22=5 e c
+NakedSingle p 50=1 e 48=1 77=1 c
+NakedSingle p 48=4 e 3=4 49=4 c
+NakedSingle p 3=8 e 4=8 c
+NakedSingle p 4=4 e c
+NakedSingle p 49=2 e c
+NakedSingle p 58=3 e c
+NakedSingle p 66=1 e 63=1 c
+NakedSingle p 63=4 e 36=4 69=4 74=4 c
+NakedSingle p 36=1 e 38=1 c
+NakedSingle p 38=4 e c
+NakedSingle p 69=3 e 64=3 78=3 c
+NakedSingle p 64=8 e c
+NakedSingle p 71=7 e 80=7 c
+NakedSingle p 73=3 e c
+NakedSingle p 74=1 e c
+NakedSingle p 76=8 e c
+NakedSingle p 77=7 e c
+NakedSingle p 78=4 e c
+NakedSingle p 79=9 e c
+NakedSingle p 80=5 e c
+PUZZLE 3........97..1....6..583...2.....9..5..621..3..8.....5...435..2....9..56........1
+NakedSingle p 12=2 e 3=2 5=2 11=2 14=2 15=2 16=2 66=2 75=2 c
+HiddenSingle p 31=5 e 31=4 31=7 c
+HiddenSingle p 66=1 e 63=1 64=1 65=1 66=7 66=8 c
+HiddenSingle p 1=8 e 6=8 7=8 8=8 55=8 64=8 73=8 1=1 1=2 1=4 1=5 c
+HiddenSingle p 73=5 e 74=5 73=2 73=3 73=4 73=6 73=9 c
+NakedTriple p e 34=4 34=7 34=8 51=4 51=7 52=4 52=7 c 35=[4, 7, 8] 42=[4, 7, 8] 43=[4, 7, 8]
+PointingTriple p e 6=7 7=7 8=7 c 3=[7] 4=[7] 5=[7]
+PointingPair p e 7=9 8=9 c 3=[9] 5=[9]
+NakedSingle p 8=4 e 2=4 4=4 5=4 6=4 7=4 15=4 16=4 17=4 24=4 25=4 26=4 35=4 c
+NakedSingle p 17=8 e 15=8 16=8 35=8 c
+NakedSingle p 35=7 e 26=7 29=7 30=7 32=7 42=7 43=7 c
+NakedSingle p 26=9 e 25=9 c
+HiddenSingle p 38=7 e 45=7 56=7 65=7 74=7 38=4 38=9 c
+HiddenSingle p 37=9 e 46=9 55=9 37=4 c
+HiddenSingle p 49=4 e 32=4 45=4 46=4 50=4 49=7 c
+NakedSingle p 32=8 e 30=8 68=8 77=8 c
+NakedSingle p 30=3 e 28=3 29=3 48=3 c
+NakedSingle p 45=1 e 28=1 29=1 46=1 51=1 52=1 54=1 c
+HiddenSingle p 34=1 e 7=1 25=1 34=6 c
+HiddenSingle p 46=3 e 64=3 46=6 c
+HiddenSingle p 75=8 e 72=8 78=8 79=8 75=7 c
+HiddenSingle p 14=4 e 11=4 14=6 c
+NakedSingle p 11=5 e 2=5 15=5 c
+HiddenSingle p 6=5 e 6=1 6=2 6=6 c
+HiddenSingle p 2=1 e 19=1 20=1 56=1 2=2 c
+HiddenSingle p 7=2 e 24=2 25=2 52=2 7=6 c
+NakedSingle p 25=7 e 24=7 61=7 79=7 c
+NakedSingle p 24=1 e c
+NakedSingle p 52=6 e 16=6 51=6 c
+NakedSingle p 16=3 e 15=3 79=3 c
+NakedSingle p 15=6 e c
+NakedSingle p 51=2 e c
+HiddenSingle p 55=1 e 55=6 c
+HiddenSingle p 56=6 e 29=6 74=6 56=9 c
+NakedSingle p 29=4 e 20=4 28=4 65=4 74=4 c
+NakedSingle p 20=2 e 19=2 65=2 74=2 c
+NakedSingle p 19=4 e 64=4 c
+NakedSingle p 28=6 e c
+NakedSingle p 64=2 e 68=2 c
+NakedSingle p 65=3 e 69=3 74=3 c
+NakedSingle p 68=7 e 5=7 50=7 63=7 69=7 76=7 77=7 c
+NakedSingle p 50=9 e 5=9 48=9 c
+NakedSingle p 5=6 e 4=6 77=6 c
+NakedSingle p 4=7 e 3=7 c
+NakedSingle p 3=9 e c
+NakedSingle p 48=7 e c
+NakedSingle p 74=9 e 79=9 c
+NakedSingle p 76=6 e c
+NakedSingle p 77=2 e c
+NakedSingle p 79=4 e 43=4 69=4 72=4 78=4 c
+NakedSingle p 43=8 e 42=8 61=8 c
+NakedSingle p 42=4 e c
+NakedSingle p 61=9 e c
+NakedSingle p 69=8 e 60=8 63=8 c
+NakedSingle p 60=7 e 54=7 78=7 c
+NakedSingle p 54=8 e c
+NakedSingle p 63=4 e c
+NakedSingle p 72=7 e c
+NakedSingle p 78=3 e c
+PUZZLE 5286...4913649..257942.563....1..2....78263....25.9.6.24.3..9768.97.2413.7.9.4582
+PointingPair p e 51=7 c 6=[7] 15=[7]
+NakedPair p e 53=1 53=8 c 46=[1, 8] 51=[1, 8]
+HiddenTriple p e 4=1 c 4=[3, 4, 7] 31=[3, 4, 7] 49=[3, 4, 7]

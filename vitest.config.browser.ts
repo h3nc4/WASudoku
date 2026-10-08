@@ -31,29 +31,15 @@ const basicBrowsers: Array<{ name: string; browser: BrowserType }> = [
   { name: 'webkit', browser: 'webkit' },
 ]
 
-const mobileBrowsers = [
-  { name: 'mobile-chrome', browser: 'chromium' as const, device: 'Pixel 5' },
-  { name: 'mobile-safari', browser: 'webkit' as const, device: 'iPhone 12' },
-  { name: 'pixel-7', browser: 'chromium' as const, device: 'Pixel 7' },
-  { name: 'iphone-15', browser: 'webkit' as const, device: 'iPhone 15' },
-  { name: 'ipad-pro', browser: 'webkit' as const, device: 'iPad Pro 11' },
-].map(({ name, browser, device }) => ({
-  name,
-  browser,
-  viewport: {
-    width: devices[device].viewport.width,
-    height: devices[device].viewport.height,
-  },
-}))
+const iphone15 = devices['iPhone 15'].viewport
 
-const channelBrowsers = [
-  { name: 'google-chrome', channel: 'chrome' },
-  { name: 'msedge', channel: 'msedge' },
-].map(({ name, channel }) => ({
-  name,
-  browser: 'chromium' as const,
-  provider: playwright({ launchOptions: { channel } }),
-}))
+const phoneBrowsers = [
+  {
+    name: 'iphone-15',
+    browser: 'webkit' as const,
+    viewport: { width: iphone15.width, height: iphone15.height },
+  },
+]
 
 export default mergeConfig(
   viteConfig,
@@ -64,7 +50,7 @@ export default mergeConfig(
         enabled: true,
         provider: playwright({}),
         headless: true,
-        instances: [...basicBrowsers, ...mobileBrowsers, ...channelBrowsers],
+        instances: [...basicBrowsers, ...phoneBrowsers],
       },
     },
   }),

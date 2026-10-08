@@ -16,18 +16,71 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { memo } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 
 import { cn } from '@/lib/utils'
+
+/** How marks that change in this render move: a player toggle fades, a placement strikes. */
+export type MarkMotion = 'toggle' | 'strike'
 
 interface SudokuPencilMarksProps {
   readonly candidates: ReadonlySet<number>
   readonly centers: ReadonlySet<number>
   /** A set of candidates to be rendered with a "strike-through" style. */
   readonly eliminations?: ReadonlySet<number>
+  /** Omitted for bulk changes such as undo or a new puzzle, which snap. */
+  readonly motion?: MarkMotion
 }
 
+type Leaving = ReadonlyMap<number, MarkMotion>
+
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+const NONE: Leaving = new Map()
+const LEAVING_CLASS: Record<MarkMotion, string> = { toggle: 'note-out', strike: 'note-struck' }
+/** Outlasts the 160ms strike, so a mark whose animationend never fires still leaves. */
+export const LEAVE_FALLBACK_MS = 200
+
+const sameMarks = (a: ReadonlySet<number>, b: ReadonlySet<number>) =>
+  a.size === b.size && [...a].every((n) => b.has(n))
+
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * Keeps marks that just left on screen for one animation, outside the reducer and its history.
+ * Under reduced motion they leave at once.
+ */
+function useLeavingMarks(marks: ReadonlySet<number>, motion: MarkMotion | undefined) {
+  const [prev, setPrev] = useState(marks)
+  const [leaving, setLeaving] = useState(NONE)
+
+  if (marks !== prev && !sameMarks(marks, prev)) {
+    setPrev(marks)
+    const next = new Map([...leaving].filter(([n]) => !marks.has(n)))
+    if (motion && !prefersReducedMotion()) {
+      prev.forEach((n) => marks.has(n) || next.set(n, motion))
+    }
+    if (next.size !== leaving.size || next.size > 0) setLeaving(next.size > 0 ? next : NONE)
+  }
+
+  useEffect(() => {
+    if (leaving.size === 0) return
+    const id = setTimeout(() => setLeaving(NONE), LEAVE_FALLBACK_MS)
+    return () => clearTimeout(id)
+  }, [leaving])
+
+  const drop = useCallback((n: number) => {
+    setLeaving((current) => {
+      if (!current.has(n)) return current
+      const next = new Map(current)
+      next.delete(n)
+      return next.size > 0 ? next : NONE
+    })
+  }, [])
+
+  return [leaving, drop] as const
+}
 
 /**
  * Renders the candidate (corner) or center pencil marks within a Sudoku cell.
@@ -37,48 +90,70 @@ export const PencilMarks = memo(function PencilMarks({
   candidates,
   centers,
   eliminations,
+  motion,
 }: SudokuPencilMarksProps) {
-  const baseClasses = 'text-zinc-800 dark:text-zinc-200 font-semibold'
+  const [leavingCandidates, dropCandidate] = useLeavingMarks(candidates, motion)
+  const [leavingCenters, dropCenter] = useLeavingMarks(centers, motion)
 
-  if (centers.size > 0) {
-    // Center marks rendering
-    const sortedCenters = [...centers].sort((a, b) => a - b)
-    const fontSize = centers.size > 4 ? 'text-xs' : 'text-sm md:text-base'
+  const baseClasses = cn('text-note voice-pencil font-medium', motion === 'toggle' && 'note-in')
+
+  if (centers.size > 0 || leavingCenters.size > 0) {
+    const shown = [...new Set([...centers, ...leavingCenters.keys()])].sort((a, b) => a - b)
+    const fontSize =
+      shown.length > 4 ? 'text-[0.65rem] md:text-xs' : 'text-[0.8rem] md:text-[0.85rem]'
     return (
       <div className="flex size-full items-center justify-center p-1">
-        {sortedCenters.map((num) => (
-          <span key={`center-${num}`} className={cn(baseClasses, fontSize, 'leading-none')}>
-            {num}
-          </span>
-        ))}
+        {shown.map((num) => {
+          const leaving = leavingCenters.get(num)
+          return (
+            <span
+              key={`center-${num}`}
+              aria-hidden={leaving ? true : undefined}
+              onAnimationEnd={leaving ? () => dropCenter(num) : undefined}
+              className={cn(
+                baseClasses,
+                fontSize,
+                'leading-none',
+                leaving && LEAVING_CLASS[leaving],
+              )}
+            >
+              {num}
+            </span>
+          )
+        })}
       </div>
     )
   }
 
-  if (candidates.size > 0) {
-    // Candidate marks rendering
+  if (candidates.size > 0 || leavingCandidates.size > 0) {
     return (
       <div className="grid size-full grid-cols-3 grid-rows-3 p-0.5">
-        {NUMBERS.map((num) => (
-          <div
-            key={`candidate-${num}`}
-            className="flex items-center justify-center text-[0.6rem] leading-none md:text-xs"
-          >
-            {candidates.has(num) ? (
-              <span
-                className={cn(
-                  baseClasses,
-                  eliminations?.has(num) &&
-                    'text-destructive/80 dark:text-destructive/80 line-through',
-                )}
-              >
-                {num}
-              </span>
-            ) : (
-              ''
-            )}
-          </div>
-        ))}
+        {NUMBERS.map((num) => {
+          const leaving = candidates.has(num) ? undefined : leavingCandidates.get(num)
+          return (
+            <div
+              key={`candidate-${num}`}
+              className="flex items-center justify-center text-[0.7rem] leading-none md:text-[0.75rem]"
+            >
+              {candidates.has(num) || leaving ? (
+                <span
+                  aria-hidden={leaving ? true : undefined}
+                  onAnimationEnd={leaving ? () => dropCandidate(num) : undefined}
+                  className={cn(
+                    baseClasses,
+                    leaving && LEAVING_CLASS[leaving],
+                    eliminations?.has(num) &&
+                      'text-note/55 decoration-solver line-through decoration-2',
+                  )}
+                >
+                  {num}
+                </span>
+              ) : (
+                ''
+              )}
+            </div>
+          )
+        })}
       </div>
     )
   }

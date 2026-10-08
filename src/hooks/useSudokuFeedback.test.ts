@@ -20,10 +20,9 @@ import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { initialState } from '@/context/sudoku.reducer'
-import type { SudokuState } from '@/context/sudoku.types'
+import { makeState } from '@/test/sudoku-state'
 
-import { useSudokuFeedback } from './useSudokuFeedback'
+import { CONFLICT_PULSE_MS, useSudokuFeedback } from './useSudokuFeedback'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -41,13 +40,11 @@ describe('useSudokuFeedback', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('does not show a toast or dispatch when there is no error', () => {
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, lastError: null },
-    }
+    const state = makeState({ ui: { lastError: null } })
     renderHook(() => useSudokuFeedback(state, mockDispatch))
     expect(toast.error).not.toHaveBeenCalled()
     expect(mockDispatch).not.toHaveBeenCalled()
@@ -55,10 +52,7 @@ describe('useSudokuFeedback', () => {
 
   it('shows a toast and dispatches clearError when an error is present', () => {
     const errorMessage = 'Invalid move'
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, lastError: errorMessage },
-    }
+    const state = makeState({ ui: { lastError: errorMessage } })
     const { rerender } = renderHook((props) => useSudokuFeedback(props.state, props.dispatch), {
       initialProps: { state, dispatch: mockDispatch },
     })
@@ -66,31 +60,65 @@ describe('useSudokuFeedback', () => {
     expect(toast.error).toHaveBeenCalledWith(errorMessage)
     expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_ERROR' })
 
-    const clearedState: SudokuState = {
-      ...state,
-      ui: { ...state.ui, lastError: null },
-    }
+    const clearedState = makeState({ ui: { lastError: null } }, state)
     rerender({ state: clearedState, dispatch: mockDispatch })
 
     expect(toast.error).toHaveBeenCalledOnce()
     expect(mockDispatch).toHaveBeenCalledOnce()
   })
 
-  it('dispatches clearTransientConflicts after 1 second when transientConflicts is present', () => {
-    const conflicts = new Set([1, 2])
-    const state: SudokuState = {
-      ...initialState,
-      ui: { ...initialState.ui, transientConflicts: conflicts },
-    }
-
+  it('clears transient conflicts when the 600ms pulse ends', () => {
+    const state = makeState({ ui: { transientConflicts: new Set([1, 2]) } })
     renderHook(() => useSudokuFeedback(state, mockDispatch))
 
+    expect(CONFLICT_PULSE_MS).toBe(600)
+    act(() => {
+      vi.advanceTimersByTime(CONFLICT_PULSE_MS - 1)
+    })
     expect(mockDispatch).not.toHaveBeenCalled()
 
     act(() => {
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(1)
+    })
+    expect(mockDispatch).toHaveBeenCalledExactlyOnceWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
+  })
+
+  it('holds the reduced-motion outline for the same 600ms', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query.includes('reduce') })),
+    )
+    const state = makeState({ ui: { transientConflicts: new Set([4]) } })
+    renderHook(() => useSudokuFeedback(state, mockDispatch))
+
+    act(() => {
+      vi.advanceTimersByTime(CONFLICT_PULSE_MS - 1)
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(mockDispatch).toHaveBeenCalledExactlyOnceWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
+  })
+
+  it('restarts the pulse window when a new clash replaces the last one', () => {
+    const first = makeState({ ui: { transientConflicts: new Set([1]) } })
+    const { rerender } = renderHook((props) => useSudokuFeedback(props.state, mockDispatch), {
+      initialProps: { state: first },
     })
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    rerender({ state: makeState({ ui: { transientConflicts: new Set([2]) } }, first) })
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(mockDispatch).toHaveBeenCalledExactlyOnceWith({ type: 'CLEAR_TRANSIENT_CONFLICTS' })
   })
 })

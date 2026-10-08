@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { useSudokuState } from '@/context/sudoku.hooks'
+import { canAutoFill } from '@/context/sudoku.selectors'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
 
 /**
@@ -28,15 +29,10 @@ import { useSudokuActions } from '@/hooks/useSudokuActions'
  * It is only available in 'playing' mode.
  */
 export function AutoFillButton() {
-  const { solver, derived } = useSudokuState()
+  const state = useSudokuState()
   const { autoFillCandidates } = useSudokuActions()
 
-  const isDisabled =
-    solver.gameMode !== 'playing' ||
-    solver.isSolving ||
-    solver.isValidating ||
-    derived.isBoardEmpty ||
-    derived.isBoardFull
+  const isDisabled = !canAutoFill(state)
 
   const handleAutoFill = () => {
     autoFillCandidates()
@@ -46,7 +42,7 @@ export function AutoFillButton() {
   return (
     <Button
       variant="outline"
-      size="icon"
+      size="icon-lg"
       onClick={handleAutoFill}
       disabled={isDisabled}
       title="Auto-fill pencil marks"

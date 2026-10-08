@@ -18,7 +18,11 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* next-themes toggles a .dark class, so dark: must follow it rather than the OS scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
+  --font-sans: 'Recursive Variable', ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -39,90 +43,111 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-control-border: var(--control-border);
+  --color-disabled-foreground: var(--disabled-foreground);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-paper: var(--paper);
+  --color-grid-thin: var(--grid-thin);
+  --color-grid-thick: var(--grid-thick);
+  --color-ink: var(--ink);
+  --color-pencil: var(--pencil);
+  --color-note: var(--note);
+  --color-peer: var(--peer);
+  --color-same: var(--same);
+  --color-highlighter: var(--highlighter);
+  --color-error: var(--error);
+  --color-solver: var(--solver);
+  --color-solver-wash: var(--solver-wash);
 }
 
+/* Board feedback arrives in one or two frames and leaves slower, so a held arrow key doesn't leave a trail. */
+/* This `--ease-out` replaces the Tailwind default, which keeps one easing family across the app. */
+@theme static {
+  --motion-in: 70ms;
+  --motion-out: 140ms;
+  --motion-panel: 200ms;
+  --motion-moment: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Graphite bench with a paper board. Amber is reserved for the solver. */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #eef0ee;
+  --foreground: #1d2433;
+  --card: #fcfcf8;
+  --card-foreground: #1d2433;
+  --popover: #fcfcf8;
+  --popover-foreground: #1d2433;
+  --primary: #1d2a4d;
+  --primary-foreground: #f6f6f1;
+  --secondary: #e3e6e2;
+  --secondary-foreground: #1d2433;
+  --muted: #e3e6e2;
+  --muted-foreground: #555b64;
+  --accent: #e3e6e2;
+  --accent-foreground: #1d2433;
+  --destructive: #b02a21;
+  --border: #d8dbd6;
+  --control-border: #8d949e;
+  --disabled-foreground: #7a808a;
+  --input: #d8dbd6;
+  --ring: #1d2a4d;
+  --paper: #fcfcf8;
+  --grid-thin: #b4bac3;
+  --grid-thick: #1d2a4d;
+  --ink: #1d2a4d;
+  --pencil: #4f545d;
+  --note: #5c616a;
+  --peer: rgb(120 140 170 / 0.2);
+  --same: rgb(70 95 140 / 0.3);
+  --highlighter: rgb(250 214 60 / 0.75);
+  --error: #b02a21;
+  --solver: #855000;
+  --solver-wash: rgb(184 115 10 / 0.16);
+  --graph-line: rgb(110 130 160 / 0.08);
+  --moment-glow: rgb(250 214 60 / 0.34);
+  --moment-revert: rgb(29 42 77 / 0.16);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #121418;
+  --foreground: #e6e8eb;
+  --card: #1a1d22;
+  --card-foreground: #e6e8eb;
+  --popover: #1a1d22;
+  --popover-foreground: #e6e8eb;
+  --primary: #e6e8eb;
+  --primary-foreground: #121418;
+  --secondary: #1e2127;
+  --secondary-foreground: #e6e8eb;
+  --muted: #1e2127;
+  --muted-foreground: #a6adb8;
+  --accent: #252930;
+  --accent-foreground: #e6e8eb;
+  --destructive: #ff958a;
+  --border: #252930;
+  --control-border: #5c636e;
+  --disabled-foreground: #7c838e;
+  --input: #2c3038;
+  --ring: #b9c1cc;
+  --paper: #1a1d22;
+  --grid-thin: #444a54;
+  --grid-thick: #b9c1cc;
+  --ink: #eef1f5;
+  --pencil: #bcc3cd;
+  --note: #9aa2ad;
+  --peer: rgb(150 170 200 / 0.15);
+  --same: rgb(150 170 200 / 0.3);
+  --highlighter: rgb(236 224 110 / 0.45);
+  --error: #ff958a;
+  --solver: #f2a541;
+  --solver-wash: rgb(242 165 65 / 0.18);
+  --graph-line: rgb(160 180 210 / 0.04);
+  --moment-glow: rgb(255 250 225 / 0.22);
+  --moment-revert: rgb(238 241 245 / 0.16);
 }
 
 @layer base {
@@ -132,5 +157,412 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image:
+      linear-gradient(var(--graph-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--graph-line) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+}
+
+/* Dialogs and menus animate through tw-animate-css, which has no reduced-motion guard of its own. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Recursive axes give givens, player digits and instrument text their own hand from one font file. */
+/* A voice's weight is only a default, so a font-* class sets the Tailwind weight variable and wins. */
+@utility voice-ink {
+  font-variation-settings:
+    'CASL' 0,
+    'MONO' 0;
+  font-weight: var(--tw-font-weight, 700);
+}
+
+@utility voice-pencil {
+  font-variation-settings: 'CASL' 1;
+  font-weight: var(--tw-font-weight, 450);
+}
+
+@utility voice-mono {
+  font-variation-settings: 'MONO' 1;
+}
+
+/* Gradients cannot interpolate, so the highlighter and the hatch are each drawn on a layer whose opacity fades. */
+/* A negative z-index keeps both layers above the cell fill and below its notes. */
+@utility cell-fill {
+  transition-property: background-color, box-shadow;
+  transition-duration: var(--cell-motion, var(--motion-out));
+  transition-timing-function: var(--ease-out);
+}
+
+/* Pseudo-element and state rules are flat in the utilities layer, since a nested `&` in `@utility` has no scoping root. */
+/* `:where()` keeps the base layers weightless, so `highlighter` and `solver-hatch` always override them. */
+@layer utilities {
+  :where(.cell-fill)::before,
+  :where(.cell-fill)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--motion-out) var(--ease-out);
+  }
+
+  :where(.cell-fill)::before {
+    background-image: linear-gradient(
+      101deg,
+      transparent 4%,
+      var(--highlighter) 7% 93%,
+      transparent 96%
+    );
+  }
+
+  :where(.cell-fill)::after {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--solver-wash) 0 3px,
+      transparent 3px 7px
+    );
+  }
+}
+
+/* The digit colour fades out with the board, and `ink-alarm` zeroes it so a mistake turns red at once. */
+@utility cell-ink {
+  transition-property: color, text-decoration-color, box-shadow;
+  transition-duration:
+    var(--ink-motion, var(--motion-out)), var(--ink-motion, var(--motion-out)),
+    var(--cell-motion, var(--motion-out));
+  transition-timing-function: var(--ease-out);
+}
+
+/* A transition takes the duration of the state it moves into, so shading arrives at once and only fades out. */
+@utility cell-on {
+  --cell-motion: 0ms;
+}
+
+@layer utilities {
+  .highlighter::before,
+  .solver-hatch::after {
+    opacity: 1;
+    transition-duration: 0ms;
+  }
+}
+
+/* Digit and note motion */
+/* Only opacity and transform move here, since weight or colour across the board costs input time. */
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@utility ink-in {
+  animation: ink-in 90ms var(--ease-out);
+}
+
+/* A starting style applies only to a mark that has just rendered. Marks already shown never fade again. */
+@utility note-in {
+  transition: opacity 90ms var(--ease-out);
+}
+
+@layer utilities {
+  @starting-style {
+    .note-in {
+      opacity: 0;
+    }
+  }
+}
+
+@keyframes note-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@utility note-out {
+  animation: note-out var(--motion-out) var(--ease-out) forwards;
+}
+
+/* A note a placement removed is struck before it fades. The strike shows what the digit eliminated. */
+@keyframes note-struck {
+  35% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* The strike appears at once and only the fade animates, since drawing it in cost frames at 4x throttle. */
+@utility note-struck {
+  text-decoration: line-through 1.5px currentColor;
+  animation: note-struck 160ms var(--ease-out) forwards;
+}
+
+/* Panel and control motion */
+
+/* A grid row moving from 0fr to 1fr opens the strip to its content height without measuring it. */
+@utility hint-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-bottom: calc(var(--column-gap, 0px) * -1);
+  transition: grid-template-rows var(--motion-panel) var(--ease-out);
+}
+
+@layer utilities {
+  .hint-slot .hint-slot-content {
+    opacity: 0;
+    transition: opacity var(--motion-panel) var(--ease-out);
+  }
+
+  .hint-slot[data-open] {
+    grid-template-rows: 1fr;
+  }
+
+  .hint-slot[data-open] .hint-slot-content {
+    opacity: 1;
+  }
+
+  /* The content mounts as the strip opens. Its fade starts from this value. */
+  @starting-style {
+    .hint-slot[data-open] .hint-slot-content {
+      opacity: 0;
+    }
+  }
+}
+
+/* Items share the track equally. Each step moves the indicator by its own width plus one gap. */
+@utility toggle-indicator {
+  position: absolute;
+  inset-block: 3px;
+  left: 3px;
+  z-index: -1;
+  width: calc((100% - 6px - (var(--item-count) - 1) * 3px) / var(--item-count));
+  border-radius: 4px;
+  background-color: var(--paper);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 0 0 1px var(--border);
+  pointer-events: none;
+  transform: translateX(calc(var(--item-index) * (100% + 3px)));
+  transition:
+    transform var(--motion-panel) var(--ease-move),
+    opacity var(--motion-out) var(--ease-out);
+
+  @variant dark {
+    background-color: var(--accent);
+  }
+}
+
+@layer utilities {
+  .toggle-indicator[data-hidden] {
+    opacity: 0;
+  }
+}
+
+/* Unarmed, a strike appears at once, so a digit complete when its puzzle loads never draws in. */
+@utility pad-strike {
+  position: relative;
+}
+
+@layer utilities {
+  .pad-strike::after {
+    content: '';
+    position: absolute;
+    inset-inline: -0.1em;
+    top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .pad-strike[data-struck]::after {
+    transform: scaleX(1);
+  }
+
+  .pad-strike[data-armed][data-struck] {
+    transition: color var(--motion-panel) var(--ease-out);
+  }
+
+  .pad-strike[data-armed][data-struck]::after {
+    transition: transform var(--motion-panel) var(--ease-out);
+  }
+}
+
+/* Pause and theme motion */
+/* The board blurs at once and only goes invisible once the overlay is opaque, so it is never readable while paused. */
+.pause-board {
+  transition:
+    filter var(--motion-panel) var(--ease-out),
+    visibility 0s;
+}
+
+.pause-board[data-paused] {
+  filter: blur(6px);
+  visibility: hidden;
+  transition:
+    filter 0s,
+    visibility 0s linear var(--motion-panel);
+}
+
+.pause-overlay {
+  animation: pause-overlay-in var(--motion-panel) var(--ease-out) both;
+}
+
+.pause-overlay[data-state='closed'] {
+  animation-name: pause-overlay-out;
+  pointer-events: none;
+}
+
+@keyframes pause-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pause-overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The theme toggle wraps its class flip in a view transition, which cross-fades the whole page. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-panel);
+  animation-timing-function: var(--ease-out);
+}
+
+/* The new snapshot must show the finished theme, so colour transitions are held off while the class flips. */
+.theme-switching :not(svg),
+.theme-switching ::before,
+.theme-switching ::after {
+  transition: none !important;
+}
+
+/* Error motion */
+@utility ink-alarm {
+  --ink-motion: 0ms;
+}
+
+/* Only the wavy line's colour animates, so the red digit is there from the first frame. */
+@keyframes underline-in {
+  from {
+    text-decoration-color: transparent;
+  }
+}
+
+@utility underline-in {
+  animation: underline-in var(--motion-out) var(--ease-out);
+}
+
+/* One animation property cannot come from two utilities, so a wrong digit typed fresh names both here. */
+.ink-in.underline-in {
+  animation:
+    ink-in 90ms var(--ease-out),
+    underline-in var(--motion-out) var(--ease-out);
+}
+
+/* An unpositioned span lets this layer fill the whole cell beneath the digit. */
+@layer utilities {
+  .conflict-pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background-color: color-mix(in srgb, var(--error) 22%, transparent);
+    box-shadow: inset 0 0 0 2px var(--error);
+    animation: conflict-pulse 600ms var(--ease-out);
+  }
+}
+
+/* Full, faint, full, gone over 600ms. `CONFLICT_PULSE_MS` in useSudokuFeedback.ts clears the state then. */
+@keyframes conflict-pulse {
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 0.15;
+  }
+}
+
+/* Reduced motion gets a still outline instead, held for the same 600ms. */
+@layer utilities {
+  .conflict-mark::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 2px var(--error);
+  }
+}
+
+/* Board moments */
+/* Rare one-shot layers on their own element, so they never interrupt the selection fill transitions. */
+/* The layer is drawn above the fill and below the notes and digit. A moment tints a cell without hiding it. */
+/* A backwards fill lets a finished moment drop its animation and leave an idle transparent layer. */
+.board-moment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background-color: var(--moment-glow);
+  animation: board-moment-glow var(--motion-moment) var(--ease-out) var(--moment-delay, 0ms)
+    backwards;
+}
+
+.board-moment[data-moment='revert'] {
+  background-color: var(--moment-revert);
+  animation-name: board-moment-fade;
+  animation-duration: 300ms;
+}
+
+/* A paper cover over the digit fades away, so givens appear box by box without animating the digit itself. */
+.board-moment[data-moment='reveal'] {
+  z-index: 1;
+  background-color: var(--paper);
+  animation-name: board-moment-fade;
+  animation-duration: var(--motion-out);
+}
+
+@keyframes board-moment-glow {
+  30% {
+    opacity: 1;
+  }
+}
+
+@keyframes board-moment-fade {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Only the revert tint tells the player something new. Reduced motion holds it still for its 300ms. */
+@media (prefers-reduced-motion: reduce) {
+  .board-moment {
+    animation-delay: 0s !important;
+  }
+
+  .board-moment[data-moment='revert'] {
+    animation-duration: 300ms !important;
+    animation-timing-function: step-end;
   }
 }

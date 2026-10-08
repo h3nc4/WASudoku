@@ -16,6 +16,13 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type {
+  Requests,
+  Responses,
+  TaskType,
+  WorkerRequest,
+  WorkerResponse,
+} from '@/workers/protocol'
 import SolverWorker from '@/workers/sudoku.worker?worker' // eslint-disable-line import-x/default
 
 // Replaced 'enum' with 'const' object to satisfy 'erasableSyntaxOnly' TS config
@@ -26,15 +33,16 @@ export const Priority = {
 
 export type Priority = (typeof Priority)[keyof typeof Priority]
 
-export type TaskType = 'solve' | 'generate' | 'validate'
+export type { TaskType } from '@/workers/protocol'
 
-interface Task<T = unknown> {
-  id: number
-  type: TaskType
-  payload: unknown
-  priority: Priority
-  resolve: (value: T) => void
+interface Pending {
+  resolve: (value: Responses[TaskType]) => void
   reject: (reason?: unknown) => void
+}
+
+interface Task extends Pending {
+  request: WorkerRequest
+  priority: Priority
 }
 
 interface WorkerWrapper {
@@ -51,10 +59,7 @@ interface WorkerWrapper {
 export class WorkerPool {
   private workers: WorkerWrapper[] = []
   private queue: Task[] = []
-  private readonly pendingRequests = new Map<
-    number,
-    { resolve: (val: unknown) => void; reject: (err: unknown) => void }
-  >()
+  private readonly pendingRequests = new Map<number, Pending>()
   private idCounter = 0
   private readonly maxWorkers: number
 
@@ -83,24 +88,23 @@ export class WorkerPool {
    * @param priority Execution priority.
    * @returns A Promise that resolves with the worker's result.
    */
-  public runTask<T>(
-    type: TaskType,
-    payload: unknown,
+  public runTask<K extends TaskType>(
+    type: K,
+    payload: Requests[K],
     priority: Priority = Priority.HIGH,
-  ): Promise<T> {
+  ): Promise<Responses[K]> {
     return new Promise((resolve, reject) => {
-      const id = ++this.idCounter
-      const task: Task<T> = {
-        id,
-        type,
-        payload,
+      // WorkerRequest is a union, so TypeScript loses the tie between K and Responses[K] here.
+      const request = { id: ++this.idCounter, type, ...payload } as WorkerRequest
+      const task: Task = {
+        request,
         priority,
-        resolve,
+        resolve: resolve as Pending['resolve'],
         reject,
       }
 
       // Add to queue and sort by priority (High priority first)
-      this.queue.push(task as Task<unknown>)
+      this.queue.push(task)
       this.queue.sort((a, b) => a.priority - b.priority)
 
       this.schedule()
@@ -129,21 +133,17 @@ export class WorkerPool {
     const task = this.queue.shift()!
     const workerWrapper = this.workers[freeWorkerIndex]
 
-    this.pendingRequests.set(task.id, {
+    this.pendingRequests.set(task.request.id, {
       resolve: task.resolve,
       reject: task.reject,
     })
 
     workerWrapper.busy = true
-    workerWrapper.instance.postMessage({
-      id: task.id,
-      type: task.type,
-      ...(task.payload as object),
-    })
+    workerWrapper.instance.postMessage(task.request)
   }
 
-  private handleMessage(event: MessageEvent) {
-    const { id, status, payload, error } = event.data
+  private handleMessage(event: MessageEvent<WorkerResponse>) {
+    const response = event.data
 
     // Find the worker that sent this message and mark it free
     const workerInstance = event.target as Worker
@@ -153,14 +153,14 @@ export class WorkerPool {
       workerWrapper.busy = false
     }
 
-    const pending = this.pendingRequests.get(id)
+    const pending = this.pendingRequests.get(response.id)
     if (pending) {
-      if (status === 'success') {
-        pending.resolve(payload)
+      if (response.status === 'success') {
+        pending.resolve(response.payload)
       } else {
-        pending.reject(new Error(error || 'Unknown worker error'))
+        pending.reject(new Error(response.error || 'Unknown worker error'))
       }
-      this.pendingRequests.delete(id)
+      this.pendingRequests.delete(response.id)
     }
 
     // Try to schedule next task
