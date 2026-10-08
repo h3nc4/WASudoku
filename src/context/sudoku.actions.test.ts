@@ -241,4 +241,11 @@ describe('Sudoku Action Creators', () => {
     expect(actions.cycleInputMode()).toEqual({ type: 'CYCLE_INPUT_MODE' })
     expect(actions.stepVisualization(-1)).toEqual({ type: 'STEP_VISUALIZATION', delta: -1 })
   })
+
+  it('should create the sticky numbers actions', () => {
+    expect(actions.toggleSticky()).toEqual({ type: 'TOGGLE_STICKY' })
+    expect(actions.setStickyValue(4)).toEqual({ type: 'SET_STICKY_VALUE', value: 4 })
+    expect(actions.setStickyValue(null)).toEqual({ type: 'SET_STICKY_VALUE', value: null })
+    expect(actions.tapCell(12)).toEqual({ type: 'TAP_CELL', index: 12 })
+  })
 })

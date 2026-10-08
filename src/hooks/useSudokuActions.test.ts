@@ -147,6 +147,7 @@ describe('useSudokuActions', () => {
       ['resumeGame', actionCreators.resumeGame()],
       ['dismissPuzzle', actionCreators.dismissPuzzle()],
       ['cycleInputMode', actionCreators.cycleInputMode()],
+      ['toggleSticky', actionCreators.toggleSticky()],
     ] as const)('%s dispatches its action', (name, expected) => {
       const actions = getActions()
       act(() => actions[name]())
@@ -168,11 +169,15 @@ describe('useSudokuActions', () => {
       act(() => actions.navigate('left'))
       act(() => actions.eraseActiveCell('backspace'))
       act(() => actions.stepVisualization(-1))
+      act(() => actions.setStickyValue(3))
+      act(() => actions.tapCell(40))
       expect(mockDispatch.mock.calls).toEqual([
         [actionCreators.inputValue(5)],
         [actionCreators.navigate('left')],
         [actionCreators.eraseActiveCell('backspace')],
         [actionCreators.stepVisualization(-1)],
+        [actionCreators.setStickyValue(3)],
+        [actionCreators.tapCell(40)],
       ])
     })
 

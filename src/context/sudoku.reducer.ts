@@ -54,6 +54,12 @@ import {
 } from './reducer/lifecycle'
 import { getDerivedBoardState } from './reducer/state'
 import {
+  handleSetStickyValue,
+  handleTapCell,
+  handleToggleSticky,
+  settleSticky,
+} from './reducer/sticky'
+import {
   handleClearError,
   handleClearTransientConflicts,
   handleCycleInputMode,
@@ -127,6 +133,9 @@ const handlers: ActionHandlers = {
   ERASE_ACTIVE_CELL: handleEraseActiveCell,
   CYCLE_INPUT_MODE: handleCycleInputMode,
   STEP_VISUALIZATION: handleStepVisualization,
+  TOGGLE_STICKY: handleToggleSticky,
+  SET_STICKY_VALUE: handleSetStickyValue,
+  TAP_CELL: handleTapCell,
 }
 
 function reduceAction(state: SudokuState, action: SudokuAction): SudokuState {
@@ -137,7 +146,7 @@ function reduceAction(state: SudokuState, action: SudokuAction): SudokuState {
 }
 
 export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {
-  const newState = reduceAction(state, action)
+  const newState = settleSticky(state, reduceAction(state, action))
 
   if (newState.board !== state.board) {
     // A hint describes the board it was computed for. Any edit clears it.

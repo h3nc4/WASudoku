@@ -113,6 +113,17 @@ describe('App component', () => {
     expect(screen.getByRole('link', { name: /github repository/i })).toBeInTheDocument()
   })
 
+  it('puts the sticky numbers toggle after erase in a five-column tool row', () => {
+    render(<App />)
+    const toggle = screen.getByRole('button', { name: 'Sticky numbers' })
+    const row = toggle.parentElement
+    expect(row).toHaveClass('grid-cols-5')
+    expect(row?.children).toHaveLength(5)
+    expect(toggle.previousElementSibling).toBe(
+      screen.getByRole('button', { name: 'Erase selected cell' }),
+    )
+  })
+
   it('replaces the hint with the solve control outside play', () => {
     mockSudoku({ state: makeState({ solver: { gameMode: 'customInput' } }, defaultState) })
     render(<App />)

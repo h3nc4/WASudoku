@@ -36,6 +36,12 @@ interface StrikeMemory {
 const givensOf = (board: BoardState) =>
   board.map((cell) => (cell.isGiven && cell.value !== null ? cell.value : 0)).join('')
 
+/** The digit's colour, with the locked key drawn in paper on its filled ink. */
+const toneOf = (isDisabled: boolean, isLocked: boolean, idle: string) => {
+  if (isDisabled) return 'text-disabled-foreground'
+  return isLocked ? 'text-primary-foreground' : idle
+}
+
 const remember = (counts: readonly number[], prev?: StrikeMemory): readonly boolean[] =>
   counts.map((count, digit) => count < 9 || (prev?.seenOpen[digit] ?? false))
 
@@ -45,9 +51,9 @@ const remember = (counts: readonly number[], prev?: StrikeMemory): readonly bool
  */
 export const NumberPad = memo(function NumberPad() {
   const state = useSudokuState()
-  const { board } = state
+  const { board, ui } = state
   const isReadOnly = isGridReadOnly(state)
-  const { inputValue, setHighlightedValue } = useSudokuActions()
+  const { inputValue, setHighlightedValue, setStickyValue } = useSudokuActions()
 
   const numberCounts = useMemo(() => {
     const counts = new Array(10).fill(0)
@@ -73,12 +79,16 @@ export const NumberPad = memo(function NumberPad() {
 
   const handleNumberClick = useCallback(
     (value: number) => {
+      if (ui.sticky) {
+        setStickyValue(value === ui.stickyValue ? null : value)
+        return
+      }
       // Always highlight the number that was tapped
       setHighlightedValue(value)
       // The inputValue action already knows whether a cell is active
       inputValue(value)
     },
-    [inputValue, setHighlightedValue],
+    [inputValue, setHighlightedValue, setStickyValue, ui.sticky, ui.stickyValue],
   )
 
   return (
@@ -87,12 +97,14 @@ export const NumberPad = memo(function NumberPad() {
         const remaining = 9 - numberCounts[num]
         const isComplete = remaining <= 0
         const isDisabled = isComplete || isReadOnly
+        const isLocked = ui.stickyValue === num
 
         return (
           <Button
             key={`pad-${num}`}
-            variant="outline"
+            variant={isLocked ? 'default' : 'outline'}
             size="icon"
+            aria-pressed={ui.sticky ? isLocked : undefined}
             data-complete={isComplete || undefined}
             className="aspect-[1/1.12] h-auto min-h-11 w-full rounded-[4px]"
             onClick={() => handleNumberClick(num)}
@@ -105,7 +117,7 @@ export const NumberPad = memo(function NumberPad() {
               <span
                 className={cn(
                   'voice-ink pad-strike text-xl leading-none md:text-2xl',
-                  isDisabled ? 'text-disabled-foreground' : 'text-ink',
+                  toneOf(isDisabled, isLocked, 'text-ink'),
                 )}
                 data-struck={isComplete || undefined}
                 data-armed={seenOpen[num] || undefined}
@@ -116,7 +128,7 @@ export const NumberPad = memo(function NumberPad() {
                 <span
                   className={cn(
                     'voice-mono text-[10px] leading-none tabular-nums md:text-xs',
-                    isDisabled ? 'text-disabled-foreground' : 'text-muted-foreground',
+                    toneOf(isDisabled, isLocked, 'text-muted-foreground'),
                   )}
                 >
                   {remaining}

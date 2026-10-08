@@ -34,6 +34,9 @@ const isBoardFrozen = (state: SudokuState): boolean =>
 export const isGridReadOnly = (state: SudokuState): boolean =>
   !isEditable(state) || state.solver.isSolved || isBoardFrozen(state)
 
+/** Sticky numbers works only while cells take input, so the walkthrough, pause and solver lock it out. */
+export const canUseSticky = (state: SudokuState): boolean => !isGridReadOnly(state)
+
 /** Undo is allowed after a win, so a solved board can be stepped back. */
 export const canUndoRedo = (state: SudokuState): boolean =>
   isEditable(state) && !isBoardFrozen(state)

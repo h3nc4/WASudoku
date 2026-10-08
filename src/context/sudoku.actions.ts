@@ -48,14 +48,17 @@ import type {
   SetCellValueAction,
   SetHighlightedValueAction,
   SetInputModeAction,
+  SetStickyValueAction,
   SetTransientConflictsAction,
   SolveFailureAction,
   SolveStartAction,
   SolveSuccessAction,
   StartCustomPuzzleAction,
   StepVisualizationAction,
+  TapCellAction,
   TickTimerAction,
   TogglePencilMarkAction,
+  ToggleStickyAction,
   UndoAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleStartAction,
@@ -323,4 +326,21 @@ export const cycleInputMode = (): CycleInputModeAction => ({
 export const stepVisualization = (delta: -1 | 1): StepVisualizationAction => ({
   type: 'STEP_VISUALIZATION',
   delta,
+})
+
+/** Creates an action to turn sticky numbers on or off. */
+export const toggleSticky = (): ToggleStickyAction => ({
+  type: 'TOGGLE_STICKY',
+})
+
+/** Creates an action to lock a digit for cell taps, or release the lock with null. */
+export const setStickyValue = (value: number | null): SetStickyValueAction => ({
+  type: 'SET_STICKY_VALUE',
+  value,
+})
+
+/** Creates an action for a pointer tap on a cell. */
+export const tapCell = (index: number): TapCellAction => ({
+  type: 'TAP_CELL',
+  index,
 })

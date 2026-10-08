@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -52,6 +52,24 @@ describe('SudokuCell component', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  describe('Pointer taps', () => {
+    it('reports a click as a tap, apart from focus', () => {
+      const onTap = vi.fn()
+      render(<SudokuCell {...defaultProps} onTap={onTap} />)
+      const input = screen.getByRole('textbox')
+      fireEvent.focus(input)
+      expect(onTap).not.toHaveBeenCalled()
+      fireEvent.click(input)
+      expect(onTap).toHaveBeenCalledWith(10)
+    })
+
+    it('ignores a click without a tap handler', () => {
+      render(<SudokuCell {...defaultProps} />)
+      fireEvent.click(screen.getByRole('textbox'))
+      expect(mockOnFocus).not.toHaveBeenCalled()
+    })
   })
 
   describe('Rendering and Visual States', () => {

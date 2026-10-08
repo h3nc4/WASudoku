@@ -102,6 +102,12 @@ export function useSudokuActions() {
       stepVisualization: (delta: -1 | 1) => dispatch(actions.stepVisualization(delta)),
       /** Switches to the next input mode, wrapping from Center back to Normal. */
       cycleInputMode: () => dispatch(actions.cycleInputMode()),
+      /** Turns sticky numbers on or off. */
+      toggleSticky: () => dispatch(actions.toggleSticky()),
+      /** Locks a digit for cell taps, or releases the lock with null. */
+      setStickyValue: (value: number | null) => dispatch(actions.setStickyValue(value)),
+      /** Applies the locked digit to a tapped cell. */
+      tapCell: (index: number) => dispatch(actions.tapCell(index)),
       /** Asks the solver for the next move on the current board. */
       requestHint: () => dispatch(actions.requestHint()),
       /** Dismisses the current hint. */

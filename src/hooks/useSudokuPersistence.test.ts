@@ -72,6 +72,18 @@ describe('useSudokuPersistence', () => {
     expect(storedGame().version).toBe(GAME_FORMAT_VERSION)
   })
 
+  it('writes nothing when only sticky numbers changes, and never stores it', () => {
+    const { rerender } = renderPersistence()
+    rerender(makeState({ ui: { sticky: true, stickyValue: 4 } }))
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([])
+
+    rerender(withMove(makeState({ ui: { sticky: true, stickyValue: 4 } })))
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
+    expect(globalThis.localStorage.getItem(STORAGE_KEYS.GAME)).not.toMatch(/sticky/i)
+  })
+
   it('coalesces several moves into one write of the latest history', () => {
     const { rerender } = renderPersistence()
     const once = withMove(initialState)

@@ -19,19 +19,39 @@
 import { useEffect } from 'react'
 
 import { useSudokuState } from '@/context/sudoku.hooks'
-import { canUndoRedo } from '@/context/sudoku.selectors'
+import { canUndoRedo, canUseSticky } from '@/context/sudoku.selectors'
 
 import { useSudokuActions } from './useSudokuActions'
 
-/** Page-wide shortcuts: undo and redo while editing, arrows while stepping a solution. */
+/** A field that takes typing keeps its letters, while the board's read-only cells pass them on. */
+const isTypingTarget = (target: EventTarget | null) =>
+  target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && !target.readOnly)
+
+/** Page-wide shortcuts: undo, redo and sticky numbers while editing, arrows while stepping a solution. */
 export function useKeyboardShortcuts() {
   const state = useSudokuState()
-  const { solver } = state
-  const { undo, redo, stepVisualization } = useSudokuActions()
+  const { solver, ui } = state
+  const { undo, redo, stepVisualization, toggleSticky, setStickyValue } = useSudokuActions()
 
   const isUndoable = canUndoRedo(state)
+  const isStickyUsable = canUseSticky(state)
+  const isLocked = ui.stickyValue !== null
 
   useEffect(() => {
+    const handleStickyKey = (e: KeyboardEvent) => {
+      if (!isStickyUsable || e.altKey || isTypingTarget(e.target)) return false
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        toggleSticky()
+        return true
+      }
+      if (e.key === 'Escape' && isLocked) {
+        setStickyValue(null)
+        return true
+      }
+      return false
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Keys go to an open dialog first.
       if (document.querySelector('[role="dialog"]')) return
@@ -49,6 +69,8 @@ export function useKeyboardShortcuts() {
         return
       }
 
+      if (handleStickyKey(e)) return
+
       if (solver.gameMode === 'visualizing' && !e.altKey && !e.shiftKey) {
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
@@ -62,5 +84,15 @@ export function useKeyboardShortcuts() {
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [isUndoable, solver.gameMode, undo, redo, stepVisualization])
+  }, [
+    isUndoable,
+    isStickyUsable,
+    isLocked,
+    solver.gameMode,
+    undo,
+    redo,
+    stepVisualization,
+    toggleSticky,
+    setStickyValue,
+  ])
 }

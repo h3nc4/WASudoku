@@ -32,6 +32,7 @@ import { HintButton } from './components/controls/HintButton'
 import { InputModeToggle } from './components/controls/InputModeToggle'
 import { NewPuzzleButton } from './components/controls/NewPuzzleButton'
 import { SolveButton } from './components/controls/SolveButton'
+import { StickyToggle } from './components/controls/StickyToggle'
 import { UndoRedo } from './components/controls/UndoRedo'
 import { GameStatus } from './components/GameStatus'
 import { HintPanel } from './components/HintPanel'
@@ -102,7 +103,7 @@ function App() {
             <SudokuGrid />
             <HintPanel />
             <div className="flex flex-col gap-3 md:gap-4">
-              <div className="grid w-full grid-cols-4 place-items-center gap-2">
+              <div className="grid w-full grid-cols-5 place-items-center gap-2">
                 <UndoRedo />
                 <AutoFillButton />
                 <Button
@@ -115,6 +116,7 @@ function App() {
                 >
                   <Eraser />
                 </Button>
+                <StickyToggle />
               </div>
               <NumberPad />
               <InputModeToggle />
