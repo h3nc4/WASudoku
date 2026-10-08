@@ -103,7 +103,10 @@ test('error underline clears the cell bottom at 390x844', async ({ page, open })
   await page.evaluate(async () => {
     await document.fonts.ready
   })
-  for (const index of [2, 3]) {
-    await expect.poll(() => inkGap(page, index)).toBeGreaterThanOrEqual(3)
-  }
+  // The X behind a wrong digit reaches the cell edges, so it would read as the lowest ink.
+  await page.addStyleTag({ content: '.error-mark { visibility: hidden }' })
+  await expect(async () => {
+    expect(await inkGap(page, 2)).toBeGreaterThanOrEqual(3)
+    expect(await inkGap(page, 3)).toBeGreaterThanOrEqual(3)
+  }).toPass()
 })

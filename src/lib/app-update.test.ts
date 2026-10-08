@@ -77,7 +77,8 @@ describe('applyUpdate', () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  it('defaults to the page container and a page reload', () => {
+  // A real browser forbids replacing location, so this default runs under jsdom only.
+  it.skipIf(navigator.webdriver)('defaults to the page container and a page reload', () => {
     const container = new FakeContainer()
     const reload = vi.fn()
     vi.stubGlobal('navigator', { serviceWorker: container })
