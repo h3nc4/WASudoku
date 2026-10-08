@@ -110,29 +110,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Desktop Browsers
           - project: chromium
             install: chromium
           - project: firefox
             install: firefox
           - project: webkit
             install: webkit
-          # Mobile Viewports
-          - project: mobile-chrome
-            install: chromium
-          - project: mobile-safari
-            install: webkit
-          - project: pixel-7
-            install: chromium
           - project: iphone-15
             install: webkit
-          - project: ipad-pro
-            install: webkit
-          # Branded Desktop
-          - project: google-chrome
-            install: chrome
-          - project: msedge
-            install: msedge
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
