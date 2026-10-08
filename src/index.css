@@ -623,3 +623,8 @@
     1.5px -1.5px var(--paper),
     -1.5px -1.5px var(--paper);
 }
+
+/* Red on the dark highlighter measures 2.2:1, so a selected error cell in dark keeps its ink ring on bare paper. */
+.dark .highlighter:has(> .error-mark)::before {
+  opacity: 0;
+}
