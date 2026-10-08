@@ -19,8 +19,9 @@
 use crate::board::Board;
 use crate::logical_solver;
 use crate::solver;
-use rand::rng;
+use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
+use rand::{Rng, SeedableRng};
 use std::str::FromStr;
 
 /// Represents the target difficulty of the generated puzzle.
@@ -54,10 +55,10 @@ impl FromStr for Difficulty {
 }
 
 /// Generate a complete, solved Sudoku board.
-fn generate_full_solution() -> Board {
+fn generate_full_solution<R: Rng + ?Sized>(rng: &mut R) -> Board {
     let mut board = Board { cells: [0; 81] };
     let mut numbers: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    numbers.shuffle(&mut rng());
+    numbers.shuffle(rng);
     solver::solve_randomized(&mut board, &numbers);
     board
 }
@@ -66,7 +67,11 @@ fn generate_full_solution() -> Board {
 ///
 /// * `min_clues`: If specified, the minimization stops when the clue count drops below this number.
 ///   This is used to generate easier puzzles with more cues.
-fn create_minimal_puzzle_symmetric(solution: &Board, min_clues: Option<usize>) -> Board {
+fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
+    solution: &Board,
+    min_clues: Option<usize>,
+    rng: &mut R,
+) -> Board {
     let mut puzzle = *solution;
     let mut current_clues = 81;
 
@@ -74,7 +79,7 @@ fn create_minimal_puzzle_symmetric(solution: &Board, min_clues: Option<usize>) -
     // We only need 0..41 because we process pairs (i, 80-i).
     // 40 is the center cell (80/2), processed alone.
     let mut indices: Vec<usize> = (0..41).collect();
-    indices.shuffle(&mut rng());
+    indices.shuffle(rng);
 
     for &index in &indices {
         // If we have a lower bound on clues and we hit it, stop removing.
@@ -145,6 +150,16 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
 
 /// Generates a puzzle of a specific difficulty, returned as `(puzzle, solution)`.
 pub fn generate(difficulty: Difficulty) -> (Board, Board) {
+    generate_with_rng(difficulty, &mut rand::rng())
+}
+
+/// Same as [`generate`], but reproducible: one seed always yields the same pair.
+pub fn generate_with_seed(difficulty: Difficulty, seed: u64) -> (Board, Board) {
+    generate_with_rng(difficulty, &mut StdRng::seed_from_u64(seed))
+}
+
+/// Same as [`generate`], drawing every random choice from `rng`.
+pub fn generate_with_rng<R: Rng + ?Sized>(difficulty: Difficulty, rng: &mut R) -> (Board, Board) {
     // For Easy puzzles, we stop minimizing around 32-36 clues to keep it approachable.
     // Standard min is 17, typical easy is 36+.
     let min_clues = if difficulty == Difficulty::Easy {
@@ -154,10 +169,10 @@ pub fn generate(difficulty: Difficulty) -> (Board, Board) {
     };
 
     loop {
-        let solution = generate_full_solution();
+        let solution = generate_full_solution(rng);
 
         // Using symmetric minimization is the key performance optimization here.
-        let puzzle = create_minimal_puzzle_symmetric(&solution, min_clues);
+        let puzzle = create_minimal_puzzle_symmetric(&solution, min_clues, rng);
 
         if matches_difficulty(&puzzle, difficulty) {
             return (puzzle, solution);

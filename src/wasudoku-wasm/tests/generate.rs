@@ -16,24 +16,26 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver::{self, TechniqueLevel};
 use wasudoku_wasm::solver;
+
+const ALL_DIFFICULTIES: [Difficulty; 5] = [
+    Difficulty::Easy,
+    Difficulty::Medium,
+    Difficulty::Hard,
+    Difficulty::Expert,
+    Difficulty::Extreme,
+];
 
 #[test]
 fn test_difficulty_parses_each_frontend_name() {
     let names = ["easy", "medium", "hard", "expert", "extreme"];
     let parsed: Vec<Difficulty> = names.iter().map(|n| n.parse().unwrap()).collect();
-    assert_eq!(
-        parsed,
-        [
-            Difficulty::Easy,
-            Difficulty::Medium,
-            Difficulty::Hard,
-            Difficulty::Expert,
-            Difficulty::Extreme,
-        ]
-    );
+    assert_eq!(parsed, ALL_DIFFICULTIES);
 }
 
 #[test]
@@ -162,38 +164,60 @@ fn test_generate_extreme_puzzle_difficulty() {
     );
 }
 
+#[test]
+fn test_generate_with_seed_is_reproducible() {
+    for difficulty in ALL_DIFFICULTIES {
+        let (puzzle, solution) = generate::generate_with_seed(difficulty, 1);
+        let (again, again_solution) = generate::generate_with_seed(difficulty, 1);
+        assert_eq!(puzzle.cells, again.cells, "{difficulty:?} puzzle differs");
+        assert_eq!(
+            solution.cells, again_solution.cells,
+            "{difficulty:?} solution differs"
+        );
+
+        let (other, _) = generate::generate_with_seed(difficulty, 2);
+        assert_ne!(puzzle.cells, other.cells, "{difficulty:?} ignores the seed");
+    }
+}
+
+fn env_or<T: std::str::FromStr>(name: &str, default: T) -> T {
+    std::env::var(name)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
 // Run with `cargo test --release --test generate -- --ignored --nocapture`, N from BENCH_N.
 #[test]
 #[ignore]
 fn bench_generate_per_difficulty() {
-    let n: usize = std::env::var("BENCH_N")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(10);
-    for difficulty in [
-        Difficulty::Easy,
-        Difficulty::Medium,
-        Difficulty::Hard,
-        Difficulty::Expert,
-        Difficulty::Extreme,
-    ] {
+    let n: usize = env_or("BENCH_N", 10);
+    // BENCH_SEED fixes the puzzles, so equal seeds print equal fingerprints.
+    let seed: u64 = env_or("BENCH_SEED", 2026);
+    println!("seed={seed}");
+    for difficulty in ALL_DIFFICULTIES {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut fingerprint = DefaultHasher::new();
         let mut times: Vec<f64> = (0..n)
             .map(|_| {
                 let start = std::time::Instant::now();
-                std::hint::black_box(generate::generate(difficulty));
-                start.elapsed().as_secs_f64() * 1000.0
+                let (puzzle, solution) = generate::generate_with_rng(difficulty, &mut rng);
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                (puzzle.cells, solution.cells).hash(&mut fingerprint);
+                elapsed
             })
             .collect();
         times.sort_by(f64::total_cmp);
         let mean = times.iter().sum::<f64>() / n as f64;
         println!(
-            "{:?}: n={} mean={:.1}ms median={:.1}ms min={:.1}ms max={:.1}ms",
+            "{:?}: n={} mean={:.1}ms median={:.1}ms min={:.1}ms max={:.1}ms fingerprint={:016x}",
             difficulty,
             n,
             mean,
             times[n / 2],
             times[0],
-            times[n - 1]
+            times[n - 1],
+            fingerprint.finish()
         );
     }
 }
