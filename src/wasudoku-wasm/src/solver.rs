@@ -109,6 +109,13 @@ impl<'a> Search<'a> {
         !(self.rows[row] | self.cols[col] | self.boxes[bx]) & ALL_DIGITS
     }
 
+    fn record_solution(&mut self) {
+        self.found += 1;
+        if self.first.is_none() {
+            self.first = Some(Board { cells: self.cells });
+        }
+    }
+
     fn descend(&mut self) {
         // Pick the empty cell with the fewest candidates, stopping early at one candidate.
         let mut best: Option<(usize, u16)> = None;
@@ -131,10 +138,7 @@ impl<'a> Search<'a> {
         }
 
         let Some((i, candidates)) = best else {
-            self.found += 1;
-            if self.first.is_none() {
-                self.first = Some(Board { cells: self.cells });
-            }
+            self.record_solution();
             return;
         };
 
