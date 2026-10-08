@@ -18,7 +18,7 @@
 
 import type { Page } from '@playwright/test'
 
-import { board, expect, savedGame, test } from './fixtures'
+import { board, cellFace, expect, PUZZLE, savedGame, test } from './fixtures'
 
 const PHONE = { width: 390, height: 844 }
 const DESKTOP = { width: 1280, height: 900 }
@@ -55,3 +55,55 @@ for (const size of [PHONE, DESKTOP]) {
     expect(await boardTop(page)).toBeCloseTo(before, 1)
   })
 }
+
+/** Gap in CSS pixels between the lowest inked row of a cell's face and its bottom, or null with one band of ink. */
+async function inkGap(page: Page, index: number): Promise<number | null> {
+  const face = cellFace(page, index)
+  const box = await face.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return {
+      x: Math.ceil(r.left),
+      y: Math.ceil(r.top),
+      bottom: Math.floor(r.bottom),
+      right: Math.floor(r.right),
+    }
+  })
+  const clip = { x: box.x, y: box.y, width: box.right - box.x, height: box.bottom - box.y }
+  const png = (await page.screenshot({ clip })).toString('base64')
+  // Decoding the screenshot in the browser keeps an image library out of the test.
+  const rows = await page.evaluate(async (data) => {
+    const bytes = Uint8Array.from(atob(data), (c) => c.codePointAt(0) ?? 0)
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+    const context = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+    context.drawImage(bitmap, 0, 0)
+    const { data: px, width, height } = context.getImageData(0, 0, bitmap.width, bitmap.height)
+    const at = (x: number, y: number) => px.slice((y * width + x) * 4, (y * width + x) * 4 + 3)
+    const paper = at(1, height - 1)
+    const inked = (x: number, y: number) =>
+      at(x, y).reduce((sum, value, i) => sum + Math.abs(value - paper[i]), 0) > 60
+    return Array.from({ length: height }, (_, y) =>
+      Array.from({ length: width }, (_, x) => inked(x, y)).some(Boolean),
+    )
+  }, png)
+  const scale = rows.length / clip.height
+  const lowest = rows.lastIndexOf(true)
+  const bandTop = rows.lastIndexOf(false, lowest) + 1
+  // A clear row parts the digit from its underline. Ink with no clear row above it is the digit alone.
+  if (!rows.slice(0, bandTop).includes(true)) return null
+  return (rows.length - 1 - lowest) / scale
+}
+
+test('error underline clears the cell bottom at 390x844', async ({ page, open }) => {
+  await page.setViewportSize(PHONE)
+  // R1C3 answers 4 and R1C4 answers 6, so a tall 8 and a narrow 1 both read as wrong.
+  const wrong: Record<number, string> = { 2: '8', 3: '1' }
+  const played = [...PUZZLE].map((digit, i) => wrong[i] ?? digit).join('')
+  await open({ game: savedGame({ board: played }) })
+  await page.evaluate(async () => {
+    await document.fonts.ready
+  })
+  for (const index of [2, 3]) {
+    await expect.poll(() => inkGap(page, index)).toBeGreaterThanOrEqual(3)
+  }
+})

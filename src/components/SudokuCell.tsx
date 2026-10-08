@@ -158,8 +158,9 @@ const getInputTextStyles = ({
     weight,
     color,
     color === 'text-error' && 'ink-alarm',
+    // Chromium stretches the wave with its thickness. A thinner line shows two crests under a 1 and clears the cell's bottom line.
     (isConflict || isError) &&
-      'underline-in underline decoration-error decoration-wavy decoration-[1.5px]',
+      'underline-in underline decoration-error decoration-wavy decoration-[1.25px]',
     isTransientConflict &&
       (prefersReducedMotion()
         ? 'conflict-mark'
@@ -245,7 +246,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
             aria-hidden
             data-testid="cell-digit"
             className={cn(
-              'cell-ink leading-none underline-offset-4',
+              'cell-ink leading-none underline-offset-3',
               textClasses,
               animateEntry && 'ink-in',
             )}
