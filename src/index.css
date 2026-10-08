@@ -108,6 +108,8 @@
   --solver: #855000;
   --solver-wash: rgb(184 115 10 / 0.16);
   --graph-line: rgb(110 130 160 / 0.08);
+  --moment-glow: rgb(250 214 60 / 0.34);
+  --moment-revert: rgb(29 42 77 / 0.16);
 }
 
 .dark {
@@ -144,6 +146,8 @@
   --solver: #f2a541;
   --solver-wash: rgb(242 165 65 / 0.18);
   --graph-line: rgb(160 180 210 / 0.04);
+  --moment-glow: rgb(255 250 225 / 0.22);
+  --moment-revert: rgb(238 241 245 / 0.16);
 }
 
 @layer base {
@@ -194,9 +198,13 @@
   transition-property: background-color, box-shadow;
   transition-duration: var(--cell-motion, var(--motion-out));
   transition-timing-function: var(--ease-out);
+}
 
-  :where(&)::before,
-  :where(&)::after {
+/* Pseudo-element and state rules are flat in the utilities layer, since a nested `&` in `@utility` has no scoping root. */
+/* `:where()` keeps the base layers weightless, so `highlighter` and `solver-hatch` always override them. */
+@layer utilities {
+  :where(.cell-fill)::before,
+  :where(.cell-fill)::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -206,7 +214,7 @@
     transition: opacity var(--motion-out) var(--ease-out);
   }
 
-  :where(&)::before {
+  :where(.cell-fill)::before {
     background-image: linear-gradient(
       101deg,
       transparent 4%,
@@ -215,7 +223,7 @@
     );
   }
 
-  :where(&)::after {
+  :where(.cell-fill)::after {
     background-image: repeating-linear-gradient(
       135deg,
       var(--solver-wash) 0 3px,
@@ -238,15 +246,9 @@
   --cell-motion: 0ms;
 }
 
-@utility highlighter {
-  &::before {
-    opacity: 1;
-    transition-duration: 0ms;
-  }
-}
-
-@utility solver-hatch {
-  &::after {
+@layer utilities {
+  .highlighter::before,
+  .solver-hatch::after {
     opacity: 1;
     transition-duration: 0ms;
   }
@@ -268,9 +270,13 @@
 /* A starting style applies only to a mark that has just rendered. Marks already shown never fade again. */
 @utility note-in {
   transition: opacity 90ms var(--ease-out);
+}
 
+@layer utilities {
   @starting-style {
-    opacity: 0;
+    .note-in {
+      opacity: 0;
+    }
   }
 }
 
@@ -309,21 +315,25 @@
   grid-template-rows: 0fr;
   margin-bottom: calc(var(--column-gap, 0px) * -1);
   transition: grid-template-rows var(--motion-panel) var(--ease-out);
+}
 
-  & .hint-slot-content {
+@layer utilities {
+  .hint-slot .hint-slot-content {
     opacity: 0;
     transition: opacity var(--motion-panel) var(--ease-out);
   }
 
-  &[data-open] {
+  .hint-slot[data-open] {
     grid-template-rows: 1fr;
   }
 
-  &[data-open] .hint-slot-content {
+  .hint-slot[data-open] .hint-slot-content {
     opacity: 1;
+  }
 
-    /* The content mounts as the strip opens. Its fade starts from this value. */
-    @starting-style {
+  /* The content mounts as the strip opens. Its fade starts from this value. */
+  @starting-style {
+    .hint-slot[data-open] .hint-slot-content {
       opacity: 0;
     }
   }
@@ -347,20 +357,24 @@
     transform var(--motion-panel) var(--ease-move),
     opacity var(--motion-out) var(--ease-out);
 
-  &[data-hidden] {
-    opacity: 0;
-  }
-
   @variant dark {
     background-color: var(--accent);
+  }
+}
+
+@layer utilities {
+  .toggle-indicator[data-hidden] {
+    opacity: 0;
   }
 }
 
 /* Unarmed, a strike appears at once, so a digit complete when its puzzle loads never draws in. */
 @utility pad-strike {
   position: relative;
+}
 
-  &::after {
+@layer utilities {
+  .pad-strike::after {
     content: '';
     position: absolute;
     inset-inline: -0.1em;
@@ -373,15 +387,15 @@
     transform-origin: left center;
   }
 
-  &[data-struck]::after {
+  .pad-strike[data-struck]::after {
     transform: scaleX(1);
   }
 
-  &[data-armed][data-struck] {
+  .pad-strike[data-armed][data-struck] {
     transition: color var(--motion-panel) var(--ease-out);
   }
 
-  &[data-armed][data-struck]::after {
+  .pad-strike[data-armed][data-struck]::after {
     transition: transform var(--motion-panel) var(--ease-out);
   }
 }
@@ -462,8 +476,8 @@
 }
 
 /* An unpositioned span lets this layer fill the whole cell beneath the digit. */
-@utility conflict-pulse {
-  &::after {
+@layer utilities {
+  .conflict-pulse::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -489,8 +503,8 @@
 }
 
 /* Reduced motion gets a still outline instead, held for the same 600ms. */
-@utility conflict-mark {
-  &::after {
+@layer utilities {
+  .conflict-mark::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -502,16 +516,6 @@
 
 /* Board moments */
 /* Rare one-shot layers on their own element, so they never interrupt the selection fill transitions. */
-:root {
-  --moment-glow: rgb(250 214 60 / 0.34);
-  --moment-revert: rgb(29 42 77 / 0.16);
-}
-
-.dark {
-  --moment-glow: rgb(255 250 225 / 0.22);
-  --moment-revert: rgb(238 241 245 / 0.16);
-}
-
 /* The layer is drawn above the fill and below the notes and digit. A moment tints a cell without hiding it. */
 /* A backwards fill lets a finished moment drop its animation and leave an idle transparent layer. */
 .board-moment {
