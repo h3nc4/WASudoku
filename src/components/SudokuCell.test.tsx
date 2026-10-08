@@ -16,11 +16,22 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render as baseRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SudokuCell from './SudokuCell'
+
+// A cell is a table cell, so it renders inside a row as the board renders it.
+const BoardRow = ({ children }: { children: ReactNode }) => (
+  <table>
+    <tbody>
+      <tr>{children}</tr>
+    </tbody>
+  </table>
+)
+const render = (ui: ReactElement) => baseRender(ui, { wrapper: BoardRow })
 
 describe('SudokuCell component', () => {
   const mockOnFocus = vi.fn()
@@ -312,19 +323,19 @@ describe('SudokuCell component', () => {
     })
 
     it('applies correct border for right edge of a box', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={2} />) // col 2
-      expect(container.firstChild).toHaveClass('border-r-2 border-r-grid-thick')
-      expect(container.firstChild).toHaveClass('border-b border-b-grid-thin')
+      render(<SudokuCell {...defaultProps} index={2} />) // col 2
+      expect(screen.getByRole('cell')).toHaveClass('border-r-2 border-r-grid-thick')
+      expect(screen.getByRole('cell')).toHaveClass('border-b border-b-grid-thin')
     })
 
     it('applies correct border for bottom edge of a box', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={18} />) // row 2
-      expect(container.firstChild).toHaveClass('border-b-2 border-b-grid-thick')
+      render(<SudokuCell {...defaultProps} index={18} />) // row 2
+      expect(screen.getByRole('cell')).toHaveClass('border-b-2 border-b-grid-thick')
     })
 
     it('leaves the outer edge to the board frame', () => {
-      const { container } = render(<SudokuCell {...defaultProps} index={80} />)
-      expect(container.firstChild).not.toHaveClass(
+      render(<SudokuCell {...defaultProps} index={80} />)
+      expect(screen.getByRole('cell')).not.toHaveClass(
         'border-r',
         'border-b',
         'border-r-2',

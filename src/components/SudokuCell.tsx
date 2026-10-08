@@ -198,7 +198,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
   const textClasses = getInputTextStyles(styleProps)
 
   return (
-    <div
+    <td
       className={cn(
         'relative',
         col !== 8 &&
@@ -269,7 +269,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
         aria-label={`Sudoku cell at row ${row + 1}, column ${col + 1}`}
         aria-invalid={props.isConflict || props.isError}
       />
-    </div>
+    </td>
   )
 })
 
