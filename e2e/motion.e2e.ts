@@ -68,3 +68,53 @@ test('with motion on, no animation is left running once the board settles', asyn
 
   await expect.poll(() => running(page), { timeout: 5000 }).toEqual([])
 })
+
+/** Started conflict pulses once the timeline reaches `at`, read in the page so no round trip delays it. */
+const pulses = (page: Page, at = 0) =>
+  page.evaluate(
+    (at) =>
+      new Promise<{ name: string; start: number; now: number }[]>((resolve) => {
+        const step = () => {
+          const now = Number(document.timeline.currentTime)
+          if (now < at) return requestAnimationFrame(step)
+          resolve(
+            document
+              .getAnimations()
+              .filter((a) => a instanceof CSSAnimation && a.animationName.startsWith('conflict'))
+              .filter((a) => a.startTime !== null)
+              .map((a) => ({
+                name: (a as CSSAnimation).animationName,
+                start: Number(a.startTime),
+                now,
+              })),
+          )
+        }
+        step()
+      }),
+    at,
+  )
+
+const names = async (page: Page) => (await pulses(page)).map((p) => p.name)
+
+test('a second clash 300ms into the pulse replays it from the start', async ({ page, open }) => {
+  const tick = { intervals: [10] }
+  await open({ game: savedGame() })
+  await page.getByRole('radio', { name: 'Corner' }).click()
+  await cell(page, R1C3).click()
+
+  // A 5 note here clashes with the 5 already in row 1.
+  await page.keyboard.press('5')
+  await expect.poll(() => names(page), tick).toEqual(['conflict-pulse-a'])
+  const [first] = await pulses(page)
+
+  await pulses(page, first.start + 300)
+  await page.keyboard.press('5')
+  await expect.poll(() => names(page), tick).toEqual(['conflict-pulse-b'])
+  const [second] = await pulses(page)
+  expect(second.start - first.start).toBeGreaterThanOrEqual(300)
+
+  // The first pulse ends 600ms after its start, so the one still running past that is the replay.
+  const later = await pulses(page, Math.max(first.start + 650, second.start + 50))
+  expect(later).toMatchObject([{ name: 'conflict-pulse-b', start: second.start }])
+  expect(later[0].now - second.start).toBeLessThan(600)
+})

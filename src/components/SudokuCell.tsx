@@ -57,6 +57,8 @@ interface SudokuCellProps {
   readonly eliminatedCandidates?: ReadonlySet<number>
   /** Whether this cell is part of a momentary conflict highlight. */
   readonly isTransientConflict?: boolean
+  /** The clash count, whose parity picks the keyframes so a repeat clash replays the pulse. */
+  readonly conflictPulse?: number
   /** Whether a hint points at this cell. */
   readonly isHintTarget?: boolean
   /** Whether the player just changed this cell. A new digit then inks in and toggled notes fade. */
@@ -123,6 +125,7 @@ const getInputTextStyles = ({
   isSolved,
   isPlaced,
   isTransientConflict,
+  conflictPulse = 0,
   isNumberHighlighted,
 }: Pick<
   SudokuCellProps,
@@ -132,6 +135,7 @@ const getInputTextStyles = ({
   | 'isSolved'
   | 'isPlaced'
   | 'isTransientConflict'
+  | 'conflictPulse'
   | 'isNumberHighlighted'
 >) => {
   // Givens and walkthrough placements are inked, solver output speaks in mono, the rest is pencil.
@@ -156,7 +160,10 @@ const getInputTextStyles = ({
     color === 'text-error' && 'ink-alarm',
     (isConflict || isError) &&
       'underline-in underline decoration-error decoration-wavy decoration-[1.5px]',
-    isTransientConflict && (prefersReducedMotion() ? 'conflict-mark' : 'conflict-pulse'),
+    isTransientConflict &&
+      (prefersReducedMotion()
+        ? 'conflict-mark'
+        : cn('conflict-pulse', conflictPulse % 2 === 0 && 'conflict-pulse-b')),
   )
 }
 

@@ -197,6 +197,57 @@ describe('SudokuCell component', () => {
       expect(digit).not.toHaveClass('conflict-pulse')
     })
 
+    it('swaps the pulse keyframes on each clash so a repeat clash replays it', () => {
+      const clash = (conflictPulse: number) => (
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={conflictPulse}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />
+      )
+      const { rerender } = render(clash(1))
+      const digit = screen.getByTestId('cell-digit')
+      expect(digit).toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+
+      rerender(clash(2))
+      expect(screen.getByTestId('cell-digit')).toBe(digit)
+      expect(digit).toHaveClass('conflict-pulse conflict-pulse-b')
+
+      rerender(clash(3))
+      expect(digit).toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+    })
+
+    it('keeps the still outline across repeat clashes under reduced motion', () => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: query.includes('reduce') })),
+      )
+      const { rerender } = render(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={1}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      rerender(
+        <SudokuCell
+          {...defaultProps}
+          isTransientConflict
+          conflictPulse={2}
+          cell={{ ...defaultProps.cell, value: 3 }}
+        />,
+      )
+      const digit = screen.getByTestId('cell-digit')
+
+      expect(digit).toHaveClass('conflict-mark')
+      expect(digit).not.toHaveClass('conflict-pulse')
+      expect(digit).not.toHaveClass('conflict-pulse-b')
+    })
+
     it('applies correct classes for given numbers', () => {
       render(<SudokuCell {...defaultProps} isGiven cell={{ ...defaultProps.cell, value: 7 }} />)
       expect(screen.getByTestId('cell-digit')).toHaveClass('text-ink voice-ink')
