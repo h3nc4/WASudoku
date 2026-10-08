@@ -123,6 +123,10 @@ export const cell = (page: Page, index: number): Locator =>
 export const cellFace = (page: Page, index: number): Locator =>
   page.locator(`#cell-${index}`).locator('xpath=..').getByTestId('cell-background')
 
+/** The X drawn across a cell holding a wrong or clashing digit. */
+export const errorMark = (page: Page, index: number): Locator =>
+  cellFace(page, index).getByTestId('cell-error-mark')
+
 export const board = (page: Page): Locator => page.getByRole('grid')
 
 export const padKey = (page: Page, digit: number): Locator =>
