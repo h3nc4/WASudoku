@@ -145,9 +145,7 @@ export function NewPuzzleButton() {
       </DropdownMenu>
       <ConfirmDialog
         open={pending !== null}
-        onOpenChange={(open) => {
-          if (!open) setPending(null)
-        }}
+        onClose={() => setPending(null)}
         title="Abandon current game?"
         description="The board in progress is replaced and cannot be restored."
         confirmLabel={pending?.kind === 'custom' ? 'Create puzzle' : 'Start new puzzle'}

@@ -77,99 +77,63 @@ import type { SudokuState } from './sudoku.types'
 export { loadInitialState } from './reducer/lifecycle'
 export { createEmptyBoard, initialState } from './reducer/state'
 
+type ActionOf<T extends SudokuAction['type']> = Extract<SudokuAction, { type: T }>
+type ActionHandlers = {
+  [T in SudokuAction['type']]: (state: SudokuState, action: ActionOf<T>) => SudokuState
+}
+
+const handlers: ActionHandlers = {
+  SET_CELL_VALUE: handleSetCellValue,
+  TOGGLE_PENCIL_MARK: handleTogglePencilMark,
+  ERASE_CELL: handleEraseCell,
+  CLEAR_BOARD: handleClearBoard,
+  IMPORT_BOARD: handleImportBoard,
+  AUTO_FILL_CANDIDATES: handleAutoFillCandidates,
+  UNDO: handleUndo,
+  REDO: handleRedo,
+  SOLVE_START: handleSolveStart,
+  SOLVE_SUCCESS: handleSolveSuccess,
+  SOLVE_FAILURE: handleSolveFailure,
+  GENERATE_PUZZLE_START: handleGeneratePuzzleStart,
+  GENERATE_PUZZLE_SUCCESS: handleGeneratePuzzleSuccess,
+  GENERATE_PUZZLE_FAILURE: handleGeneratePuzzleFailure,
+  REQUEST_POOL_REFILL: handleRequestPoolRefill,
+  POOL_REFILL_SUCCESS: handlePoolRefillSuccess,
+  POOL_REFILL_FAILURE: handlePoolRefillFailure,
+  VALIDATE_PUZZLE_START: handleValidatePuzzleStart,
+  VALIDATE_PUZZLE_SUCCESS: handleValidatePuzzleSuccess,
+  VALIDATE_PUZZLE_FAILURE: handleValidatePuzzleFailure,
+  START_CUSTOM_PUZZLE: handleStartCustomPuzzle,
+  VIEW_SOLVER_STEP: handleViewSolverStep,
+  EXIT_VISUALIZATION: handleExitVisualization,
+  SET_ACTIVE_CELL: handleSetActiveCell,
+  SET_INPUT_MODE: handleSetInputMode,
+  CLEAR_ERROR: handleClearError,
+  SET_HIGHLIGHTED_VALUE: handleSetHighlightedValue,
+  TICK_TIMER: handleTickTimer,
+  SET_TRANSIENT_CONFLICTS: handleSetTransientConflicts,
+  CLEAR_TRANSIENT_CONFLICTS: handleClearTransientConflicts,
+  REQUEST_HINT: handleRequestHint,
+  HINT_SUCCESS: handleHintSuccess,
+  HINT_FAILURE: handleHintFailure,
+  CLEAR_HINT: handleClearHint,
+  PAUSE_GAME: handlePauseGame,
+  RESUME_GAME: handleResumeGame,
+  OFFER_PUZZLE: handleOfferPuzzle,
+  DISMISS_PUZZLE: handleDismissPuzzle,
+  LOAD_PUZZLE: handleLoadPuzzle,
+  INPUT_VALUE: handleInputValue,
+  NAVIGATE: handleNavigate,
+  ERASE_ACTIVE_CELL: handleEraseActiveCell,
+  CYCLE_INPUT_MODE: handleCycleInputMode,
+  STEP_VISUALIZATION: handleStepVisualization,
+}
+
 function reduceAction(state: SudokuState, action: SudokuAction): SudokuState {
-  switch (action.type) {
-    case 'SET_CELL_VALUE':
-      return handleSetCellValue(state, action)
-    case 'TOGGLE_PENCIL_MARK':
-      return handleTogglePencilMark(state, action)
-    case 'ERASE_CELL':
-      return handleEraseCell(state, action)
-    case 'CLEAR_BOARD':
-      return handleClearBoard(state)
-    case 'IMPORT_BOARD':
-      return handleImportBoard(state, action)
-    case 'AUTO_FILL_CANDIDATES':
-      return handleAutoFillCandidates(state)
-    case 'UNDO':
-      return handleUndo(state)
-    case 'REDO':
-      return handleRedo(state)
-    case 'SOLVE_START':
-      return handleSolveStart(state)
-    case 'SOLVE_SUCCESS':
-      return handleSolveSuccess(state, action)
-    case 'SOLVE_FAILURE':
-      return handleSolveFailure(state)
-    case 'GENERATE_PUZZLE_START':
-      return handleGeneratePuzzleStart(state, action)
-    case 'GENERATE_PUZZLE_SUCCESS':
-      return handleGeneratePuzzleSuccess(state, action)
-    case 'GENERATE_PUZZLE_FAILURE':
-      return handleGeneratePuzzleFailure(state)
-    case 'REQUEST_POOL_REFILL':
-      return handleRequestPoolRefill(state, action)
-    case 'POOL_REFILL_SUCCESS':
-      return handlePoolRefillSuccess(state, action)
-    case 'POOL_REFILL_FAILURE':
-      return handlePoolRefillFailure(state, action)
-    case 'VALIDATE_PUZZLE_START':
-      return handleValidatePuzzleStart(state)
-    case 'VALIDATE_PUZZLE_SUCCESS':
-      return handleValidatePuzzleSuccess(state, action)
-    case 'VALIDATE_PUZZLE_FAILURE':
-      return handleValidatePuzzleFailure(state, action)
-    case 'START_CUSTOM_PUZZLE':
-      return handleStartCustomPuzzle(state)
-    case 'VIEW_SOLVER_STEP':
-      return handleViewSolverStep(state, action)
-    case 'EXIT_VISUALIZATION':
-      return handleExitVisualization(state)
-    case 'SET_ACTIVE_CELL':
-      return handleSetActiveCell(state, action)
-    case 'SET_INPUT_MODE':
-      return handleSetInputMode(state, action)
-    case 'CLEAR_ERROR':
-      return handleClearError(state)
-    case 'SET_HIGHLIGHTED_VALUE':
-      return handleSetHighlightedValue(state, action)
-    case 'TICK_TIMER':
-      return handleTickTimer(state)
-    case 'SET_TRANSIENT_CONFLICTS':
-      return handleSetTransientConflicts(state, action)
-    case 'CLEAR_TRANSIENT_CONFLICTS':
-      return handleClearTransientConflicts(state)
-    case 'REQUEST_HINT':
-      return handleRequestHint(state)
-    case 'HINT_SUCCESS':
-      return handleHintSuccess(state, action)
-    case 'HINT_FAILURE':
-      return handleHintFailure(state)
-    case 'CLEAR_HINT':
-      return handleClearHint(state)
-    case 'PAUSE_GAME':
-      return handlePauseGame(state)
-    case 'RESUME_GAME':
-      return handleResumeGame(state)
-    case 'OFFER_PUZZLE':
-      return handleOfferPuzzle(state, action)
-    case 'DISMISS_PUZZLE':
-      return handleDismissPuzzle(state)
-    case 'LOAD_PUZZLE':
-      return handleLoadPuzzle(state, action)
-    case 'INPUT_VALUE':
-      return handleInputValue(state, action)
-    case 'NAVIGATE':
-      return handleNavigate(state, action)
-    case 'ERASE_ACTIVE_CELL':
-      return handleEraseActiveCell(state, action)
-    case 'CYCLE_INPUT_MODE':
-      return handleCycleInputMode(state)
-    case 'STEP_VISUALIZATION':
-      return handleStepVisualization(state, action)
-    default:
-      return state
-  }
+  if (!Object.hasOwn(handlers, action.type)) return state
+  // TypeScript cannot correlate the key with its action type, so widen the handler for the call.
+  const handler = handlers[action.type] as (state: SudokuState, action: SudokuAction) => SudokuState
+  return handler(state, action)
 }
 
 export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {

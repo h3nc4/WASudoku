@@ -24,12 +24,12 @@ import { ConfirmDialog } from './ConfirmDialog'
 
 describe('ConfirmDialog component', () => {
   const renderDialog = (props: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) => {
-    const onOpenChange = vi.fn()
+    const onClose = vi.fn()
     const onConfirm = vi.fn()
     render(
       <ConfirmDialog
         open
-        onOpenChange={onOpenChange}
+        onClose={onClose}
         title="Do it?"
         description="It cannot be undone."
         confirmLabel="Do it"
@@ -37,25 +37,25 @@ describe('ConfirmDialog component', () => {
         {...props}
       />,
     )
-    return { onOpenChange, onConfirm }
+    return { onClose, onConfirm }
   }
 
   it('closes and confirms', async () => {
     const user = userEvent.setup()
-    const { onOpenChange, onConfirm } = renderDialog()
+    const { onClose, onConfirm } = renderDialog()
     expect(screen.getByRole('dialog', { name: 'Do it?' })).toHaveAccessibleDescription(
       'It cannot be undone.',
     )
     await user.click(screen.getByRole('button', { name: 'Do it' }))
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(onClose).toHaveBeenCalledOnce()
     expect(onConfirm).toHaveBeenCalledOnce()
   })
 
   it('cancels without confirming, using a custom label', async () => {
     const user = userEvent.setup()
-    const { onOpenChange, onConfirm } = renderDialog({ cancelLabel: 'Keep' })
+    const { onClose, onConfirm } = renderDialog({ cancelLabel: 'Keep' })
     await user.click(screen.getByRole('button', { name: 'Keep' }))
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(onClose).toHaveBeenCalledOnce()
     expect(onConfirm).not.toHaveBeenCalled()
   })
 

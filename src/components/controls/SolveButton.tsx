@@ -128,7 +128,7 @@ export function SolveButton() {
       </Button>
       <ConfirmDialog
         open={isConfirmOpen}
-        onOpenChange={setIsConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
         title="Reveal the solution?"
         description="Every remaining cell is filled in and the solving steps open beside the board. Exit the walkthrough to return to this game."
         confirmLabel="Reveal solution"

@@ -193,6 +193,28 @@ describe('PencilMarks component', () => {
       expect(screen.queryByText('8')).not.toBeInTheDocument()
     })
 
+    it('drops each struck center mark as its own animation ends', () => {
+      const { rerender } = render(<PencilMarks candidates={none} centers={new Set([3, 7, 8])} />)
+      rerender(<PencilMarks candidates={none} centers={new Set([3])} motion="strike" />)
+
+      endAnimation(screen.getByText('8'))
+      expect(screen.queryByText('8')).not.toBeInTheDocument()
+      expect(screen.getByText('7')).toHaveClass('note-struck')
+    })
+
+    it('ignores a repeated animationend for a mark already dropped', () => {
+      const { rerender } = render(<PencilMarks candidates={new Set([2, 5, 6])} centers={none} />)
+      rerender(<PencilMarks candidates={new Set([2])} centers={none} motion="strike" />)
+
+      const leaving = screen.getByText('5')
+      act(() => {
+        endAnimation(leaving)
+        endAnimation(leaving)
+      })
+      expect(screen.queryByText('5')).not.toBeInTheDocument()
+      expect(screen.getByText('6')).toHaveClass('note-struck')
+    })
+
     it('lets a removed mark go at once under reduced motion', () => {
       vi.stubGlobal(
         'matchMedia',

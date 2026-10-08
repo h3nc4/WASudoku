@@ -34,7 +34,7 @@ interface StrikeMemory {
 }
 
 const givensOf = (board: BoardState) =>
-  board.map((cell) => (cell.isGiven ? (cell.value ?? 0) : 0)).join('')
+  board.map((cell) => (cell.isGiven && cell.value !== null ? cell.value : 0)).join('')
 
 const remember = (counts: readonly number[], prev?: StrikeMemory): readonly boolean[] =>
   counts.map((count, digit) => count < 9 || (prev?.seenOpen[digit] ?? false))
