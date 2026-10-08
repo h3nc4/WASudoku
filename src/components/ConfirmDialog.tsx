@@ -31,7 +31,7 @@ import {
 
 interface ConfirmDialogProps {
   readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
+  readonly onClose: () => void
   readonly title: string
   readonly description: ReactNode
   readonly confirmLabel: string
@@ -43,7 +43,7 @@ interface ConfirmDialogProps {
 /** A modal where the player confirms an action that discards or reveals something. */
 export function ConfirmDialog({
   open,
-  onOpenChange,
+  onClose,
   title,
   description,
   confirmLabel,
@@ -52,12 +52,13 @@ export function ConfirmDialog({
   destructive = false,
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
-    onOpenChange(false)
+    onClose()
     onConfirm()
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // Without a trigger the dialog only ever asks to close.
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

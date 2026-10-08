@@ -23,10 +23,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { initialState } from '@/context/sudoku.reducer'
 import { makeState, mockSudoku } from '@/test/sudoku-state'
 
+import { ConfirmDialog } from '../ConfirmDialog'
 import { NewPuzzleButton } from './NewPuzzleButton'
 
 vi.mock('@/context/sudoku.hooks')
 vi.mock('@/hooks/useSudokuActions')
+// The real dialog still renders, wrapped so a test can call a callback the UI cannot fire on demand.
+vi.mock('../ConfirmDialog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ConfirmDialog')>()
+  return { ConfirmDialog: vi.fn(actual.ConfirmDialog) }
+})
 
 describe('NewPuzzleButton component', () => {
   const mockGeneratePuzzle = vi.fn()
@@ -198,6 +204,16 @@ describe('NewPuzzleButton component', () => {
       await user.click(await screen.findByRole('menuitem', { name: 'Easy' }))
       expect(mockGeneratePuzzle).not.toHaveBeenCalled()
       expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
+    it('ignores a confirm that lands after the choice was cancelled, as during the fade-out', () => {
+      mockSudoku({ state: inProgress })
+      render(<NewPuzzleButton />)
+      const props = vi.mocked(ConfirmDialog).mock.lastCall?.[0]
+      expect(props?.open).toBe(false)
+      props?.onConfirm()
+      expect(mockGeneratePuzzle).not.toHaveBeenCalled()
+      expect(mockStartCustomPuzzle).not.toHaveBeenCalled()
     })
   })
 })

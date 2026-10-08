@@ -67,10 +67,7 @@ export function HintPanel() {
       <div className="min-h-0 overflow-hidden">
         {hint !== null && (
           <div className="hint-slot-content pb-(--column-gap)">
-            <div
-              role="status"
-              className="bg-paper border-grid-thin border-l-solver flex items-start gap-2 rounded-md border border-l-2 py-2 pr-1 pl-3"
-            >
+            <output className="bg-paper border-grid-thin border-l-solver flex items-start gap-2 rounded-md border border-l-2 py-2 pr-1 pl-3">
               <div className="min-w-0 flex-1 py-0.5">
                 <p className="voice-mono text-solver grid grid-cols-[auto_auto_1fr] gap-x-[1.5ch] text-xs font-semibold tabular-nums [&>span:first-child]:uppercase">
                   <HintEntry hint={hint} />
@@ -87,7 +84,7 @@ export function HintPanel() {
               >
                 <X />
               </Button>
-            </div>
+            </output>
           </div>
         )}
       </div>

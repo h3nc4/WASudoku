@@ -67,6 +67,10 @@ describe('HintPanel component', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(slot).toHaveTextContent(/Check this cell/)
 
+    // A transition inside the strip is not the strip closing.
+    fireEvent.transitionEnd(screen.getByText(/Check this cell/))
+    expect(slot).toHaveTextContent(/Check this cell/)
+
     fireEvent.transitionEnd(slot)
     expect(slot).toHaveTextContent(/^$/)
   })

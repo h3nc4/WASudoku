@@ -443,6 +443,26 @@ describe('SudokuCell component', () => {
       expect(second).toHaveClass('ink-in')
     })
 
+    it('fades in the notes of a cell the player toggled', () => {
+      const cell = { ...defaultProps.cell, candidates: new Set([2]) }
+      render(<SudokuCell {...defaultProps} animateEntry cell={cell} />)
+      expect(screen.getByText('2')).toHaveClass('note-in')
+    })
+
+    it('strikes the notes a placement removed from a peer', () => {
+      const cell = { ...defaultProps.cell, candidates: new Set([2, 5]) }
+      const { rerender } = render(<SudokuCell {...defaultProps} cell={cell} />)
+      rerender(
+        <SudokuCell
+          {...defaultProps}
+          strikeRemovedNotes
+          cell={{ ...cell, candidates: new Set([2]) }}
+        />,
+      )
+      expect(screen.getByText('5')).toHaveClass('note-struck')
+      expect(screen.getByText('2')).not.toHaveClass('note-in')
+    })
+
     it('keeps the same digit element when only the shading changes', () => {
       const cell = { ...defaultProps.cell, value: 4 }
       const { rerender } = render(<SudokuCell {...defaultProps} cell={cell} />)

@@ -307,6 +307,24 @@ describe('SolverStepsPanel component', () => {
     expect(screen.getByText(/backtracking \(brute-force\) search/)).toBeInTheDocument()
   })
 
+  it('counts a one-step solution in the singular', () => {
+    mockSudoku({
+      state: makeState({ solver: { steps: mockSteps.slice(0, 1), currentStepIndex: 1 } }),
+    })
+    render(<SolverStepsPanel />)
+    expect(screen.getByText('Solved in 1 step')).toBeInTheDocument()
+  })
+
+  it('treats steps without a selected one as the initial board', () => {
+    mockSudoku({ state: makeState({ solver: { currentStepIndex: null } }, defaultState) })
+    render(<SolverStepsPanel />)
+    expect(screen.getByText('00/19')).toBeInTheDocument()
+    expect(screen.getByText(/The puzzle as given/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next step' })).toBeDisabled()
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
   it('keeps the current mark on the last step when the solution is shown', () => {
     render(<SolverStepsPanel />)
     expect(screen.getByRole('button', { name: /Step 19:/ })).toHaveAttribute('aria-current', 'step')

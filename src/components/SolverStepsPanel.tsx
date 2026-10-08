@@ -85,6 +85,7 @@ export function SolverStepsPanel() {
   const tagWidth = String(steps.length).length
   const tagOf = (position: number) => String(position).padStart(tagWidth, '0')
 
+  const currentPosition = currentStepIndex ?? 0
   const isSolution = currentStepIndex === steps.length
   const explanation =
     currentStepIndex === null || currentStepIndex === 0
@@ -120,13 +121,13 @@ export function SolverStepsPanel() {
         </h2>
         <div className="flex items-center gap-1">
           <span className="voice-mono text-muted-foreground mr-1 text-xs tabular-nums">
-            {tagOf(currentStepIndex ?? 0)}/{steps.length}
+            {tagOf(currentPosition)}/{steps.length}
           </span>
           <Button
             variant="ghost"
             size="icon-sm"
             className="size-7"
-            onClick={() => viewSolverStep((currentStepIndex ?? 0) - 1)}
+            onClick={() => viewSolverStep(currentPosition - 1)}
             disabled={currentStepIndex === null || currentStepIndex <= 0}
             title="Previous step (Left arrow)"
             aria-label="Previous step"
@@ -137,7 +138,7 @@ export function SolverStepsPanel() {
             variant="ghost"
             size="icon-sm"
             className="size-7"
-            onClick={() => viewSolverStep((currentStepIndex ?? 0) + 1)}
+            onClick={() => viewSolverStep(currentPosition + 1)}
             disabled={currentStepIndex === null || currentStepIndex >= steps.length}
             title="Next step (Right arrow)"
             aria-label="Next step"

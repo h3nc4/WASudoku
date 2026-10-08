@@ -49,9 +49,7 @@ export function getTechniqueName(technique: Technique): string {
 
 // Reads as prose: "3 or 4" for the values a cell may take, "3 and 4" for values that all go.
 const joinWords = (items: string[], word: 'and' | 'or') =>
-  items.length <= 1
-    ? items.join('')
-    : `${items.slice(0, -1).join(', ')} ${word} ${items[items.length - 1]}`
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} ${word} ${items.at(-1)}`
 const sortedNums = (nums: number[]) => [...nums].sort((a, b) => a - b).map(String)
 const listOr = (nums: number[]) => joinWords(sortedNums(nums), 'or')
 const listAnd = (nums: number[]) => joinWords(sortedNums(nums), 'and')
@@ -141,7 +139,8 @@ export function getStepExplanation(step: SolvingStep): string {
       const valX = step.eliminations[0].value
       const valB = cause[0].candidates.find((c) => c !== valX)
       const pair = listAnd(valB === undefined ? [valX] : [valX, valB])
-      return `Two cells hold only ${pair} but do not see each other. A strong link${valB === undefined ? '' : ` on ${valB}`} connects them, which forces one of the two cells to be ${valX}. So ${valX} is removed from any cell that sees both.`
+      const link = valB === undefined ? 'A strong link' : `A strong link on ${valB}`
+      return `Two cells hold only ${pair} but do not see each other. ${link} connects them, which forces one of the two cells to be ${valX}. So ${valX} is removed from any cell that sees both.`
     }
     case 'Backtracking':
       return 'The available logical techniques were not enough to solve the puzzle. A backtracking (brute-force) search found the solution.'

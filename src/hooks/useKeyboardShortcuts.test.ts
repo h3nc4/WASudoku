@@ -91,6 +91,13 @@ describe('useKeyboardShortcuts', () => {
     expect(actions.stepVisualization).toHaveBeenCalledTimes(2)
   })
 
+  it('leaves other keys alone while visualizing', () => {
+    mockSudoku({ state: makeState({ solver: { gameMode: 'visualizing' } }, playing) })
+    renderHook(() => useKeyboardShortcuts())
+    expect(press('ArrowUp').defaultPrevented).toBe(false)
+    expect(actions.stepVisualization).not.toHaveBeenCalled()
+  })
+
   it('leaves the arrow keys to the grid during play', () => {
     renderHook(() => useKeyboardShortcuts())
     expect(press('ArrowLeft').defaultPrevented).toBe(false)

@@ -32,9 +32,7 @@ export function PendingPuzzleDialog() {
   return (
     <ConfirmDialog
       open={puzzle !== null}
-      onOpenChange={(open) => {
-        if (!open) dismissPuzzle()
-      }}
+      onClose={dismissPuzzle}
       title="Start this puzzle?"
       description={
         replacesGame

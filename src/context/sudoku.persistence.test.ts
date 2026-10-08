@@ -147,6 +147,11 @@ describe('game encoding', () => {
   it.each([
     ['an unknown version', { ...encodeGame(sampleGame()), version: 3 }],
     ['an index past the stack', { ...encodeGame(sampleGame()), history: { stack: [], index: 0 } }],
+    [
+      'an index outside a full stack',
+      { ...encodeGame(sampleGame()), history: { ...encodeGame(sampleGame()).history, index: 3 } },
+    ],
+    ['a history without a stack', { ...encodeGame(sampleGame()), history: null }],
     ['a bad solution', { ...encodeGame(sampleGame()), solution: '12' }],
     ['a bad difficulty', { ...encodeGame(sampleGame()), difficulty: 7 }],
     ['a non-object', 'game'],
@@ -220,6 +225,10 @@ describe('loadPersistedState', () => {
     ],
     ['a corrupt board code', JSON.stringify({ ...encodeGame(sampleGame()), initialBoard: 'x' })],
     ['a legacy board of the wrong length', legacyGameWith([cell()])],
+    [
+      'a legacy board of null cells',
+      JSON.stringify({ history: { stack: [Array.from({ length: 81 }, () => null)], index: 0 } }),
+    ],
     ['a legacy solution of the wrong length', legacyGameWith(emptyBoard(), [1, 2, 3])],
     [
       'a legacy cell value out of range',
@@ -240,6 +249,11 @@ describe('loadPersistedState', () => {
       `Failed to load ${STORAGE_KEYS.GAME} from local storage:`,
       expect.any(Error),
     )
+  })
+
+  it('rejects a pool without its puzzle map', () => {
+    globalThis.localStorage.setItem(STORAGE_KEYS.POOL, JSON.stringify({ puzzlePool: null }))
+    expect(loadPersistedState().puzzlePool).toBeNull()
   })
 
   it('rejects malformed metrics and pool', () => {

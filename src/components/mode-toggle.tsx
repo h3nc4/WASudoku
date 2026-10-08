@@ -41,7 +41,7 @@ export function ModeToggle() {
       root.style.colorScheme = next
       flushSync(() => setTheme(next))
       // Forcing layout settles every colour while transitions are held off, so none start afterwards.
-      void root.offsetHeight
+      root.getBoundingClientRect()
       root.classList.remove('theme-switching')
     })
   }

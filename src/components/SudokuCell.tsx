@@ -22,7 +22,7 @@ import type { CellState } from '@/context/sudoku.types'
 import type { BoardMoment } from '@/hooks/useBoardMove'
 import { cn } from '@/lib/utils'
 
-import { PencilMarks } from './PencilMarks'
+import { type MarkMotion, PencilMarks } from './PencilMarks'
 
 interface SudokuCellProps {
   /** The state of the cell, including value and pencil marks. */
@@ -158,6 +158,15 @@ const getInputTextStyles = ({
   )
 }
 
+const getMarkMotion = (
+  animateEntry?: boolean,
+  strikeRemovedNotes?: boolean,
+): MarkMotion | undefined => {
+  if (animateEntry) return 'toggle'
+  if (strikeRemovedNotes) return 'strike'
+  return undefined
+}
+
 /**
  * Renders a single cell within the Sudoku grid.
  * This is a controlled component where all user input is handled by the parent grid.
@@ -216,7 +225,7 @@ const SudokuCell = forwardRef<HTMLInputElement, SudokuCellProps>((props, ref) =>
             candidates={cell.candidates}
             centers={cell.centers}
             eliminations={eliminatedCandidates}
-            motion={animateEntry ? 'toggle' : strikeRemovedNotes ? 'strike' : undefined}
+            motion={getMarkMotion(animateEntry, strikeRemovedNotes)}
           />
         ) : (
           // Scaling the input would scale its ring too. The digit draws here instead, keyed to replay per entry.

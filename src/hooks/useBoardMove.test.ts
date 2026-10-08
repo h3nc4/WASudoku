@@ -174,6 +174,22 @@ describe('findBoardMoment', () => {
     expect(momentOf(undo, redo)?.kind).toBe('revert')
   })
 
+  it('marks the cell whose notes an undo took back', () => {
+    const before = snapshot(createEmptyBoard())
+    const board = toggleMark(before.board, 50, 'center', 3)
+    const noted = { ...before, board, history: { stack: [before.board, board], index: 1 } }
+    const undo = { ...noted, board: before.board, history: { ...noted.history, index: 0 } }
+
+    const reverted = momentOf(noted, undo)
+    expect(reverted?.kind).toBe('revert')
+    expect([...(reverted?.delays.keys() ?? [])]).toEqual([50])
+  })
+
+  it('plays nothing when the board did not change', () => {
+    const same = snapshot(solvedExcept(0))
+    expect(findBoardMoment(same, same, null)).toBeNull()
+  })
+
   it('reveals the givens of a new puzzle box by box', () => {
     const prev = place(snapshot(createEmptyBoard()), 4, 7)
     const puzzle = solvedExcept(...Array.from({ length: 79 }, (_, i) => i + 1))

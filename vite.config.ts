@@ -57,7 +57,6 @@ export default defineConfig({
         '**/*.test.tsx',
         '**/__mocks__',
         '**/*.d.ts',
-        '**/*.types.ts',
       ],
     },
   },
