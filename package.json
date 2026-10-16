@@ -93,5 +93,8 @@
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
     }
+  },
+  "dependencies": {
+    "lodash": "4.17.20"
   }
 }
