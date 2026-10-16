@@ -45,7 +45,6 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      setupFiles: ['src/test/setup.browser.ts'],
       browser: {
         enabled: true,
         provider: playwright({}),
