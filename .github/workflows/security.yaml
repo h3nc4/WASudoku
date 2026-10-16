@@ -16,7 +16,6 @@ on:
 jobs:
   audit:
     name: Dependency Audit
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write # pushes the fix branch
@@ -41,7 +40,7 @@ jobs:
           mkdir -p ~/ci-cache/cargo
       - name: Fix what can be fixed
         id: fix
-        if: github.event_name != 'push'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           $DEV_RUN -c 'npm audit fix --package-lock-only' || true
           if git diff --quiet -- package.json package-lock.json; then
