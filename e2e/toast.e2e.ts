@@ -98,6 +98,33 @@ test.describe('on a 390x844 phone', () => {
     await expectToastsClear(page, text, [board(page), stepsPanel(page)])
   })
 
+  test('a leaving walkthrough toast lets a tap through to the steps panel', async ({
+    page,
+    open,
+  }) => {
+    await open({ game: savedGame() })
+    await startWalkthrough(page)
+    const previous = page.getByRole('button', { name: 'Previous step' })
+    await previous.scrollIntoViewIfNeeded()
+    // Reads the hit target in the same task the toast starts leaving, when it has slid over the panel.
+    const hit = await previous.evaluate(
+      (button) =>
+        new Promise<string>((resolve) => {
+          const observer = new MutationObserver(() => {
+            if (!document.querySelector('[data-sonner-toast][data-removed="true"]')) return
+            observer.disconnect()
+            const { x, y, width, height } = button.getBoundingClientRect()
+            const target = document.elementFromPoint(x + width / 2, y + height / 2)
+            resolve(
+              button.contains(target) ? 'button' : (target?.outerHTML.slice(0, 60) ?? 'nothing'),
+            )
+          })
+          observer.observe(document.body, { subtree: true, attributeFilter: ['data-removed'] })
+        }),
+    )
+    expect(hit).toBe('button')
+  })
+
   test('custom input toasts stay off the board', async ({ page, open }) => {
     await open()
     await page.getByRole('button', { name: 'Create Your Own' }).click()
