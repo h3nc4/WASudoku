@@ -75,8 +75,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       mobileOffset={phoneOffset}
       toastOptions={{
         classNames: {
+          // A leaving toast slides down by its own height, which over the steps panel would swallow a tap.
           toast:
-            'group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+            'group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg data-[removed=true]:pointer-events-none',
           description: 'group-[.toast]:text-muted-foreground',
           actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
           cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
