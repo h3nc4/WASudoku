@@ -17,7 +17,7 @@
 */
 
 use crate::board::Board;
-use crate::logical_solver;
+use crate::logical_solver::{self, PEER_MASKS, TechniqueLevel, mask_indices};
 use crate::solver;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -63,6 +63,40 @@ fn generate_full_solution<R: Rng + ?Sized>(rng: &mut R) -> Board {
     board
 }
 
+/// Every set of cells whose two digits can swap places and leave a valid grid.
+/// A puzzle with no clue in one of them has a second solution, so no search is needed.
+fn two_digit_unavoidable_sets(solution: &Board) -> Vec<u128> {
+    let mut digit_cells = [0u128; 10];
+    for (i, &digit) in solution.cells.iter().enumerate() {
+        digit_cells[digit as usize] |= 1 << i;
+    }
+    let mut sets = Vec::new();
+    for x in 1..=9 {
+        for y in x + 1..=9 {
+            let pair = digit_cells[x] | digit_cells[y];
+            let mut rest = pair;
+            // Each connected group of peers among the cells of x and y swaps on its own
+            while rest != 0 {
+                let set = peer_group(rest.isolate_lowest_one(), pair);
+                rest &= !set;
+                sets.push(set);
+            }
+        }
+    }
+    sets
+}
+
+/// Grow `set` into every cell of `cells` it reaches through peers, one hop at a time.
+fn peer_group(mut set: u128, cells: u128) -> u128 {
+    loop {
+        let grown = mask_indices(set).fold(set, |m, i| m | (PEER_MASKS[i] & cells));
+        if grown == set {
+            return set;
+        }
+        set = grown;
+    }
+}
+
 /// Creates a "minimal" puzzle from a solution by removing as many clues as possible.
 ///
 /// * `min_clues`: If specified, the minimization stops when the clue count drops below this number.
@@ -74,6 +108,8 @@ fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
 ) -> Board {
     let mut puzzle = *solution;
     let mut current_clues = 81;
+    let unavoidable = two_digit_unavoidable_sets(solution);
+    let mut clue_mask: u128 = (1 << 81) - 1;
 
     // Create a list of indices to try removing.
     // We only need 0..41 because we process pairs (i, 80-i).
@@ -96,13 +132,17 @@ fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
         puzzle.cells[index] = 0;
         puzzle.cells[sym_index] = 0;
 
-        // Check uniqueness
-        if solver::count_solutions(&puzzle) != 1 {
+        // Check uniqueness, skipping the search when an unavoidable set has no clue left
+        let clues = clue_mask & !((1 << index) | (1 << sym_index));
+        let unique = unavoidable.iter().all(|&set| set & clues != 0)
+            && solver::count_solutions(&puzzle) == 1;
+        if !unique {
             // If not unique, restore
             puzzle.cells[index] = val1;
             puzzle.cells[sym_index] = val2;
         } else {
             // Successful removal
+            clue_mask = clues;
             current_clues -= if index == sym_index { 1 } else { 2 };
         }
     }
@@ -111,10 +151,14 @@ fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
 
 /// Check if a puzzle matches the criteria for a specific difficulty.
 fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
-    let (steps, solved_board) = logical_solver::solve_with_steps(puzzle);
-    let is_logically_solvable = solved_board.cells.iter().all(|&c| c != 0);
-
-    let stats = logical_solver::analyze_difficulty(&steps);
+    // Any step above the level a target allows fails it, so grading can stop there
+    let ceiling = match difficulty {
+        Difficulty::Easy => TechniqueLevel::Basic,
+        Difficulty::Medium => TechniqueLevel::Intermediate,
+        Difficulty::Hard => TechniqueLevel::Advanced,
+        Difficulty::Expert | Difficulty::Extreme => TechniqueLevel::Master,
+    };
+    let (stats, is_logically_solvable) = logical_solver::grade(puzzle, ceiling);
 
     match difficulty {
         Difficulty::Easy => {

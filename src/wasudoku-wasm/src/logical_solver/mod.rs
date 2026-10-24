@@ -128,11 +128,34 @@ impl Technique {
 }
 
 /// Stats for difficulty analysis
+#[derive(Debug, PartialEq, Eq)]
 pub struct DifficultyStats {
     pub max_level: TechniqueLevel,
     pub intermediate_count: usize,
     pub advanced_count: usize,
     pub master_count: usize,
+}
+
+impl DifficultyStats {
+    fn new() -> Self {
+        DifficultyStats {
+            max_level: TechniqueLevel::None,
+            intermediate_count: 0,
+            advanced_count: 0,
+            master_count: 0,
+        }
+    }
+
+    /// Count one step of `level`.
+    fn record(&mut self, level: TechniqueLevel) {
+        self.max_level = self.max_level.max(level);
+        match level {
+            TechniqueLevel::Intermediate => self.intermediate_count += 1,
+            TechniqueLevel::Advanced => self.advanced_count += 1,
+            TechniqueLevel::Master => self.master_count += 1,
+            _ => {}
+        }
+    }
 }
 
 /// Convert a bitmask of candidates into a `Vec` of numbers.
@@ -145,7 +168,7 @@ pub(crate) fn mask_to_vec(mask: u16) -> Vec<u8> {
 
 /// Yields the cell indices set in an 81-bit cell mask, in ascending order.
 #[inline]
-fn mask_indices(mut mask: u128) -> impl Iterator<Item = usize> {
+pub(crate) fn mask_indices(mut mask: u128) -> impl Iterator<Item = usize> {
     std::iter::from_fn(move || {
         if mask == 0 {
             return None;
@@ -257,83 +280,96 @@ impl LogicalBoard {
     }
 }
 
+/// A technique finder, returning the first step of its kind on the board.
+type Finder = fn(&LogicalBoard) -> Option<SolvingStep>;
+
+/// Every finder in the order the solver tries them, with the lowest level each can report.
+const FINDERS: [(Finder, TechniqueLevel); 15] = [
+    (basic::find_naked_single, TechniqueLevel::Basic),
+    (basic::find_hidden_single, TechniqueLevel::Basic),
+    (subsets::find_naked_pair, TechniqueLevel::Intermediate),
+    (subsets::find_naked_triple, TechniqueLevel::Intermediate),
+    (
+        intersection::find_pointing_subset,
+        TechniqueLevel::Intermediate,
+    ),
+    (subsets::find_hidden_pair, TechniqueLevel::Intermediate),
+    (subsets::find_hidden_triple, TechniqueLevel::Intermediate),
+    (
+        intersection::find_claiming_candidates,
+        TechniqueLevel::Intermediate,
+    ),
+    // Advanced Techniques, where the fish finder also reports the Master level Jellyfish
+    (fish::find_fish_techniques, TechniqueLevel::Advanced),
+    (wings::find_xy_wing, TechniqueLevel::Advanced),
+    (wings::find_xyz_wing, TechniqueLevel::Advanced),
+    (single_digit::find_skyscraper, TechniqueLevel::Advanced),
+    (single_digit::find_two_string_kite, TechniqueLevel::Advanced),
+    // Master Techniques
+    (
+        uniqueness::find_unique_rectangle_type_1,
+        TechniqueLevel::Master,
+    ),
+    (wings::find_w_wing, TechniqueLevel::Master),
+];
+
 /// Solve the board by repeatedly applying logical techniques and return the steps.
 pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {
     let mut board = LogicalBoard::from_board(initial_board);
     let mut steps = Vec::new();
 
-    loop {
-        // Try techniques in order of complexity/speed
-        let progress = try_apply_step(&mut board, &mut steps, basic::find_naked_single)
-            || try_apply_step(&mut board, &mut steps, basic::find_hidden_single)
-            || try_apply_step(&mut board, &mut steps, subsets::find_naked_pair)
-            || try_apply_step(&mut board, &mut steps, subsets::find_naked_triple)
-            || try_apply_step(&mut board, &mut steps, intersection::find_pointing_subset)
-            || try_apply_step(&mut board, &mut steps, subsets::find_hidden_pair)
-            || try_apply_step(&mut board, &mut steps, subsets::find_hidden_triple)
-            || try_apply_step(&mut board, &mut steps, intersection::find_claiming_candidates)
-            // Advanced Techniques
-            || try_apply_step(&mut board, &mut steps, fish::find_fish_techniques)
-            || try_apply_step(&mut board, &mut steps, wings::find_xy_wing)
-            || try_apply_step(&mut board, &mut steps, wings::find_xyz_wing)
-            || try_apply_step(&mut board, &mut steps, single_digit::find_skyscraper)
-            || try_apply_step(&mut board, &mut steps, single_digit::find_two_string_kite)
-            // Master Techniques
-            || try_apply_step(&mut board, &mut steps, uniqueness::find_unique_rectangle_type_1)
-            || try_apply_step(&mut board, &mut steps, wings::find_w_wing);
-
-        if !progress {
-            break;
-        }
+    // Try techniques in order of complexity/speed, starting over after each step
+    while let Some(step) = FINDERS.iter().find_map(|(finder, _)| finder(&board)) {
+        apply_step(&mut board, &step);
+        steps.push(step);
     }
 
     (steps, Board { cells: board.cells })
 }
 
-/// Helper to apply a step if one is found.
-fn try_apply_step(
-    board: &mut LogicalBoard,
-    steps: &mut Vec<SolvingStep>,
-    finder: fn(&LogicalBoard) -> Option<SolvingStep>,
-) -> bool {
-    if let Some(step) = finder(board) {
-        // Apply placements
-        for placement in &step.placements {
-            board.set_cell(placement.index, placement.value);
+/// Grade a puzzle that has a unique solution, counting the steps `solve_with_steps` takes.
+/// Stops before any step above `ceiling`, returning unsolved for a puzzle that needs one.
+pub fn grade(initial_board: &Board, ceiling: TechniqueLevel) -> (DifficultyStats, bool) {
+    let mut board = LogicalBoard::from_board(initial_board);
+    let mut stats = DifficultyStats::new();
+
+    loop {
+        // Singles are placed in bulk, which the full solver does one step at a time
+        if basic::place_singles(&mut board) > 0 {
+            stats.record(TechniqueLevel::Basic);
         }
-        // Apply eliminations
-        for elim in &step.eliminations {
-            board.candidates[elim.index] &= !(1 << (elim.value - 1));
+        if !board.cells.contains(&0) {
+            return (stats, true);
         }
-        steps.push(step);
-        return true;
+        let step = FINDERS[2..]
+            .iter()
+            .take_while(|(_, level)| *level <= ceiling)
+            .find_map(|(finder, _)| finder(&board));
+        match step {
+            Some(step) if step.technique.level() <= ceiling => {
+                stats.record(step.technique.level());
+                apply_step(&mut board, &step);
+            }
+            _ => return (stats, false),
+        }
     }
-    false
+}
+
+/// Apply the placements and eliminations of a step to the board.
+fn apply_step(board: &mut LogicalBoard, step: &SolvingStep) {
+    for placement in &step.placements {
+        board.set_cell(placement.index, placement.value);
+    }
+    for elim in &step.eliminations {
+        board.candidates[elim.index] &= !(1 << (elim.value - 1));
+    }
 }
 
 /// Analyzes the steps to count technique levels.
 pub fn analyze_difficulty(steps: &[SolvingStep]) -> DifficultyStats {
-    let mut stats = DifficultyStats {
-        max_level: TechniqueLevel::None,
-        intermediate_count: 0,
-        advanced_count: 0,
-        master_count: 0,
-    };
-
+    let mut stats = DifficultyStats::new();
     for step in steps {
-        let level = step.technique.level();
-
-        if level > stats.max_level {
-            stats.max_level = level;
-        }
-
-        match level {
-            TechniqueLevel::Intermediate => stats.intermediate_count += 1,
-            TechniqueLevel::Advanced => stats.advanced_count += 1,
-            TechniqueLevel::Master => stats.master_count += 1,
-            _ => {}
-        }
+        stats.record(step.technique.level());
     }
-
     stats
 }

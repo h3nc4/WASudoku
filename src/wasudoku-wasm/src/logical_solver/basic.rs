@@ -113,3 +113,53 @@ fn find_unique_position_in_group(board: &LogicalBoard, group: &[usize], num: u8)
 
     if count == 1 { Some(target_idx) } else { None }
 }
+
+/// Place every naked and hidden single until none is left, returning how many were placed.
+/// On a puzzle with one solution any order ends on the board that placing them step by step does.
+pub(crate) fn place_singles(board: &mut LogicalBoard) -> usize {
+    let mut placed = 0;
+    loop {
+        let before = placed;
+        placed += place_naked_singles(board);
+        for unit in ALL_UNITS.iter() {
+            placed += place_hidden_singles(board, unit);
+        }
+        if placed == before {
+            return placed;
+        }
+    }
+}
+
+/// Place one pass of naked singles in cell order, returning how many were placed.
+fn place_naked_singles(board: &mut LogicalBoard) -> usize {
+    let mut placed = 0;
+    for i in 0..81 {
+        let candidates = board.candidates[i];
+        if candidates.count_ones() == 1 && board.set_cell(i, candidates.trailing_zeros() as u8 + 1)
+        {
+            placed += 1;
+        }
+    }
+    placed
+}
+
+/// Place the hidden singles of one unit, returning how many were placed.
+fn place_hidden_singles(board: &mut LogicalBoard, unit: &[usize]) -> usize {
+    // A digit seen once but never twice has one possible cell in the unit
+    let (mut once, mut twice) = (0u16, 0u16);
+    for &i in unit {
+        twice |= once & board.candidates[i];
+        once |= board.candidates[i];
+    }
+    let mut placed = 0;
+    let mut hidden = once & !twice;
+    while hidden != 0 {
+        let bit = hidden.isolate_lowest_one();
+        hidden &= hidden - 1;
+        if let Some(&i) = unit.iter().find(|&&i| board.candidates[i] & bit != 0) {
+            board.set_cell(i, bit.trailing_zeros() as u8 + 1);
+            placed += 1;
+        }
+    }
+    placed
+}
