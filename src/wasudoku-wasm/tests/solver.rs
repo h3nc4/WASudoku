@@ -16,7 +16,12 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
+use rand::{RngExt, SeedableRng};
 use wasudoku_wasm::board::Board;
+use wasudoku_wasm::generate::{self, Difficulty};
+use wasudoku_wasm::logical_solver;
 use wasudoku_wasm::solver::{count_and_first_solution, count_solutions, solve, solve_randomized};
 
 #[test]
@@ -245,6 +250,9 @@ fn test_out_of_range_digit_has_no_solution() {
     let mut board = Board { cells: [0; 81] };
     board.cells[0] = 10;
     assert_eq!(count_solutions(&board), 0);
+    board.cells[0] = u8::MAX;
+    assert_eq!(count_solutions(&board), 0);
+    assert!(!solve(&mut board));
 }
 
 #[test]
@@ -277,6 +285,112 @@ fn test_solve_randomized_follows_digit_order() {
     assert!(is_complete_solution_of(&descending, &empty));
 }
 
+/// The backtracking search the solver used before propagation, kept as an oracle for its results.
+/// It rescans every cell for the one with the fewest candidates and propagates nothing.
+struct Reference<'a> {
+    cells: [u8; 81],
+    order: &'a [u8; 9],
+    limit: u8,
+    found: u8,
+    first: Option<Board>,
+}
+
+impl Reference<'_> {
+    fn run(board: &Board, order: &[u8; 9], limit: u8) -> (u8, Option<Board>) {
+        let mut search = Reference {
+            cells: board.cells,
+            order,
+            limit,
+            found: 0,
+            first: None,
+        };
+        search.descend();
+        (search.found, search.first)
+    }
+
+    fn candidates(&self, i: usize) -> u16 {
+        let board = Board { cells: self.cells };
+        (1..=9u8)
+            .filter(|&d| board.is_valid_move(i / 9, i % 9, d))
+            .fold(0, |mask, d| mask | 1 << (d - 1))
+    }
+
+    fn descend(&mut self) {
+        let mut best: Option<(usize, u16)> = None;
+        for i in (0..81).filter(|&i| self.cells[i] == 0) {
+            let candidates = self.candidates(i);
+            let count = candidates.count_ones();
+            if count == 0 {
+                return;
+            }
+            if best.is_none_or(|(_, mask)| count < mask.count_ones()) {
+                best = Some((i, candidates));
+            }
+        }
+        let Some((i, candidates)) = best else {
+            self.found += 1;
+            self.first.get_or_insert(Board { cells: self.cells });
+            return;
+        };
+        for &digit in self.order {
+            if candidates & 1 << (digit - 1) != 0 && self.found < self.limit {
+                self.cells[i] = digit;
+                self.descend();
+            }
+        }
+        self.cells[i] = 0;
+    }
+}
+
+/// Seeded boards from full grids down to sparse ones with many solutions, some made unsolvable.
+fn sample_boards(count: usize) -> Vec<Board> {
+    let mut rng = StdRng::seed_from_u64(81);
+    (0..count)
+        .map(|n| {
+            let mut order = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            order.shuffle(&mut rng);
+            let mut board = Reference::run(&Board { cells: [0; 81] }, &order, 1)
+                .1
+                .unwrap();
+            let mut cells: Vec<usize> = (0..81).collect();
+            cells.shuffle(&mut rng);
+            for &i in &cells[..rng.random_range(0..58)] {
+                board.cells[i] = 0;
+            }
+            // Every fourth board trades a clue for a digit that breaks no rule, often leaving no solution.
+            if n % 4 == 3 {
+                let i = cells[0];
+                board.cells[i] = (1..=9u8)
+                    .find(|&d| board.is_valid_move(i / 9, i % 9, d) && d != board.cells[i])
+                    .unwrap_or(0);
+            }
+            board
+        })
+        .collect()
+}
+
+#[test]
+fn test_solver_matches_reference_search() {
+    let mut rng = StdRng::seed_from_u64(9);
+    let mut seen = [0; 3];
+    for board in sample_boards(400) {
+        let mut order = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        order.shuffle(&mut rng);
+        let (count, first) = Reference::run(&board, &order, 1);
+        let mut solved = board;
+        assert_eq!(solve_randomized(&mut solved, &order), count == 1, "{board}");
+        assert!(solved == first.unwrap_or(board), "{board}");
+
+        let expected = Reference::run(&board, &[1, 2, 3, 4, 5, 6, 7, 8, 9], 2);
+        assert_eq!(count_solutions(&board), expected.0, "{board}");
+        let (count, first) = count_and_first_solution(&board);
+        assert_eq!(count, expected.0, "{board}");
+        assert!(first == expected.1, "{board}");
+        seen[count as usize] += 1;
+    }
+    assert!(seen.iter().all(|&n| n > 20), "samples by count {seen:?}");
+}
+
 // Run with `cargo test --release --test solver -- --ignored --nocapture`, deterministic unlike generation.
 #[test]
 #[ignore]
@@ -290,17 +404,54 @@ fn bench_count_solutions_fixed_puzzles() {
     ];
     for puzzle in puzzles {
         let board: Board = puzzle.parse().unwrap();
-        let start = std::time::Instant::now();
-        let mut count = 0;
-        for _ in 0..20 {
-            count = std::hint::black_box(count_solutions(&board));
-        }
-        let per_call = start.elapsed().as_secs_f64() * 1000.0 / 20.0;
+        let count = std::hint::black_box(count_solutions(&board));
+        let count_ms = time_per_call(|| count_solutions(std::hint::black_box(&board)));
+        let solve_ms = time_per_call(|| solve(&mut std::hint::black_box(board)));
         println!(
-            "{}: count={} {:.3}ms per call",
+            "{}: count={} count_solutions {:.4}ms solve {:.4}ms per call",
             &puzzle[..20],
             count,
-            per_call
+            count_ms,
+            solve_ms
         );
     }
+    // Seeded boards like those generation checks, from a full grid down to a sparse one.
+    let boards = sample_boards(2000);
+    let start = std::time::Instant::now();
+    for board in &boards {
+        std::hint::black_box(count_solutions(std::hint::black_box(board)));
+    }
+    let per_board = start.elapsed().as_secs_f64() * 1e6 / boards.len() as f64;
+    println!(
+        "{} sampled boards: count_solutions {per_board:.2}us per call",
+        boards.len()
+    );
+
+    // Seeded Extreme puzzles, and what is left of them for `solve_sudoku` to backtrack once logic stalls.
+    let puzzles: Vec<Board> = (0..20)
+        .map(|seed| generate::generate_with_seed(Difficulty::Extreme, seed).0)
+        .collect();
+    let stalled: Vec<Board> = puzzles
+        .iter()
+        .map(|puzzle| logical_solver::solve_with_steps(puzzle).1)
+        .collect();
+    let count_ms = time_per_call(|| puzzles.iter().map(count_solutions).sum::<u8>());
+    let solve_ms = time_per_call(|| stalled.iter().filter(|&&b| solve(&mut b.clone())).count());
+    println!(
+        "{} Extreme puzzles: count_solutions {:.2}us, solve after logic {:.2}us per call",
+        puzzles.len(),
+        count_ms * 1000.0 / puzzles.len() as f64,
+        solve_ms * 1000.0 / stalled.len() as f64
+    );
+}
+
+/// Mean time of `f` in milliseconds over at least 20 calls and 200ms.
+fn time_per_call<T>(mut f: impl FnMut() -> T) -> f64 {
+    let start = std::time::Instant::now();
+    let mut calls = 0;
+    while calls < 20 || start.elapsed().as_millis() < 200 {
+        std::hint::black_box(f());
+        calls += 1;
+    }
+    start.elapsed().as_secs_f64() * 1000.0 / calls as f64
 }
