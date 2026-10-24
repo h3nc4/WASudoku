@@ -180,6 +180,18 @@ fn test_generate_with_seed_is_reproducible() {
     }
 }
 
+#[test]
+fn test_seeded_puzzles_are_unique() {
+    for difficulty in ALL_DIFFICULTIES {
+        for seed in 0..5 {
+            let (puzzle, solution) = generate::generate_with_seed(difficulty, seed);
+            let (count, first) = solver::count_and_first_solution(&puzzle);
+            assert_eq!(count, 1, "{difficulty:?} seed {seed} is not unique");
+            assert!(first.unwrap().cells == solution.cells);
+        }
+    }
+}
+
 fn env_or<T: std::str::FromStr>(name: &str, default: T) -> T {
     std::env::var(name)
         .ok()
@@ -210,11 +222,12 @@ fn bench_generate_per_difficulty() {
         times.sort_by(f64::total_cmp);
         let mean = times.iter().sum::<f64>() / n as f64;
         println!(
-            "{:?}: n={} mean={:.1}ms median={:.1}ms min={:.1}ms max={:.1}ms fingerprint={:016x}",
+            "{:?}: n={} mean={:.1}ms median={:.1}ms p90={:.1}ms min={:.1}ms max={:.1}ms fingerprint={:016x}",
             difficulty,
             n,
             mean,
             times[n / 2],
+            times[n * 9 / 10],
             times[0],
             times[n - 1],
             fingerprint.finish()

@@ -17,7 +17,9 @@
 */
 
 use wasudoku_wasm::board::Board;
+use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver::{self, LogicalBoard, TechniqueLevel, analyze_difficulty};
+use wasudoku_wasm::solver;
 use wasudoku_wasm::types::{Elimination, SolvingStep, Technique};
 
 fn board_from_str(s: &str) -> LogicalBoard {
@@ -467,4 +469,79 @@ fn test_full_step_list_matches_golden() {
         std::fs::write("tests/golden/logical_steps.txt", &actual).unwrap();
     }
     assert_eq!(actual, include_str!("golden/logical_steps.txt"));
+}
+
+/// The golden puzzles with one solution, plus seeded ones of every difficulty.
+fn unique_puzzles() -> Vec<Board> {
+    let mut puzzles: Vec<Board> = GOLDEN_PUZZLES
+        .iter()
+        .map(|p| p.parse().unwrap())
+        .filter(|board| solver::count_solutions(board) == 1)
+        .collect();
+    assert!(puzzles.len() >= 8, "Most golden puzzles should be unique.");
+    for seed in 0..4 {
+        for difficulty in [
+            Difficulty::Easy,
+            Difficulty::Medium,
+            Difficulty::Hard,
+            Difficulty::Expert,
+            Difficulty::Extreme,
+        ] {
+            puzzles.push(generate::generate_with_seed(difficulty, seed).0);
+        }
+    }
+    puzzles
+}
+
+#[test]
+fn test_grade_counts_the_steps_solve_with_steps_takes() {
+    for puzzle in unique_puzzles() {
+        let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
+        let full = analyze_difficulty(&steps);
+        let solved = !solved_board.cells.contains(&0);
+
+        assert_eq!(
+            logical_solver::grade(&puzzle, TechniqueLevel::Master),
+            (analyze_difficulty(&steps), solved),
+            "Uncapped grade differs on {puzzle}"
+        );
+        for ceiling in [
+            TechniqueLevel::Basic,
+            TechniqueLevel::Intermediate,
+            TechniqueLevel::Advanced,
+        ] {
+            let (stats, capped_solved) = logical_solver::grade(&puzzle, ceiling);
+            if capped_solved {
+                assert!(
+                    solved && full.max_level <= ceiling,
+                    "{puzzle} at {ceiling:?}"
+                );
+                assert_eq!(stats, full, "{puzzle} at {ceiling:?}");
+            } else {
+                assert!(
+                    !solved || full.max_level > ceiling,
+                    "{puzzle} at {ceiling:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn test_grade_stops_at_a_jellyfish_above_the_ceiling() {
+    // The fish finder runs with the Advanced ones but can report a Master level Jellyfish
+    let puzzle: Board =
+        "4..2....9..16...7..8.4....17.4....9.....4.....9....7.65....3.2..2...61..9....4..7"
+            .parse()
+            .unwrap();
+    let (steps, _) = logical_solver::solve_with_steps(&puzzle);
+    let first_master = steps
+        .iter()
+        .position(|s| s.technique.level() == TechniqueLevel::Master)
+        .unwrap();
+    assert_eq!(steps[first_master].technique, Technique::Jellyfish);
+
+    let (stats, solved) = logical_solver::grade(&puzzle, TechniqueLevel::Advanced);
+    assert!(!solved);
+    assert_eq!(stats, analyze_difficulty(&steps[..first_master]));
 }
