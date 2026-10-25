@@ -194,7 +194,7 @@ jobs:
           docker run --rm --entrypoint cat "${SCAN_IMAGE}" /usr/local/bin/sonar >"${RUNNER_TEMP}/sonar"
           chmod +x "${RUNNER_TEMP}/sonar"
       - name: Run h3nc4/sonar-action
-        uses: h3nc4/sonar-action@f16ceef53c5a806b98ac93fc631ce62875e929fd # v1
+        uses: h3nc4/sonar-action@dd96e84ef26cb1caf7c80413e36b67dc21e092a8 # v1
         with:
           host-url: ${{ vars.SONAR_HOST_URL }}
           token: ${{ secrets.SONAR_TOKEN }}
