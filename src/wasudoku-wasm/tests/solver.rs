@@ -22,7 +22,8 @@ use rand::{RngExt, SeedableRng};
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver;
-use wasudoku_wasm::solver::{count_and_first_solution, count_solutions, solve, solve_randomized};
+use wasudoku_wasm::solver::{count_solutions, solve, solve_randomized, unique_solution};
+use wasudoku_wasm::validate_puzzle;
 
 #[test]
 fn test_solve_easy_puzzle() {
@@ -202,38 +203,38 @@ fn is_complete_solution_of(solution: &Board, puzzle: &Board) -> bool {
     full && keeps_clues
 }
 
+const UNIQUE: &str =
+    "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
+const UNIQUE_SOLUTION: &str =
+    "812753649943682175675491283154237896369845721287169534521974368438526917796318452";
+const TWO_SOLUTIONS: &str =
+    ".....6....59.....82....8....45........3........6..3.54...325..6..................";
+const NO_SOLUTION: &str =
+    "...................................123456789.....................................";
+
 #[test]
-fn test_count_and_first_solution_unique() {
-    let puzzle: Board =
-        "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
-            .parse()
-            .unwrap();
-    let (count, first) = count_and_first_solution(&puzzle);
-    assert_eq!(count, 1);
+fn test_unique_solution_by_count() {
+    let unique = unique_solution(&UNIQUE.parse().unwrap());
+    assert_eq!(unique.unwrap().to_string(), UNIQUE_SOLUTION);
+    let empty = Board { cells: [0; 81] };
+    for puzzle in [
+        TWO_SOLUTIONS.parse().unwrap(),
+        empty,
+        NO_SOLUTION.parse().unwrap(),
+    ] {
+        assert!(unique_solution(&puzzle).is_none(), "{puzzle}");
+    }
+}
+
+#[test]
+fn test_validate_puzzle_by_count() {
     assert_eq!(
-        first.unwrap().to_string(),
-        "812753649943682175675491283154237896369845721287169534521974368438526917796318452"
+        validate_puzzle(UNIQUE).unwrap().as_deref(),
+        Some(UNIQUE_SOLUTION)
     );
-}
-
-#[test]
-fn test_count_and_first_solution_multiple() {
-    let puzzle: Board =
-        ".....6....59.....82....8....45........3........6..3.54...325..6.................."
-            .parse()
-            .unwrap();
-    let (count, first) = count_and_first_solution(&puzzle);
-    assert_eq!(count, 2);
-    assert!(is_complete_solution_of(&first.unwrap(), &puzzle));
-}
-
-#[test]
-fn test_count_and_first_solution_none() {
-    let puzzle: Board =
-        "...................................123456789....................................."
-            .parse()
-            .unwrap();
-    assert!(matches!(count_and_first_solution(&puzzle), (0, None)));
+    assert_eq!(validate_puzzle(TWO_SOLUTIONS).unwrap(), None);
+    assert_eq!(validate_puzzle(&".".repeat(81)).unwrap(), None);
+    assert_eq!(validate_puzzle(NO_SOLUTION).unwrap(), None);
 }
 
 #[test]
@@ -242,6 +243,7 @@ fn test_conflicting_board_has_no_solution() {
     board.cells[0] = 5;
     board.cells[1] = 5;
     assert_eq!(count_solutions(&board), 0);
+    assert!(unique_solution(&board).is_none());
     assert!(!solve(&mut board));
 }
 
@@ -383,10 +385,9 @@ fn test_solver_matches_reference_search() {
 
         let expected = Reference::run(&board, &[1, 2, 3, 4, 5, 6, 7, 8, 9], 2);
         assert_eq!(count_solutions(&board), expected.0, "{board}");
-        let (count, first) = count_and_first_solution(&board);
-        assert_eq!(count, expected.0, "{board}");
-        assert!(first == expected.1, "{board}");
-        seen[count as usize] += 1;
+        let unique = expected.1.filter(|_| expected.0 == 1);
+        assert!(unique_solution(&board) == unique, "{board}");
+        seen[expected.0 as usize] += 1;
     }
     assert!(seen.iter().all(|&n| n > 20), "samples by count {seen:?}");
 }
@@ -407,12 +408,14 @@ fn bench_count_solutions_fixed_puzzles() {
         let count = std::hint::black_box(count_solutions(&board));
         let count_ms = time_per_call(|| count_solutions(std::hint::black_box(&board)));
         let solve_ms = time_per_call(|| solve(&mut std::hint::black_box(board)));
+        let validate_ms = time_per_call(|| validate_puzzle(std::hint::black_box(puzzle)).unwrap());
         println!(
-            "{}: count={} count_solutions {:.4}ms solve {:.4}ms per call",
+            "{}: count={} count_solutions {:.4}ms solve {:.4}ms validate_puzzle {:.4}ms per call",
             &puzzle[..20],
             count,
             count_ms,
-            solve_ms
+            solve_ms,
+            validate_ms
         );
     }
     // Seeded boards like those generation checks, from a full grid down to a sparse one.
