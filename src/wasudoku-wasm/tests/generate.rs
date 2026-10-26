@@ -185,9 +185,9 @@ fn test_seeded_puzzles_are_unique() {
     for difficulty in ALL_DIFFICULTIES {
         for seed in 0..5 {
             let (puzzle, solution) = generate::generate_with_seed(difficulty, seed);
-            let (count, first) = solver::count_and_first_solution(&puzzle);
-            assert_eq!(count, 1, "{difficulty:?} seed {seed} is not unique");
-            assert!(first.unwrap().cells == solution.cells);
+            let unique = solver::unique_solution(&puzzle);
+            assert!(unique.is_some(), "{difficulty:?} seed {seed} is not unique");
+            assert!(unique.unwrap().cells == solution.cells);
         }
     }
 }
