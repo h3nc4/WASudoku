@@ -55,6 +55,7 @@ import type {
   SolveSuccessAction,
   StartCustomPuzzleAction,
   StepVisualizationAction,
+  StoreSparePuzzleAction,
   TapCellAction,
   TickTimerAction,
   TogglePencilMarkAction,
@@ -168,6 +169,18 @@ export const poolRefillSuccess = (
   solutionString: string,
 ): PoolRefillSuccessAction => ({
   type: 'POOL_REFILL_SUCCESS',
+  difficulty,
+  puzzleString,
+  solutionString,
+})
+
+/** Creates an action to keep a puzzle that a raced generation finished after the winner. */
+export const storeSparePuzzle = (
+  difficulty: Difficulty,
+  puzzleString: string,
+  solutionString: string,
+): StoreSparePuzzleAction => ({
+  type: 'STORE_SPARE_PUZZLE',
   difficulty,
   puzzleString,
   solutionString,

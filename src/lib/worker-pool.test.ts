@@ -271,6 +271,107 @@ describe('WorkerPool', () => {
     await expect(promise).resolves.toBe('ok')
   })
 
+  describe('racing a generate across idle workers', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reply = (call: number, data: Record<string, any>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
+      const request = mockPostMessage.mock.calls[call][0]
+      const worker = mockPostMessage.mock.contexts[call]
+      messageHandler({ data: { id: request.id, ...data }, target: worker })
+    }
+
+    it('posts one copy to every idle worker, each under its own id', () => {
+      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
+
+      expect(mockPostMessage).toHaveBeenCalledTimes(4)
+      const requests = mockPostMessage.mock.calls.map(([request]) => request)
+      expect(new Set(requests.map((r) => r.id)).size).toBe(4)
+      requests.forEach((r) => expect(r).toMatchObject({ type: 'generate', difficulty: 'expert' }))
+      expect(new Set(mockPostMessage.mock.contexts).size).toBe(4)
+    })
+
+    it('resolves with the first result and hands every later one to onSpare', async () => {
+      const onSpare = vi.fn()
+      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
+
+      reply(2, { status: 'success', payload: 'first' })
+      await expect(promise).resolves.toBe('first')
+      expect(onSpare).not.toHaveBeenCalled()
+
+      reply(0, { status: 'success', payload: 'second' })
+      reply(3, { status: 'success', payload: 'third' })
+      expect(onSpare.mock.calls).toEqual([['second'], ['third']])
+    })
+
+    it('frees each worker as its copy finishes', () => {
+      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
+      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+      expect(mockPostMessage).toHaveBeenCalledTimes(4)
+
+      reply(1, { status: 'success', payload: 'first' })
+      expect(mockPostMessage).toHaveBeenCalledTimes(5)
+      expect(mockPostMessage.mock.calls[4][0].type).toBe('solve')
+    })
+
+    it('ignores a failed copy while another can still succeed', async () => {
+      const onSpare = vi.fn()
+      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
+
+      reply(0, { status: 'error', error: 'Boom' })
+      reply(1, { status: 'success', payload: 'ok' })
+      reply(2, { status: 'error', error: 'Late boom' })
+      await expect(promise).resolves.toBe('ok')
+      expect(onSpare).not.toHaveBeenCalled()
+    })
+
+    it('rejects only once every copy has failed', async () => {
+      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
+      const settled = vi.fn()
+      promise.then(settled, settled)
+
+      for (const call of [0, 1, 2]) reply(call, { status: 'error', error: `Boom ${call}` })
+      await Promise.resolve()
+      expect(settled).not.toHaveBeenCalled()
+
+      reply(3, { status: 'error', error: 'Boom 3' })
+      await expect(promise).rejects.toThrow('Boom 3')
+    })
+
+    it('runs on a single worker when only one is idle', async () => {
+      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
+      const onSpare = vi.fn()
+      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
+
+      expect(mockPostMessage).toHaveBeenCalledTimes(4)
+      reply(3, { status: 'success', payload: 'only' })
+      await expect(promise).resolves.toBe('only')
+      expect(onSpare).not.toHaveBeenCalled()
+    })
+
+    it('races on both workers of the smallest pool', () => {
+      Object.defineProperty(navigator, 'hardwareConcurrency', { value: 1 })
+      pool.terminate()
+      mockPostMessage.mockClear()
+      pool = new WorkerPool()
+
+      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
+      expect(mockPostMessage).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not race a task without onSpare', () => {
+      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH)
+      expect(mockPostMessage).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not race a LOW task', () => {
+      pool.runTask('generate', { difficulty: 'expert' }, Priority.LOW, vi.fn())
+      expect(mockPostMessage).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('terminates all workers on terminate()', () => {
     pool.terminate()
     expect(mockTerminate).toHaveBeenCalledTimes(4)

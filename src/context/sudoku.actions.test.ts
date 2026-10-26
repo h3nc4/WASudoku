@@ -133,6 +133,18 @@ describe('Sudoku Action Creators', () => {
     expect(actions.poolRefillSuccess('easy', puzzleString, solutionString)).toEqual(expectedAction)
   })
 
+  it('should create a STORE_SPARE_PUZZLE action', () => {
+    const puzzleString = '.'.repeat(81)
+    const solutionString = '1'.repeat(81)
+    const expectedAction: SudokuAction = {
+      type: 'STORE_SPARE_PUZZLE',
+      difficulty: 'expert',
+      puzzleString,
+      solutionString,
+    }
+    expect(actions.storeSparePuzzle('expert', puzzleString, solutionString)).toEqual(expectedAction)
+  })
+
   it('should create a POOL_REFILL_FAILURE action', () => {
     const expectedAction: SudokuAction = {
       type: 'POOL_REFILL_FAILURE',

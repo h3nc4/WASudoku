@@ -137,7 +137,12 @@ describe('useSudokuSolver', () => {
 
     renderHook(() => useSudokuSolver(generatingState, mockDispatch))
 
-    expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'hard' }, Priority.HIGH)
+    expect(mockRunTask).toHaveBeenCalledWith(
+      'generate',
+      { difficulty: 'hard' },
+      Priority.HIGH,
+      expect.any(Function),
+    )
 
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -146,6 +151,24 @@ describe('useSudokuSolver', () => {
         solutionString: 'solution',
       })
       expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
+    })
+  })
+
+  it('keeps the puzzles a raced user generation finishes after the winner', () => {
+    const generatingState = makeState(
+      { solver: { isGenerating: true, generationDifficulty: 'expert' } },
+      fullPoolState,
+    )
+
+    renderHook(() => useSudokuSolver(generatingState, mockDispatch))
+
+    const onSpare = mockRunTask.mock.calls[0][3]
+    onSpare({ puzzleString: 'spare', solutionString: 'spareSolution' })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'STORE_SPARE_PUZZLE',
+      difficulty: 'expert',
+      puzzleString: 'spare',
+      solutionString: 'spareSolution',
     })
   })
 
