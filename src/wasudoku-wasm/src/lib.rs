@@ -141,8 +141,5 @@ pub fn validate_puzzle(board_str: &str) -> Result<Option<String>, JsValue> {
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     // Backtracking alone, since the logical solver's steps are not needed here.
-    match solver::count_and_first_solution(&board) {
-        (1, Some(solution)) => Ok(Some(solution.to_string())),
-        _ => Ok(None),
-    }
+    Ok(solver::unique_solution(&board).map(|solution| solution.to_string()))
 }

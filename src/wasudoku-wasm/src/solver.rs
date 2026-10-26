@@ -80,13 +80,11 @@ pub fn count_solutions(board: &Board) -> u8 {
     Search::run(board, &ASCENDING, 2, Mode::Counting).0
 }
 
-/// Count solutions like `count_solutions`, also returning the first solution found.
-pub fn count_and_first_solution(board: &Board) -> (u8, Option<Board>) {
+/// Return the solution of `board` when it has exactly one, from the same single search as `count_solutions`.
+pub fn unique_solution(board: &Board) -> Option<Board> {
     match Search::run(board, &ASCENDING, 2, Mode::Counting) {
-        // Counting mode reaches solutions in another order.
-        // Searching again in order finds the one a plain MRV search reaches first.
-        (2, _) => (2, Search::run(board, &ASCENDING, 1, Mode::Ordered).1),
-        result => result,
+        (1, solution) => solution,
+        _ => None,
     }
 }
 
