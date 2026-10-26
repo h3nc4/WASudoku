@@ -43,6 +43,8 @@ interface Pending {
 interface Task extends Pending {
   request: WorkerRequest
   priority: Priority
+  // Receives the results of the copies that lost a race, set only on tasks that may race.
+  onSpare?: (value: Responses[TaskType]) => void
 }
 
 interface WorkerWrapper {
@@ -50,6 +52,10 @@ interface WorkerWrapper {
   instance: Worker
   busy: boolean
 }
+
+// Bounds on how many workers one raced task runs on, matching the pool's own clamp.
+const MIN_RACE_WIDTH = 2
+const MAX_RACE_WIDTH = 6
 
 /**
  * Manages a pool of Web Workers to execute heavy Sudoku computations concurrently.
@@ -86,12 +92,15 @@ export class WorkerPool {
    * @param type The operation type (solve, generate, validate).
    * @param payload Data required for the operation.
    * @param priority Execution priority.
+   * @param onSpare Races a HIGH task on every idle worker, resolving with the first success
+   * and handing each later success to this callback.
    * @returns A Promise that resolves with the worker's result.
    */
   public runTask<K extends TaskType>(
     type: K,
     payload: Requests[K],
     priority: Priority = Priority.HIGH,
+    onSpare?: (value: Responses[K]) => void,
   ): Promise<Responses[K]> {
     return new Promise((resolve, reject) => {
       // WorkerRequest is a union, so TypeScript loses the tie between K and Responses[K] here.
@@ -101,6 +110,7 @@ export class WorkerPool {
         priority,
         resolve: resolve as Pending['resolve'],
         reject,
+        onSpare: onSpare as Task['onSpare'],
       }
 
       // Add to queue and sort by priority (High priority first)
@@ -114,32 +124,67 @@ export class WorkerPool {
   private schedule() {
     if (this.queue.length === 0) return
 
-    // Find a free worker
-    const freeWorkerIndex = this.workers.findIndex((w) => !w.busy)
-    if (freeWorkerIndex === -1) return
+    // Find free workers
+    const freeWorkers = this.workers.filter((w) => !w.busy)
+    if (freeWorkers.length === 0) return
 
     const nextTask = this.queue[0]
-    const freeWorkersCount = this.workers.filter((w) => !w.busy).length
 
     // Reservation Logic:
     // If the next task is LOW priority, only schedule it if we have > 1 worker free.
     // This reserves at least 1 worker for immediate HIGH priority user interactions.
     // Exception: If the pool only has 1 worker total, we can't reserve.
-    if (nextTask.priority === Priority.LOW && freeWorkersCount <= 1 && this.workers.length > 1) {
+    if (nextTask.priority === Priority.LOW && freeWorkers.length <= 1 && this.workers.length > 1) {
       return
     }
 
     // Dequeue and assign
     const task = this.queue.shift()!
-    const workerWrapper = this.workers[freeWorkerIndex]
+    const width = this.raceWidth(task, freeWorkers.length)
+    if (width < MIN_RACE_WIDTH) {
+      this.post(freeWorkers[0], task.request, task)
+    } else {
+      this.race(task, freeWorkers.slice(0, width))
+    }
+  }
 
-    this.pendingRequests.set(task.request.id, {
-      resolve: task.resolve,
-      reject: task.reject,
+  // Two or more free workers mean the queue was empty, since a queued task would hold one,
+  // so a race only takes workers that no waiting task wanted.
+  private raceWidth(task: Task, freeCount: number): number {
+    if (!task.onSpare || task.priority !== Priority.HIGH) return 1
+    return Math.min(MAX_RACE_WIDTH, freeCount)
+  }
+
+  /** Runs copies of a task at once, resolving with the first success and rejecting only if all fail. */
+  private race(task: Task, workers: WorkerWrapper[]) {
+    let running = workers.length
+    let settled = false
+    const copy: Pending = {
+      resolve: (value) => {
+        running--
+        if (settled) {
+          task.onSpare?.(value)
+        } else {
+          settled = true
+          task.resolve(value)
+        }
+      },
+      reject: (reason) => {
+        running--
+        if (!settled && running === 0) task.reject(reason)
+      },
+    }
+    workers.forEach((worker, i) => {
+      // Each copy needs its own id, since a response is matched to its request by id alone.
+      const id = i === 0 ? task.request.id : ++this.idCounter
+      this.post(worker, { ...task.request, id }, copy)
     })
+  }
 
+  private post(workerWrapper: WorkerWrapper, request: WorkerRequest, pending: Pending) {
+    this.pendingRequests.set(request.id, pending)
     workerWrapper.busy = true
-    workerWrapper.instance.postMessage(task.request)
+    workerWrapper.instance.postMessage(request)
   }
 
   private handleMessage(event: MessageEvent<WorkerResponse>) {

@@ -27,6 +27,7 @@ import type {
   PoolRefillFailureAction,
   PoolRefillSuccessAction,
   RequestPoolRefillAction,
+  StoreSparePuzzleAction,
   ValidatePuzzleFailureAction,
   ValidatePuzzleSuccessAction,
 } from '../sudoku.actions.types'
@@ -38,6 +39,7 @@ import {
   getDerivedBoardState,
   initialState,
   isBoardSolved,
+  MAX_POOL_SIZE,
   startGame,
 } from './state'
 
@@ -211,22 +213,29 @@ export const handleRequestPoolRefill = (
   }
 }
 
+/** The pool with one more puzzle for a difficulty, dropped once that difficulty holds MAX_POOL_SIZE. */
+function addToPool(
+  state: SudokuState,
+  { difficulty, puzzleString, solutionString }: PoolRefillSuccessAction | StoreSparePuzzleAction,
+): SudokuState['puzzlePool'] {
+  const currentPool = state.puzzlePool[difficulty]
+  if (currentPool.length >= MAX_POOL_SIZE) return state.puzzlePool
+  const newPuzzle: PuzzleData = { puzzleString, solutionString }
+  return { ...state.puzzlePool, [difficulty]: [...currentPool, newPuzzle] }
+}
+
+export const handleStoreSparePuzzle = (
+  state: SudokuState,
+  action: StoreSparePuzzleAction,
+): SudokuState => ({ ...state, puzzlePool: addToPool(state, action) })
+
 export const handlePoolRefillSuccess = (
   state: SudokuState,
   action: PoolRefillSuccessAction,
 ): SudokuState => {
-  const currentPool = state.puzzlePool[action.difficulty]
-  const newPuzzle: PuzzleData = {
-    puzzleString: action.puzzleString,
-    solutionString: action.solutionString,
-  }
-
   return {
     ...state,
-    puzzlePool: {
-      ...state.puzzlePool,
-      [action.difficulty]: [...currentPool, newPuzzle],
-    },
+    puzzlePool: addToPool(state, action),
     poolRequestCount: {
       ...state.poolRequestCount,
       [action.difficulty]: Math.max(0, state.poolRequestCount[action.difficulty] - 1),

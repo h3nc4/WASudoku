@@ -113,6 +113,14 @@ export interface PoolRefillSuccessAction {
   solutionString: string
 }
 
+/** Action to store a puzzle that lost a generation race, without touching the pending count. */
+export interface StoreSparePuzzleAction {
+  type: 'STORE_SPARE_PUZZLE'
+  difficulty: Difficulty
+  puzzleString: string
+  solutionString: string
+}
+
 /** Action for when a background pool refill fails. */
 export interface PoolRefillFailureAction {
   type: 'POOL_REFILL_FAILURE'
@@ -304,6 +312,7 @@ export type SudokuAction =
   | RequestPoolRefillAction
   | PoolRefillSuccessAction
   | PoolRefillFailureAction
+  | StoreSparePuzzleAction
   | ValidatePuzzleStartAction
   | ValidatePuzzleSuccessAction
   | ValidatePuzzleFailureAction

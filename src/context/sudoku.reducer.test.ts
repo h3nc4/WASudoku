@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { calculateCandidates, getRelatedCellIndices } from '@/lib/utils'
 
+import { MAX_POOL_SIZE } from './reducer/state'
 import type { SudokuAction } from './sudoku.actions.types'
 import { saveGame, STORAGE_KEYS } from './sudoku.persistence'
 import { createEmptyBoard, initialState, loadInitialState, sudokuReducer } from './sudoku.reducer'
@@ -896,6 +897,44 @@ describe('sudokuReducer', () => {
 
       expect(state.puzzlePool.easy).toHaveLength(1)
       expect(state.poolRequestCount.easy).toBe(0) // Should stay 0, not -1
+    })
+
+    it('should handle STORE_SPARE_PUZZLE without touching the pending count', () => {
+      const state = sudokuReducer(
+        {
+          ...initialState,
+          poolRequestCount: { ...initialState.poolRequestCount, expert: 2 },
+        },
+        {
+          type: 'STORE_SPARE_PUZZLE',
+          difficulty: 'expert',
+          puzzleString: '1'.repeat(81),
+          solutionString: '2'.repeat(81),
+        },
+      )
+
+      expect(state.puzzlePool.expert).toEqual([
+        { puzzleString: '1'.repeat(81), solutionString: '2'.repeat(81) },
+      ])
+      expect(state.poolRequestCount.expert).toBe(2)
+      expect(state.solver.gameMode).toBe('selecting')
+    })
+
+    it('should keep at most MAX_POOL_SIZE puzzles per difficulty', () => {
+      const full = new Array(MAX_POOL_SIZE).fill({ puzzleString: 'old', solutionString: 'old' })
+      const fullState: SudokuState = {
+        ...initialState,
+        puzzlePool: { ...initialState.puzzlePool, expert: full },
+        poolRequestCount: { ...initialState.poolRequestCount, expert: 1 },
+      }
+      const puzzle = { difficulty: 'expert', puzzleString: 'new', solutionString: 'new' } as const
+
+      const spare = sudokuReducer(fullState, { type: 'STORE_SPARE_PUZZLE', ...puzzle })
+      expect(spare.puzzlePool.expert).toBe(full)
+
+      const refill = sudokuReducer(fullState, { type: 'POOL_REFILL_SUCCESS', ...puzzle })
+      expect(refill.puzzlePool.expert).toBe(full)
+      expect(refill.poolRequestCount.expert).toBe(0)
     })
 
     it('should handle POOL_REFILL_FAILURE by decrementing pending count', () => {

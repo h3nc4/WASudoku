@@ -23,6 +23,9 @@ import type { BoardState, HistoryState, SudokuState } from '../sudoku.types'
 const BOARD_SIZE = 81
 const MAX_HISTORY_ENTRIES = 100
 
+// Most ready puzzles kept per difficulty, so spares from raced generations cannot pile up.
+export const MAX_POOL_SIZE = 6
+
 export const isBoardSolved = (board: BoardState, solution: readonly number[] | null): boolean =>
   solution !== null && board.every((cell, i) => cell.value === solution[i])
 

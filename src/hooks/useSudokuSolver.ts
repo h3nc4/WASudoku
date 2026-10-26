@@ -29,6 +29,7 @@ import {
   requestPoolRefill,
   solveFailure,
   solveSuccess,
+  storeSparePuzzle,
   validatePuzzleFailure,
   validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
@@ -36,6 +37,7 @@ import type { SudokuAction } from '@/context/sudoku.actions.types'
 import { DIFFICULTIES, type SudokuState } from '@/context/sudoku.types'
 import { boardStateToString } from '@/lib/utils'
 import { Priority, WorkerPool } from '@/lib/worker-pool'
+import type { Responses } from '@/workers/protocol'
 
 const MIN_POOL_SIZE = 3
 
@@ -84,11 +86,15 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
   }, [isSolving, board, dispatch])
 
   // 2. Handle User Generation (High Priority - Fallback when pool empty)
+  // It races on every idle worker, and the puzzles that finish after the winner are kept.
   useEffect(() => {
     if (!isGenerating || !generationDifficulty || !poolRef.current) return
 
+    const keepSpare = ({ puzzleString, solutionString }: Responses['generate']) =>
+      dispatch(storeSparePuzzle(generationDifficulty, puzzleString, solutionString))
+
     poolRef.current
-      .runTask('generate', { difficulty: generationDifficulty }, Priority.HIGH)
+      .runTask('generate', { difficulty: generationDifficulty }, Priority.HIGH, keepSpare)
       .then(({ puzzleString, solutionString }) => {
         dispatch(generatePuzzleSuccess(puzzleString, solutionString))
         toast.success('New puzzle generated!')
