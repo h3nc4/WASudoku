@@ -49,7 +49,8 @@ const cell = (index: number) =>
   screen.getByLabelText(
     `Sudoku cell at row ${Math.floor(index / 9) + 1}, column ${(index % 9) + 1}`,
   )
-const key = (digit: number) => screen.getByRole('button', { name: `Enter number ${digit}` })
+const key = (digit: number) =>
+  screen.getByRole('button', { name: new RegExp(`^Enter number ${digit}\\b`) })
 // A removed note lingers hidden while it fades, so only the notes still shown count.
 const notes = (index: number) =>
   [...(cell(index).parentElement?.querySelectorAll('.text-note:not([aria-hidden])') ?? [])].map(

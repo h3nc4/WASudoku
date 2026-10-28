@@ -204,16 +204,18 @@ describe('SolverStepsPanel component', () => {
   it('renders the panel with initial, final, and all step buttons', { timeout: 10000 }, () => {
     render(<SolverStepsPanel />)
     expect(screen.getByRole('heading', { name: 'Solving Steps' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Initial Board State' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Initial Board State/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Solution' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 1: Naked Single/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Step 19: Backtracking/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Step 01 R1C1 = 5 Naked Single' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Step 19 Backtracking$/ })).toBeInTheDocument()
   })
 
   it('calls viewSolverStep(0) when "Initial Board State" is clicked', async () => {
     const user = userEvent.setup()
     render(<SolverStepsPanel />)
-    await user.click(screen.getByRole('button', { name: 'Initial Board State' }))
+    await user.click(screen.getByRole('button', { name: /Initial Board State/ }))
     expect(mockViewSolverStep).toHaveBeenCalledWith(0)
   })
 
@@ -229,7 +231,7 @@ describe('SolverStepsPanel component', () => {
     render(<SolverStepsPanel />)
 
     // Click step 2 (index 1)
-    const step2Button = screen.getByRole('button', { name: /Step 2: Hidden Single/ })
+    const step2Button = screen.getByRole('button', { name: /^Step 02 .*Hidden Single$/ })
     await user.click(step2Button)
 
     // Should dispatch index + 1
@@ -241,16 +243,16 @@ describe('SolverStepsPanel component', () => {
     mockSudoku({ state: makeState({ solver: { currentStepIndex: 1 } }, defaultState) })
     const { rerender } = render(<SolverStepsPanel />)
 
-    const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
+    const step1Button = screen.getByRole('button', { name: /^Step 01 .*Naked Single$/ })
     expect(step1Button).toHaveAttribute('aria-current', 'step')
-    expect(screen.getByRole('button', { name: /Step 2: Hidden Single/ })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Step 02 .*Hidden Single$/ })).not.toHaveAttribute(
       'aria-current',
     )
 
     // When viewing initial state
     mockSudoku({ state: makeState({ solver: { currentStepIndex: 0 } }, defaultState) })
     rerender(<SolverStepsPanel />)
-    expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Initial Board State/ })).toHaveAttribute(
       'data-state',
       'active',
     )
@@ -265,7 +267,7 @@ describe('SolverStepsPanel component', () => {
     })
     rerender(<SolverStepsPanel />)
     expect(screen.getByRole('button', { name: 'Solution' })).toHaveAttribute('data-state', 'active')
-    expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Initial Board State/ })).toHaveAttribute(
       'data-state',
       'inactive',
     )
@@ -279,19 +281,19 @@ describe('SolverStepsPanel component', () => {
     expect(lines[0]).toHaveTextContent('01 R1C1 = 5 Naked Single')
     expect(lines[2]).toHaveTextContent('03 R1C2 +1 Naked Pair')
     expect(lines[16]).toHaveTextContent('17 R1C1 Unique Rectangle Type 1')
-    expect(lines[18]).toHaveTextContent(/^19\s+Backtracking$/)
+    expect(lines[18]).toHaveTextContent(/^Step 19\s+Backtracking$/)
   })
 
   it('tones past lines as ink, the current one as solver and later ones as notes', () => {
     mockSudoku({ state: makeState({ solver: { currentStepIndex: 2 } }, defaultState) })
     render(<SolverStepsPanel />)
-    expect(screen.getByRole('button', { name: 'Initial Board State' })).toHaveClass('text-ink')
-    expect(screen.getByRole('button', { name: /Step 1:/ })).toHaveClass('text-ink')
-    expect(screen.getByRole('button', { name: /Step 2:/ })).toHaveClass(
+    expect(screen.getByRole('button', { name: /Initial Board State/ })).toHaveClass('text-ink')
+    expect(screen.getByRole('button', { name: /^Step 01 / })).toHaveClass('text-ink')
+    expect(screen.getByRole('button', { name: /^Step 02 / })).toHaveClass(
       'text-solver',
       'bg-solver-wash',
     )
-    expect(screen.getByRole('button', { name: /Step 3:/ })).toHaveClass('text-muted-foreground')
+    expect(screen.getByRole('button', { name: /^Step 03 / })).toHaveClass('text-muted-foreground')
     expect(screen.getByRole('button', { name: 'Solution' })).toHaveClass('text-muted-foreground')
     expect(screen.getByText('02/19')).toBeInTheDocument()
   })
@@ -327,7 +329,10 @@ describe('SolverStepsPanel component', () => {
 
   it('keeps the current mark on the last step when the solution is shown', () => {
     render(<SolverStepsPanel />)
-    expect(screen.getByRole('button', { name: /Step 19:/ })).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('button', { name: /^Step 19 / })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
     const solution = screen.getByRole('button', { name: 'Solution' })
     expect(solution).toHaveClass('text-solver')
     expect(solution).not.toHaveClass('bg-solver-wash')
@@ -429,7 +434,7 @@ describe('SolverStepsPanel component', () => {
     mockViewSolverStep.mockClear()
 
     // Click the line already on the board
-    const step1Button = screen.getByRole('button', { name: /Step 1: Naked Single/ })
+    const step1Button = screen.getByRole('button', { name: /^Step 01 .*Naked Single$/ })
     await user.click(step1Button)
 
     // No new action should have been called

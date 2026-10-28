@@ -109,7 +109,9 @@ export const NumberPad = memo(function NumberPad() {
             className="aspect-[1/1.12] h-auto min-h-11 w-full rounded-[4px]"
             onClick={() => handleNumberClick(num)}
             disabled={isDisabled}
-            aria-label={`Enter number ${num}`}
+            aria-label={
+              isComplete ? `Enter number ${num}` : `Enter number ${num}, ${remaining} left`
+            }
             onMouseDown={(e) => e.preventDefault()}
           >
             <div className="flex size-full flex-col items-center justify-center gap-0.5 md:gap-1">
@@ -123,7 +125,7 @@ export const NumberPad = memo(function NumberPad() {
                 data-armed={seenOpen[num] || undefined}
               >
                 {num}
-              </span>
+              </span>{' '}
               {!isComplete && (
                 <span
                   className={cn(

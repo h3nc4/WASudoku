@@ -130,7 +130,7 @@ export const errorMark = (page: Page, index: number): Locator =>
 export const board = (page: Page): Locator => page.getByRole('grid')
 
 export const padKey = (page: Page, digit: number): Locator =>
-  page.getByRole('button', { name: `Enter number ${digit}`, exact: true })
+  page.getByRole('button', { name: new RegExp(`^Enter number ${digit}\\b`) })
 
 export const mistakes = (page: Page): Locator => page.getByText(/^\d\/3$/)
 
