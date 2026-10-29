@@ -19,3 +19,6 @@ test-results/
 # Android
 android.keystore
 licenses/
+
+# rumdl
+.rumdl_cache/
