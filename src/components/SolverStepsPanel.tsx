@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSudokuState } from '@/context/sudoku.hooks'
 import { useSudokuActions } from '@/hooks/useSudokuActions'
-import { getStepExplanation, getTechniqueName } from '@/lib/techniques'
+import { getStepExplanation } from '@/lib/techniques'
 import { cn } from '@/lib/utils'
 
 import { StepEntry } from './SolverTrace'
@@ -41,7 +41,7 @@ const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 const REACHED_TONE = 'text-solver font-semibold hover:bg-accent'
 
 const ROW_CLASS =
-  'voice-mono grid w-full grid-cols-[var(--trace-tag)_8ch_1fr] gap-x-[1.5ch] rounded-sm px-2 py-1 text-left text-xs tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring transition-[background-color] duration-(--motion-out) ease-out'
+  'voice-mono relative grid w-full grid-cols-[var(--trace-tag)_8ch_1fr] gap-x-[1.5ch] rounded-sm px-2 py-1 text-left text-xs tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring transition-[background-color] duration-(--motion-out) ease-out'
 
 const positionOf = (index: number, current: number | null): Position => {
   if (current === null || index > current) return 'future'
@@ -101,7 +101,6 @@ export function SolverStepsPanel() {
         type="button"
         className={cn(ROW_CLASS, isLastStep ? REACHED_TONE : ROW_TONE[state])}
         data-state={state === 'current' ? 'active' : 'inactive'}
-        aria-label={label}
         aria-current={state === 'current' && !isLastStep ? 'step' : undefined}
         onClick={() => viewSolverStep(position)}
       >
@@ -153,16 +152,15 @@ export function SolverStepsPanel() {
           <ol ref={logRef} aria-label="Solver trace" className="pr-2.5">
             {steps.map((step, index) => {
               const state = positionOf(index + 1, currentStepIndex)
-              const technique = getTechniqueName(step.technique)
               return (
                 <li key={`step-${index}-${step.technique}`} id={`solver-step-${index}`}>
                   <button
                     type="button"
                     className={cn(ROW_CLASS, ROW_TONE[state])}
-                    aria-label={`Step ${index + 1}: ${technique}`}
                     aria-current={state === 'current' ? 'step' : undefined}
                     onClick={() => state !== 'current' && viewSolverStep(index + 1)}
                   >
+                    <span className="sr-only">Step</span>{' '}
                     <StepEntry tag={tagOf(index + 1)} step={step} />
                   </button>
                 </li>

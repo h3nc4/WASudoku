@@ -56,7 +56,7 @@ describe('NumberPad component', () => {
     expect(buttons).toHaveLength(9)
 
     for (let i = 1; i <= 9; i++) {
-      const button = screen.getByRole('button', { name: `Enter number ${i}` })
+      const button = screen.getByRole('button', { name: new RegExp(`^Enter number ${i}\\b`) })
       const mainNumber = within(button).getByText(String(i), {
         selector: 'span.text-xl',
       })
@@ -69,7 +69,7 @@ describe('NumberPad component', () => {
     const user = userEvent.setup()
     render(<NumberPad />)
 
-    const button5 = screen.getByRole('button', { name: 'Enter number 5' })
+    const button5 = screen.getByRole('button', { name: /^Enter number 5\b/ })
     await user.click(button5)
 
     expect(mockSetHighlightedValue).toHaveBeenCalledWith(5)
@@ -82,7 +82,7 @@ describe('NumberPad component', () => {
 
     it('leaves keys unpressable with the mode off', () => {
       render(<NumberPad />)
-      expect(screen.getByRole('button', { name: 'Enter number 5' })).not.toHaveAttribute(
+      expect(screen.getByRole('button', { name: /^Enter number 5\b/ })).not.toHaveAttribute(
         'aria-pressed',
       )
     })
@@ -90,7 +90,7 @@ describe('NumberPad component', () => {
     it('locks the tapped digit instead of entering it', async () => {
       mockSudoku({ state: sticky(null) })
       render(<NumberPad />)
-      const key = screen.getByRole('button', { name: 'Enter number 5' })
+      const key = screen.getByRole('button', { name: /^Enter number 5\b/ })
       expect(key).toHaveAttribute('aria-pressed', 'false')
 
       await userEvent.setup().click(key)
@@ -102,12 +102,12 @@ describe('NumberPad component', () => {
     it('draws the locked key pressed in filled ink', () => {
       mockSudoku({ state: sticky(5) })
       render(<NumberPad />)
-      const key = screen.getByRole('button', { name: 'Enter number 5' })
+      const key = screen.getByRole('button', { name: /^Enter number 5\b/ })
       expect(key).toHaveAttribute('aria-pressed', 'true')
       expect(key).toHaveClass('bg-primary')
       expect(within(key).getByText('5')).toHaveClass('text-primary-foreground')
       expect(within(key).getByText('9')).toHaveClass('text-primary-foreground')
-      const other = screen.getByRole('button', { name: 'Enter number 4' })
+      const other = screen.getByRole('button', { name: /^Enter number 4\b/ })
       expect(other).toHaveAttribute('aria-pressed', 'false')
       expect(within(other).getByText('4')).toHaveClass('text-ink')
     })
@@ -116,8 +116,8 @@ describe('NumberPad component', () => {
       mockSudoku({ state: sticky(5) })
       const user = userEvent.setup()
       render(<NumberPad />)
-      await user.click(screen.getByRole('button', { name: 'Enter number 7' }))
-      await user.click(screen.getByRole('button', { name: 'Enter number 5' }))
+      await user.click(screen.getByRole('button', { name: /^Enter number 7\b/ }))
+      await user.click(screen.getByRole('button', { name: /^Enter number 5\b/ }))
       expect(mockSetStickyValue.mock.calls).toEqual([[7], [null]])
     })
   })
@@ -131,8 +131,22 @@ describe('NumberPad component', () => {
     mockSudoku({ state })
     render(<NumberPad />)
 
-    expect(screen.getByRole('button', { name: 'Enter number 3' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Enter number 4' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Enter number 3\b/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Enter number 4\b/ })).toBeEnabled()
+  })
+
+  it('names each key by its digit and the count left, as the key shows them', () => {
+    const fullBoard = createEmptyBoard().map(() => ({
+      ...initialState.board[0],
+      value: 3,
+    }))
+    mockSudoku({ state: makeState({ board: fullBoard }, playingState) })
+    render(<NumberPad />)
+
+    expect(screen.getByRole('button', { name: 'Enter number 3' })).toHaveTextContent(/^3$/)
+    expect(screen.getByRole('button', { name: 'Enter number 4, 9 left' })).toHaveTextContent(
+      /^4\s+9$/,
+    )
   })
 
   it('disables all number buttons when in visualizing mode', () => {
@@ -141,7 +155,9 @@ describe('NumberPad component', () => {
     render(<NumberPad />)
 
     for (let i = 1; i <= 9; i++) {
-      expect(screen.getByRole('button', { name: `Enter number ${i}` })).toBeDisabled()
+      expect(
+        screen.getByRole('button', { name: new RegExp(`^Enter number ${i}\\b`) }),
+      ).toBeDisabled()
     }
   })
 
@@ -160,7 +176,9 @@ describe('NumberPad component', () => {
       render(<NumberPad />)
 
       for (let i = 1; i <= 9; i++) {
-        expect(screen.getByRole('button', { name: `Enter number ${i}` })).toBeDisabled()
+        expect(
+          screen.getByRole('button', { name: new RegExp(`^Enter number ${i}\\b`) }),
+        ).toBeDisabled()
       }
     },
   )
@@ -174,7 +192,7 @@ describe('NumberPad component', () => {
     mockSudoku({ state })
     render(<NumberPad />)
 
-    const button3 = screen.getByRole('button', { name: 'Enter number 3' })
+    const button3 = screen.getByRole('button', { name: /^Enter number 3\b/ })
     const count = within(button3).getByText('2')
     expect(count).toBeInTheDocument()
     expect(count).toHaveClass('text-muted-foreground')
@@ -189,7 +207,7 @@ describe('NumberPad component', () => {
     mockSudoku({ state })
     render(<NumberPad />)
 
-    const button3 = screen.getByRole('button', { name: 'Enter number 3' })
+    const button3 = screen.getByRole('button', { name: /^Enter number 3\b/ })
     expect(button3).toBeDisabled()
     const counterSpan = button3.querySelector('span.absolute')
     expect(counterSpan).not.toBeInTheDocument()
@@ -203,10 +221,10 @@ describe('NumberPad component', () => {
     mockSudoku({ state: makeState({ board: fullBoard }, playingState) })
     render(<NumberPad />)
 
-    const digit = within(screen.getByRole('button', { name: 'Enter number 3' })).getByText('3')
+    const digit = within(screen.getByRole('button', { name: /^Enter number 3\b/ })).getByText('3')
     expect(digit).toHaveAttribute('data-struck')
     expect(digit).toHaveClass('pad-strike', 'text-disabled-foreground')
-    const open = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
+    const open = within(screen.getByRole('button', { name: /^Enter number 4\b/ })).getByText('4')
     expect(open).toHaveClass('text-ink')
     expect(open).not.toHaveAttribute('data-struck')
   })
@@ -220,7 +238,7 @@ describe('NumberPad component', () => {
         isGiven: i < givens,
       }))
     const digitThree = () =>
-      within(screen.getByRole('button', { name: 'Enter number 3' })).getByText('3')
+      within(screen.getByRole('button', { name: /^Enter number 3\b/ })).getByText('3')
 
     // The pad is memoised. A subscription delivers board changes to it the way context does.
     let state = playingState
@@ -285,7 +303,7 @@ describe('NumberPad component', () => {
     mockSudoku({ state: makeState({ ui: { isPaused: true } }, playingState) })
     render(<NumberPad />)
 
-    const digit = within(screen.getByRole('button', { name: 'Enter number 4' })).getByText('4')
+    const digit = within(screen.getByRole('button', { name: /^Enter number 4\b/ })).getByText('4')
     expect(digit).toHaveClass('text-disabled-foreground')
     expect(digit).not.toHaveAttribute('data-struck')
   })
