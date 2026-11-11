@@ -87,6 +87,7 @@
     "vitest": "5.0.5"
   },
   "overrides": {
+    "playwright-core": "$playwright",
     "eslint-plugin-react": {
       "eslint": "$eslint"
     },

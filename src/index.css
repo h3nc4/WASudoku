@@ -165,12 +165,20 @@
 }
 
 /* Dialogs and menus animate through tw-animate-css, which has no reduced-motion guard of its own. */
+/* Unlayered rules beat every layered utility, and the tokens reach the unlayered rules below. */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-in: 0.01ms;
+    --motion-out: 0.01ms;
+    --motion-panel: 0.01ms;
+    --motion-moment: 0.01ms;
+  }
+
   *,
   ::before,
   ::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
   }
 }
 
@@ -449,7 +457,7 @@
 .theme-switching :not(svg),
 .theme-switching ::before,
 .theme-switching ::after {
-  transition: none !important;
+  transition: none;
 }
 
 /* Error motion */
@@ -574,11 +582,10 @@
 /* Only the revert tint tells the player something new. Reduced motion holds it still for its 300ms. */
 @media (prefers-reduced-motion: reduce) {
   .board-moment {
-    animation-delay: 0s !important;
+    animation-delay: 0s;
   }
 
   .board-moment[data-moment='revert'] {
-    animation-duration: 300ms !important;
     animation-timing-function: step-end;
   }
 }
