@@ -17,7 +17,8 @@
     "enabled": true,
     "addLabels": ["automerge", "security"],
     "automerge": true,
-    "platformAutomerge": true
+    "platformAutomerge": true,
+    "rebaseWhen": "behind-base-branch"
   },
   "osvVulnerabilityAlerts": true,
   "packageRules": [
@@ -94,6 +95,11 @@
       "addLabels": ["automerge"],
       "automerge": true,
       "platformAutomerge": true
+    },
+    {
+      "description": "Majors never automerge, so rebase them only on a conflict rather than rerunning CI each time main moves",
+      "matchUpdateTypes": ["major"],
+      "rebaseWhen": "conflicted"
     }
   ],
   "customManagers": [
