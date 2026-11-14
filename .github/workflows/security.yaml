@@ -16,6 +16,7 @@ on:
 jobs:
   audit:
     name: Dependency Audit
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write # pushes the fix branch
@@ -104,6 +105,7 @@ jobs:
 
   audit-wasm:
     name: Cargo Audit
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -147,6 +149,7 @@ jobs:
 
   analyze:
     name: CodeQL
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       actions: read
