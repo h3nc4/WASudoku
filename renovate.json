@@ -133,6 +133,18 @@
       "managerFilePatterns": ["/^scripts/wasm-deps\\.sh$/"],
       "matchStrings": ["(?<depName>[a-z0-9-_]+) (?<currentValue>[^\\s]+)"],
       "datasourceTemplate": "crate"
+    },
+    {
+      "description": "Update the registry the CI image is shared through",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/development\\.yaml$/",
+        "/^\\.github/actions/ci-image/action\\.yml$/"
+      ],
+      "matchStrings": [
+        "\\b(?<depName>registry):(?<currentValue>[0-9][^@\\s]*)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }
