@@ -101,6 +101,26 @@ jobs:
           name: dev-build
           path: WASudoku-dev.tar.xz
           retention-days: 1
+      - name: Audit npm and cargo dependencies
+        run: |
+          $DEV_RUN -c 'npm run audit' >"${RUNNER_TEMP}/audit.log" 2>&1 || status=1
+          cat "${RUNNER_TEMP}/audit.log"
+          if [ "${status:-0}" -ne 0 ]; then
+            {
+              echo '## Advisories left for a human'
+              echo
+              echo '```'
+              cat "${RUNNER_TEMP}/audit.log"
+              echo '```'
+            } >>"${GITHUB_STEP_SUMMARY}"
+            echo "::error::npm audit fix cannot reach these without a major bump"
+          fi
+          $DEV_RUN -c "
+            set -e
+            export PATH=/cache/cargo/bin:\${PATH}
+            npm run audit:wasm
+          " || status=1
+          exit "${status:-0}"
 
   browser-tests:
     name: Browser Test (${{ matrix.project }})
