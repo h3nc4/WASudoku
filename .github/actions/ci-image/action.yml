@@ -44,3 +44,9 @@ runs:
         image-inputs: ${{ env.CI_IMAGE_INPUTS }}
         base-sha: ''
         docker-args: ${{ inputs.docker-args }}
+    - name: Drop the local registry
+      if: inputs.shared == 'true'
+      shell: sh
+      run: |
+        docker rm -f ci-registry >/dev/null
+        sudo rm -rf "${RUNNER_TEMP}/registry"
