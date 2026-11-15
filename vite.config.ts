@@ -158,12 +158,13 @@ export default defineConfig({
       exclude: [
         'src/main.tsx',
         'src/workers/sw.ts',
-        'src/components/ui',
-        'src/wasudoku-wasm',
-        'src/test',
+        // Vendored shadcn/ui source, which sonar-project.properties leaves out too, and test helpers.
+        'src/components/ui/**',
+        'src/wasudoku-wasm/**',
+        'src/test/**',
         '**/*.test.ts',
         '**/*.test.tsx',
-        '**/__mocks__',
+        '**/__mocks__/**',
         '**/*.d.ts',
       ],
     },

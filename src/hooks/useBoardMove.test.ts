@@ -185,6 +185,19 @@ describe('findBoardMoment', () => {
     expect([...(reverted?.delays.keys() ?? [])]).toEqual([50])
   })
 
+  it('marks the cell an undo gave back a different note of the same count', () => {
+    const empty = createEmptyBoard()
+    const three = toggleMark(empty, 50, 'center', 3)
+    const four = toggleMark(toggleMark(three, 50, 'center', 3), 50, 'center', 4)
+    const history = { stack: [empty, three, four], index: 2 }
+    const noted = { ...snapshot(empty), board: four, history }
+    const undo = { ...noted, board: three, history: { ...history, index: 1 } }
+
+    const reverted = momentOf(noted, undo)
+    expect(reverted?.kind).toBe('revert')
+    expect([...(reverted?.delays.keys() ?? [])]).toEqual([50])
+  })
+
   it('plays nothing when the board did not change', () => {
     const same = snapshot(solvedExcept(0))
     expect(findBoardMoment(same, same, null)).toBeNull()
