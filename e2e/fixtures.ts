@@ -19,85 +19,9 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, type Locator, type Page, test as base } from '@playwright/test'
 
-/** A puzzle with one solution that singles alone solve, so a hint always has a logical step. */
-export const PUZZLE =
-  '530070000600195000098000060800060003400803001700020006060000280000419005000080079'
-export const SOLUTION =
-  '534678912672195348198342567859761423426853791713924856961537284287419635345286179'
-
-/** A puzzle with many solutions, since it has nothing but the clues 1 and 2. */
-export const AMBIGUOUS = `12${'.'.repeat(79)}`
+import { fullPool, type GameMetrics, STORAGE_KEYS } from './saves'
 
 const SEEDED_FLAG = 'wasudoku.e2e.seeded'
-
-// Written out rather than imported from src, so a change to the storage format fails these journeys.
-export const STORAGE_KEYS = {
-  GAME: 'wasudoku.state.game',
-  METRICS: 'wasudoku.state.metrics',
-  POOL: 'wasudoku.state.pool',
-} as const
-
-const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme'] as const
-
-export interface GameMetrics {
-  readonly timer: number
-  readonly mistakes: number
-}
-
-/** PUZZLE as a version 2 save holds it, one row a line, captured from the app's own save. */
-const PUZZLE_CODE = [
-  'f0000d00000000000000h000000000000000000000000',
-  'g00000000000000b0000j0000f0000000000000000000',
-  '00000j0000i000000000000000000000000g000000000',
-  'i0000000000000000000g0000000000000000000d0000',
-  'e00000000000000i000000000d00000000000000b0000',
-  'h0000000000000000000c0000000000000000000g0000',
-  '00000g000000000000000000000000c0000i000000000',
-  '000000000000000e0000b0000j00000000000000f0000',
-  '00000000000000000000i00000000000000h0000j0000',
-].join('')
-
-const CELL_CODE_WIDTH = 5
-
-// A player digit without notes saves as that digit followed by two empty note masks.
-const boardCode = (digits: string): string =>
-  [...digits]
-    .map((char, i) =>
-      PUZZLE[i] !== '0' || char === '.' || char === '0'
-        ? PUZZLE_CODE.slice(i * CELL_CODE_WIDTH, (i + 1) * CELL_CODE_WIDTH)
-        : `${char}0000`,
-    )
-    .join('')
-
-export interface SavedGameSpec {
-  /** The board as played, as 81 digits or dots. Cells that differ from the puzzle are player entries. */
-  readonly board?: string
-}
-
-/** The puzzle with every cell but the listed ones filled from the solution. */
-export function solvedExcept(...blanks: number[]): string {
-  const clue = blanks.find((i) => PUZZLE[i] !== '0')
-  if (clue !== undefined) throw new Error(`Cell ${clue} is a clue and cannot be left blank`)
-  return [...SOLUTION].map((digit, i) => (blanks.includes(i) ? '.' : digit)).join('')
-}
-
-/** An easy game saved in storage format version 2, one move past the puzzle. */
-export function savedGame(spec: SavedGameSpec = {}): string {
-  return JSON.stringify({
-    version: 2,
-    history: { stack: [PUZZLE_CODE, boardCode(spec.board ?? PUZZLE)], index: 1 },
-    initialBoard: PUZZLE_CODE,
-    solution: SOLUTION,
-    difficulty: 'easy',
-  })
-}
-
-/** A full pool of the fixed puzzle, which keeps the app from generating in the background. */
-export const fullPool = (): string => {
-  const entry = { puzzleString: PUZZLE, solutionString: SOLUTION }
-  const puzzlePool = Object.fromEntries(DIFFICULTIES.map((d) => [d, [entry, entry, entry]]))
-  return JSON.stringify({ puzzlePool })
-}
 
 export interface OpenOptions {
   readonly path?: string
@@ -208,3 +132,5 @@ export const test = base.extend<{ open: (options?: OpenOptions) => Promise<void>
 })
 
 export { expect }
+
+export { AMBIGUOUS, PUZZLE, savedGame, SOLUTION, solvedExcept, STORAGE_KEYS } from './saves'

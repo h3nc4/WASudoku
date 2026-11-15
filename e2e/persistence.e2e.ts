@@ -26,11 +26,11 @@ import {
   PUZZLE,
   readTimer,
   savedGame,
-  SOLUTION,
   STORAGE_KEYS,
   test,
   timer,
 } from './fixtures'
+import { legacyGame, selectionScreenSave } from './saves'
 
 const R1C3 = 2
 const R1C4 = 3
@@ -40,39 +40,6 @@ const PAST_SAVE_DELAY_MS = 2000
 const welcome = (page: Page) => page.getByRole('heading', { name: 'Welcome to WASudoku' })
 const storedGame = (page: Page) =>
   page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.GAME)
-
-// An empty cell saves as five zeros: no digit, then two empty note masks
-const EMPTY_BOARD_CODE = '00000'.repeat(81)
-
-/** The single empty board that earlier builds saved from the untouched selection screen. */
-function selectionScreenSave(): string {
-  return JSON.stringify({
-    version: 2,
-    history: { stack: [EMPTY_BOARD_CODE], index: 0 },
-    initialBoard: EMPTY_BOARD_CODE,
-    solution: null,
-    difficulty: null,
-  })
-}
-
-/** Each Set saved as {"__dataType":"Set","value":[...]}, the format of builds before version 2. */
-function legacyGame(): string {
-  const tagged = (digits: number[]) => ({ __dataType: 'Set', value: digits })
-  const toCells = (digits: string, entries: Record<number, number> = {}) =>
-    [...digits].map((char, i) => ({
-      value: entries[i] ?? (char === '0' ? null : Number(char)),
-      isGiven: char !== '0',
-      candidates: tagged([]),
-      centers: tagged(i === R1C4 ? [2, 6] : []),
-    }))
-  const initialBoard = toCells(PUZZLE)
-  return JSON.stringify({
-    history: { stack: [initialBoard, toCells(PUZZLE, { [R1C3]: 4 })], index: 1 },
-    initialBoard,
-    solution: [...SOLUTION].map(Number),
-    difficulty: 'medium',
-  })
-}
 
 test('reload mid-game restores board, notes and timer', async ({ page, open }) => {
   await open({ game: savedGame(), metrics: { timer: 65, mistakes: 1 } })

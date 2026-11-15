@@ -18,6 +18,9 @@
     },
     {
       "path": "./tsconfig.next.json"
+    },
+    {
+      "path": "./tsconfig.parity.json"
     }
   ],
   "compilerOptions": {

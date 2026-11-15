@@ -26,3 +26,6 @@ licenses/
 
 # rumdl
 .rumdl_cache/
+
+# Parity harness
+parity-out/

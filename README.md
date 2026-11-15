@@ -189,6 +189,7 @@ npm run dev
 | `npm run test`         | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
 | `npm run test:browser` | the Vitest suite in real browsers through Playwright                     |
 | `npm run test:e2e`     | Playwright end-to-end tests against the build in `dist/`                 |
+| `npm run parity`       | the parity harness, one build against another                            |
 | `npm run lint`         | ESLint                                                                   |
 | `npm run lint:wasm`    | Clippy, with warnings as errors                                          |
 | `npm run typecheck`    | `tsc -b`                                                                 |
@@ -207,6 +208,26 @@ Either takes `-- --project firefox` to run one project. CI runs both suites, one
 The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in two Web Workers, one for the player's requests and one that refills the puzzle pool in the background.
 
 To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
+
+### Parity harness
+
+`parity/` compares two builds of the app, a reference and a candidate, by driving both through the same steps in Chromium. It exists to prove that a rewrite behaves like the build it replaces. Each check prints one `PASS` or `FAIL` line with its numbers, and the run exits non-zero on any failure.
+
+```sh
+npm run build
+scripts/parity.sh dist dist parity-out
+```
+
+`scripts/parity.sh <reference> <candidate> [output dir]` runs the harness in the Playwright image that `package.json` pins. Each build is a `dist` directory or a URL, which the harness serves or proxies on a loopback port of its own. Diff images are written to the output directory, `parity-out` by default. `PARITY_ONLY` picks checks from `states`, `pixels`, `a11y`, `keys`, `persistence` and `pwa`, `PARITY_SCENARIOS` picks scenarios by name, and `PARITY_KEEP=1` also keeps every reference frame. Inside the image, `npm run parity` does the same with `PARITY_REF` and `PARITY_CANDIDATE` set.
+
+- **States.** Every scenario in `parity/scenarios.ts` runs in light and dark, from the selection screen and each difficulty through entries, notes, conflicts, hints, the walkthrough, custom entry, pause, the win dialog, the confirmations and both menus. Each named capture compares what the player sees through accessible names and the documented test ids, and the whole of `localStorage` byte for byte.
+- **Pixels.** Each capture is a full-page screenshot at 360, 412, 768, 1024, 1350 and 1920 px, allowed 0.02% of differing pixels, with the page height compared at each width. The timer is the only mask, named in `MASKS`.
+- **Accessibility.** The accessible tree and the axe results run in one direction. A node or a fix in the candidate is a `NOTE`, and a lost node or a new violation is a `FAIL`.
+- **Keys.** Every key from `src/core/keymap.ts` once it exists and exports `KEYS`, `KEYMAP` or `BINDINGS`, or else every key the React handlers compare, is pressed with six modifier sets in nine modes, comparing the state after each press.
+- **Persistence.** The final save of each fixed scenario opens in both builds, which must show and keep the same.
+- **PWA.** The service worker install, an offline reload with a new game from the pool, and the update offer after a deploy are compared as what each build does.
+
+The scenarios start from literal saves in `e2e/saves.ts` and a pool deep enough that no build generates, with a paused fake clock and a pinned `Math.random`. Generation itself is random in today's build. The first visit with an empty pool, the pool refill and the distribution of generated puzzles are left out until seeded generation is merged behind `seedGeneration` in `parity/determinism.ts`, and the run lists them as notes.
 
 ### Font
 
