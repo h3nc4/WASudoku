@@ -16,6 +16,7 @@
     "lint": "eslint --max-warnings 0 .",
     "lint:md": "rumdl check README.md",
     "lint:sh": "shellcheck -o all scripts/*.sh",
+    "lint:type": "sh scripts/lint-type.sh",
     "lint:wasm": "cd src/wasudoku-wasm && cargo clippy --all-targets -- -D warnings",
     "typecheck": "tsc -b",
     "format:check": "prettier --check .",

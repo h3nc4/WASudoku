@@ -99,8 +99,7 @@ export const PencilMarks = memo(function PencilMarks({
 
   if (centers.size > 0 || leavingCenters.size > 0) {
     const shown = [...new Set([...centers, ...leavingCenters.keys()])].sort((a, b) => a - b)
-    const fontSize =
-      shown.length > 4 ? 'text-[0.65rem] md:text-xs' : 'text-[0.8rem] md:text-[0.85rem]'
+    const fontSize = shown.length > 4 ? 'text-2xs md:text-xs' : 'text-xs md:text-sm'
     return (
       <div className="flex size-full items-center justify-center p-1">
         {shown.map((num) => {
@@ -133,7 +132,7 @@ export const PencilMarks = memo(function PencilMarks({
           return (
             <div
               key={`candidate-${num}`}
-              className="flex items-center justify-center text-[0.7rem] leading-none md:text-[0.75rem]"
+              className="flex items-center justify-center text-xs leading-none"
             >
               {candidates.has(num) || leaving ? (
                 <span

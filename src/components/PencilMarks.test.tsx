@@ -50,18 +50,18 @@ describe('PencilMarks component', () => {
   it('renders small font for many center marks', () => {
     render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3, 4, 5])} />)
     const span = screen.getByText('1')
-    expect(span).toHaveClass('text-[0.65rem] md:text-xs')
+    expect(span).toHaveClass('text-2xs md:text-xs')
   })
 
   it('renders normal font for few center marks', () => {
     render(<PencilMarks candidates={new Set()} centers={new Set([1, 2, 3])} />)
     const span = screen.getByText('1')
-    expect(span).toHaveClass('text-[0.8rem] md:text-[0.85rem]')
+    expect(span).toHaveClass('text-xs md:text-sm')
   })
 
   it('sizes corner marks for legibility on a phone and from md', () => {
     render(<PencilMarks candidates={new Set([1])} centers={new Set()} />)
-    expect(screen.getByText('1').parentElement).toHaveClass('text-[0.7rem] md:text-[0.75rem]')
+    expect(screen.getByText('1').parentElement).toHaveClass('text-xs')
   })
 
   it('strikes eliminated candidates in the note colour rather than red', () => {

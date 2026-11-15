@@ -37,12 +37,7 @@ import { PoolRefill } from '@/lib/pool-refill'
 import { boardStateToString } from '@/lib/utils'
 import { Lane, WorkerPool } from '@/lib/worker-pool'
 
-/**
- * Runs the player's solver requests on the foreground worker and refills the puzzle pool.
- *
- * @param state - The current Sudoku state.
- * @param dispatch - The dispatch function from the Sudoku reducer.
- */
+/** Runs the player's solver requests on the foreground worker and refills the puzzle pool. */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
   const poolRef = useRef<WorkerPool | null>(null)
   const refillRef = useRef<PoolRefill | null>(null)

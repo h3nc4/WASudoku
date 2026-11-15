@@ -45,8 +45,8 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      // These read the built wasm from disk, which a page cannot do.
-      exclude: [...configDefaults.exclude, 'src/**/*.wasm.test.ts'],
+      // These read the built wasm or run ESLint from disk, which a page cannot do.
+      exclude: [...configDefaults.exclude, 'src/**/*.wasm.test.ts', 'scripts/**'],
       browser: {
         enabled: true,
         provider: playwright({}),

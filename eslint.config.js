@@ -34,6 +34,108 @@ import unusedImports from 'eslint-plugin-unused-imports'
 
 const reactVersion = createRequire(import.meta.url)('react/package.json').version
 
+const LAYERS = ['core', 'solver', 'runtime', 'ui', 'sw']
+const NUMERIC_LAYERS = ['core', 'solver', 'runtime']
+const SOURCE = '**/*.ts'
+const TESTS = '**/*.test.ts'
+const sourcesOf = (layers) => layers.map((layer) => `src/${layer}/${SOURCE}`)
+const testsOf = (layers) => layers.map((layer) => `src/${layer}/${TESTS}`)
+
+/** Lets layer `name` import only from `allowed`, given as paths under src. */
+const zone = (root, name, allowed, message) => ({
+  files: sourcesOf([name]),
+  rules: {
+    'import-x/no-restricted-paths': [
+      'error',
+      {
+        basePath: root,
+        zones: [
+          {
+            target: `./src/${name}`,
+            from: './src',
+            except: [`./${name}`, ...allowed.map((path) => `./${path}`)],
+            message,
+          },
+        ],
+      },
+    ],
+  },
+})
+
+/** The import zones of the rewrite's layers, a function of the root so a test can lint a fixture tree. */
+export const layerZones = (root) => [
+  zone(
+    root,
+    'solver',
+    ['core', 'wasudoku-wasm'],
+    'The solver imports only core types and core/codec/wire.',
+  ),
+  {
+    files: sourcesOf(['solver']),
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '(^|/)core(/(?!codec/wire(\\.ts)?$).*)?$',
+              allowTypeImports: true,
+              message: 'The solver imports only core types and core/codec/wire.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  zone(root, 'runtime', ['core', 'solver'], 'The runtime imports only core and solver.'),
+  zone(
+    root,
+    'ui',
+    ['runtime', 'core/game/selectors.ts', 'core/text'],
+    'The ui imports only runtime, core/game/selectors and core/text, never solver.',
+  ),
+  zone(root, 'sw', [], 'The service worker imports nothing outside sw.'),
+]
+
+const layerStrictness = [
+  ...tseslintConfigs.strictTypeChecked.map((config) => ({ ...config, files: sourcesOf(LAYERS) })),
+  {
+    files: sourcesOf(LAYERS),
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
+      '@typescript-eslint/no-non-null-assertion': 'error',
+    },
+  },
+  {
+    files: sourcesOf(NUMERIC_LAYERS),
+    rules: {
+      'no-magic-numbers': 'off',
+      '@typescript-eslint/no-magic-numbers': [
+        'error',
+        {
+          ignore: [0, 1, -1],
+          ignoreArrayIndexes: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
+    },
+  },
+  {
+    files: testsOf(LAYERS),
+    rules: {
+      '@typescript-eslint/consistent-type-assertions': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-magic-numbers': 'off',
+    },
+  },
+]
+
 export default [
   {
     ignores: [
@@ -107,6 +209,8 @@ export default [
       'promise/catch-or-return': 'off',
     },
   },
+  ...layerZones(import.meta.dirname),
+  ...layerStrictness,
   {
     files: ['**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
     plugins: {

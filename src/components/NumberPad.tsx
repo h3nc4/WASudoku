@@ -129,7 +129,7 @@ export const NumberPad = memo(function NumberPad() {
               {!isComplete && (
                 <span
                   className={cn(
-                    'voice-mono text-[10px] leading-none tabular-nums md:text-xs',
+                    'voice-mono text-2xs leading-none tabular-nums md:text-xs',
                     toneOf(isDisabled, isLocked, 'text-muted-foreground'),
                   )}
                 >

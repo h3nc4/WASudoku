@@ -62,6 +62,12 @@
   --color-solver-wash: var(--solver-wash);
 }
 
+/* A step below text-xs for the dense notes and the pad's remaining count. */
+@theme {
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: calc(0.75 / 0.625);
+}
+
 /* Board feedback arrives in one or two frames and leaves slower, so a held arrow key doesn't leave a trail. */
 /* This `--ease-out` replaces the Tailwind default, which keeps one easing family across the app. */
 @theme static {
