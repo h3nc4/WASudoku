@@ -24,7 +24,9 @@ import type { AstroIntegration } from 'astro'
 import { defineConfig } from 'astro/config'
 import { build } from 'vite'
 
+import { SITE } from './src/pages-data/site.ts'
 import { finishBuild } from './src/site/finish.ts'
+import { buildDay } from './src/site/sitemap.ts'
 
 // Underscored pages never route, so only a preview build adds them, into its own directory.
 const isPreview = process.env.PREVIEW === '1'
@@ -83,6 +85,8 @@ const pwa: AstroIntegration = {
         baseManifest: readFileSync(fromRoot('./public/manifest.json'), 'utf8'),
         screenshotsDir: fromRoot('./src/assets/screenshots'),
         bundleWorker,
+        site: SITE,
+        lastmod: buildDay(process.env.SOURCE_DATE_EPOCH, new Date()),
       })
     },
   },

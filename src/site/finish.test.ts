@@ -63,6 +63,8 @@ describe('finishBuild', () => {
       baseManifest: JSON.stringify({ name: 'WASudoku' }),
       screenshotsDir,
       bundleWorker: () => Promise.resolve('setUp(__PRECACHE_MANIFEST__)'),
+      site: 'https://wasudoku.h3nc4.com',
+      lastmod: '2026-11-15',
     }
   })
 
@@ -103,6 +105,26 @@ describe('finishBuild', () => {
     )
     expect(policy).toContain(`style-src 'self' ${sourceHash(STYLE)} ${sourceHash('p{}')};`)
     expect(policy).toContain(`script-src 'self' 'wasm-unsafe-eval' ${sourceHash(THEME)};`)
+  })
+
+  it('writes a sitemap of the indexed pages, leaving the 404 page out', async () => {
+    writeFileSync(path.join(options.outDir, 'index.html'), '<a href="/solver/">How</a>')
+    mkdirSync(path.join(options.outDir, 'solver'))
+    writeFileSync(path.join(options.outDir, 'solver', 'index.html'), '<a href="../">Home</a>')
+    await finishBuild(options)
+
+    const sitemap = read('sitemap.xml')
+    expect([...sitemap.matchAll(/<loc>(.*)<\/loc>/g)].map(([, loc]) => loc)).toEqual([
+      'https://wasudoku.h3nc4.com/',
+      'https://wasudoku.h3nc4.com/solver/',
+    ])
+    expect(sitemap).toContain('<lastmod>2026-11-15</lastmod>')
+  })
+
+  it('refuses a build whose pages link to a file it lacks', async () => {
+    writeFileSync(path.join(options.outDir, 'index.html'), '<a href="/techniques/none/">None</a>')
+    await expect(finishBuild(options)).rejects.toThrow('index.html: /techniques/none/')
+    expect(existsSync(path.join(options.outDir, 'sitemap.xml'))).toBe(false)
   })
 
   it('refuses a base manifest that holds no object', async () => {

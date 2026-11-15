@@ -1,0 +1,42 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import type { Example } from '../pages-data/examples'
+import { figureRows } from '../pages-data/figure'
+import BoardCells from './BoardCells.astro'
+
+interface Props {
+  example: Example
+}
+
+const { example } = Astro.props
+const rows = figureRows(example.cells)
+---
+
+{/* The drawing is hidden from assistive technology. The caption and the list say what it shows. */}
+<figure class="figure">
+  <div class="board" aria-hidden="true">
+    <BoardCells rows={rows} />
+  </div>
+  <figcaption>
+    <p>{example.caption}</p>
+    <ul>
+      {example.facts.map((fact) => <li>{fact}</li>)}
+    </ul>
+  </figcaption>
+</figure>

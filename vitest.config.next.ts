@@ -28,14 +28,18 @@ const config = {
   test: {
     // Under jsdom Vite compiles .astro for the client, and rendering then fails.
     environment: 'node',
-    include: ['src/components-next/**/*.test.ts', 'src/preview/**/*.test.ts'],
+    include: [
+      'src/components-next/**/*.test.ts',
+      'src/preview/**/*.test.ts',
+      'src/pages-data/**/*.test.ts',
+    ],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage-next',
       reporter: ['text', 'lcov'],
       reportOnFailure: true,
       // SonarQube indexes no .astro file. The gate counts the .ts modules, which contain every branch.
-      include: ['src/components-next/**/*.ts', 'src/preview/**/*.ts'],
+      include: ['src/components-next/**/*.ts', 'src/preview/**/*.ts', 'src/pages-data/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.d.ts'],
       thresholds: { lines: ALL, branches: ALL, functions: ALL, statements: ALL },
     },

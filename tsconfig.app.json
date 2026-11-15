@@ -42,6 +42,7 @@
     "src/pages",
     "src/layouts",
     "src/components-next",
-    "src/preview"
+    "src/preview",
+    "src/pages-data"
   ]
 }

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
+import BoardCells from './BoardCells.astro'
 import Button from './Button.astro'
 import Icon from './Icon.astro'
 import { boardRows, type CellView } from './view'
@@ -31,39 +32,7 @@ const rows = boardRows(Astro.props.cells)
 {/* A space parts each note glyph, so the visible digits read as words inside the cell's name. */}
 <div class="relative">
   <div role="grid" id="board" class="board" aria-label="Sudoku board">
-    {
-      rows.map((row) => (
-        <div role="row">
-          {row.map((cell) => (
-            <div role="gridcell" class="c" {...cell.attributes}>
-              {cell.wrong && (
-                <svg class="x" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <path d="M10 10 90 90M90 10 10 90" />
-                </svg>
-              )}
-              {cell.value !== undefined && (
-                <span class="d" aria-hidden="true">
-                  {cell.value}
-                </span>
-              )}
-              {cell.corner && (
-                <span class="n" aria-hidden="true">
-                  {cell.corner.map((slot) => [
-                    ' ',
-                    <span data-struck={slot.struck}>{slot.digit}</span>,
-                  ])}
-                </span>
-              )}
-              {cell.center && (
-                <span class="n" data-center={cell.center.size} aria-hidden="true">
-                  {cell.center.digits.map((digit) => [' ', <span>{digit}</span>])}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      ))
-    }
+    <BoardCells rows={rows} />
   </div>
   <div class="pause-overlay" id="pause-overlay" hidden>
     <p class="text-ink voice-ink text-2xl">Paused</p>

@@ -32,7 +32,13 @@ const SERVICE_WORKER = 'sw.js'
 const NOT_FOUND_PAGE = '404.html'
 
 // The Astro UI compiles through Astro's own Vite config, so vitest.config.next.ts tests and covers it.
-const ASTRO_SOURCES = ['src/pages/**', 'src/layouts/**', 'src/components-next/**', 'src/preview/**']
+const ASTRO_SOURCES = [
+  'src/pages/**',
+  'src/layouts/**',
+  'src/components-next/**',
+  'src/preview/**',
+  'src/pages-data/**',
+]
 
 /** Writes what the app can use into sw.js, with a version that changes whenever any of it does. */
 function precacheManifest(): Plugin {

@@ -31,10 +31,14 @@ describe('the theme in a real engine', () => {
 
   it('ships the head script unchanged, ahead of the stylesheet', () => {
     const head = builtPage().head
-    const scripts = [...head.querySelectorAll('script:not([src])')]
+    const scripts = [
+      ...head.querySelectorAll('script:not([src]):not([type="application/ld+json"])'),
+    ]
     expect(scripts.map((script) => script.textContent)).toEqual([THEME_SCRIPT])
-    const order = [...head.children].map((child) => child.tagName)
-    expect(order.indexOf('SCRIPT')).toBeLessThan(order.indexOf('STYLE'))
+    const order = [...head.children]
+    expect(order.indexOf(scripts[0])).toBeLessThan(
+      order.findIndex((child) => child.tagName === 'STYLE'),
+    )
   })
 
   it('flips and stores the theme from the button, through a view transition where there is one', async () => {

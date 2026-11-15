@@ -1,0 +1,57 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import type { DrawnCell } from './view'
+
+interface Props {
+  rows: readonly (readonly DrawnCell[])[]
+}
+
+const { rows } = Astro.props
+---
+
+{
+  rows.map((row) => (
+    <div role="row">
+      {row.map((cell) => (
+        <div role="gridcell" class="c" {...cell.attributes}>
+          {cell.wrong && (
+            <svg class="x" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path d="M10 10 90 90M90 10 10 90" />
+            </svg>
+          )}
+          {cell.value !== undefined && (
+            <span class="d" aria-hidden="true">
+              {cell.value}
+            </span>
+          )}
+          {cell.corner && (
+            <span class="n" aria-hidden="true">
+              {cell.corner.map((slot) => [' ', <span data-struck={slot.struck}>{slot.digit}</span>])}
+            </span>
+          )}
+          {cell.center && (
+            <span class="n" data-center={cell.center.size} aria-hidden="true">
+              {cell.center.digits.map((digit) => [' ', <span>{digit}</span>])}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  ))
+}

@@ -20,7 +20,9 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { contentSecurityPolicy, formatHeaders, headerRules, inlineSources } from './headers'
+import { brokenLinks } from './links'
 import { injectManifest, precacheCandidates, precacheManifest, readTree } from './precache'
+import { indexedPaths, sitemapXml } from './sitemap'
 import { pngSize, SCREENSHOTS, SCREENSHOTS_DIR, webManifest } from './web-manifest'
 
 export interface FinishOptions {
@@ -33,6 +35,10 @@ export interface FinishOptions {
   readonly screenshotsDir: string
   /** Bundles the service worker into one classic script, still holding its placeholder. */
   readonly bundleWorker: () => Promise<string>
+  /** The origin the canonical links name, which counts as the build's own in a link. */
+  readonly site: string
+  /** The day the sitemap stamps on every page, as YYYY-MM-DD. */
+  readonly lastmod: string
 }
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -63,6 +69,12 @@ export async function finishBuild(options: FinishOptions): Promise<void> {
   const decoder = new TextDecoder()
   const pages = files
     .filter(({ name }) => name.endsWith('.html'))
-    .map(({ content }) => decoder.decode(content))
-  write('_headers', formatHeaders(headerRules(contentSecurityPolicy(inlineSources(pages)))))
+    .map(({ name, content }) => ({ name, html: decoder.decode(content) }))
+  const broken = brokenLinks(options.site, pages, new Set(files.map(({ name }) => name)))
+  if (broken.length > 0) throw new Error(`links that name no built file:\n${broken.join('\n')}`)
+  write('sitemap.xml', sitemapXml(options.site, indexedPaths(pages), options.lastmod))
+  write(
+    '_headers',
+    formatHeaders(headerRules(contentSecurityPolicy(inlineSources(pages.map(({ html }) => html))))),
+  )
 }

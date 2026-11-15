@@ -31,3 +31,6 @@ licenses/
 
 # Parity harness
 parity-out/
+
+# Vitest browser failure screenshots
+.vitest/

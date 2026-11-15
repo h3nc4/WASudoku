@@ -1,0 +1,42 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Footer from '../components-next/Footer.astro'
+import Wordmark from '../components-next/Wordmark.astro'
+import type { PageMeta } from '../pages-data/site'
+import '../styles/article.css'
+import Shell from './Shell.astro'
+
+interface Props {
+  meta: PageMeta
+}
+
+const { meta } = Astro.props
+---
+
+<Shell meta={meta} sprite={false}>
+  <div class="text-foreground flex min-h-screen flex-col">
+    <header class="site-header container mx-auto">
+      <a href="/"><Wordmark class="text-2xl tracking-tight md:text-3xl" /></a>
+    </header>
+    <main class="article flex-1">
+      <slot />
+    </main>
+    <Footer />
+  </div>
+</Shell>

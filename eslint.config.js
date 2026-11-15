@@ -34,8 +34,8 @@ import unusedImports from 'eslint-plugin-unused-imports'
 
 const reactVersion = createRequire(import.meta.url)('react/package.json').version
 
-const LAYERS = ['core', 'solver', 'runtime', 'ui', 'sw']
-const NUMERIC_LAYERS = ['core', 'solver', 'runtime']
+const LAYERS = ['core', 'solver', 'runtime', 'ui', 'sw', 'pages-data']
+const NUMERIC_LAYERS = ['core', 'solver', 'runtime', 'pages-data']
 const SOURCE = '**/*.ts'
 // The pure modules Astro renders the first paint with. The ui patches the page with the same output.
 const MARKUP_MODULES = [

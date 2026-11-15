@@ -1,0 +1,59 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import BoardFigure from '../../components-next/BoardFigure.astro'
+import Article from '../../layouts/Article.astro'
+import { ALL_TECHNIQUES } from '../../pages-data/solver'
+import { type TechniquePage, techniquePaths } from '../../pages-data/techniques'
+
+export const getStaticPaths = techniquePaths
+
+interface Props {
+  page: TechniquePage
+}
+
+const { page } = Astro.props
+---
+
+<Article meta={page.meta}>
+  <h1>{page.name}</h1>
+  {page.level && <p class="level">{page.level} level</p>}
+  {page.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+
+  <h2>Example from the solver</h2>
+  <BoardFigure example={page.example} />
+  <p><a class="play" href={page.playHref}>Play this puzzle in WASudoku</a></p>
+
+  <nav aria-label="Techniques" class="pager">
+    {
+      page.previous && (
+        <a href={page.previous.href} rel="prev">
+          <span class="level">Previous</span> {page.previous.label}
+        </a>
+      )
+    }
+    <a href={ALL_TECHNIQUES.href}>{ALL_TECHNIQUES.label}</a>
+    {
+      page.next && (
+        <a href={page.next.href} rel="next">
+          <span class="level">Next</span> {page.next.label}
+        </a>
+      )
+    }
+  </nav>
+</Article>

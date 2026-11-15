@@ -191,6 +191,11 @@ export function boardRows(cells: readonly CellView[]) {
   )
 }
 
+/** One drawn cell. A static figure passes looser attributes than the live grid. */
+export type DrawnCell = Omit<ReturnType<typeof boardRows>[number][number], 'attributes'> & {
+  readonly attributes: Readonly<Record<string, string | number | undefined>>
+}
+
 export interface PadKey {
   readonly digit: Digit
   readonly remaining: number

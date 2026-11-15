@@ -1,0 +1,70 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Article from '../layouts/Article.astro'
+import {
+  BACKTRACKING_LINK,
+  finderRows,
+  LOGIC,
+  ORDER,
+  SEARCH,
+  SOLVER_INTRO,
+  SOLVER_META,
+} from '../pages-data/solver'
+
+const rows = finderRows()
+---
+
+<Article meta={SOLVER_META}>
+  <h1>How the solver works</h1>
+  <p class="lead">{SOLVER_INTRO}</p>
+
+  <h2 id={LOGIC.id}>{LOGIC.heading}</h2>
+  {LOGIC.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+
+  <h2 id={ORDER.id}>{ORDER.heading}</h2>
+  {ORDER.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Order</th>
+        <th scope="col">Technique</th>
+        <th scope="col">Level</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((row) => (
+          <tr>
+            <td>{row.position}</td>
+            <td>
+              <a href={row.href}>{row.label}</a>
+            </td>
+            <td>{row.level}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+
+  <h2 id={SEARCH.id}>{SEARCH.heading}</h2>
+  {SEARCH.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+  <p><a href={BACKTRACKING_LINK.href}>{BACKTRACKING_LINK.label}</a> has an example board.</p>
+
+  <p><a class="play" href="/">Open WASudoku</a></p>
+</Article>

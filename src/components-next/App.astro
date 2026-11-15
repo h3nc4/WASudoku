@@ -18,6 +18,7 @@
  */
 import ActionRow from './ActionRow.astro'
 import Board from './Board.astro'
+import Footer from './Footer.astro'
 import ConfirmDialog from './ConfirmDialog.astro'
 import ControlRow from './ControlRow.astro'
 import { LAYOUT_CLASSES, SELECTING_CLASSES } from './controls'
@@ -108,16 +109,6 @@ const visualizing = view.mode === 'visualizing'
     confirmLabel="Start puzzle"
     cancelLabel="Not now"
   />
-  <footer class="text-muted-foreground container mx-auto px-4 py-3 text-center text-xs md:p-4">
-    <a
-      href="https://h3nc4.com"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="hover:text-foreground inline-block transition-colors"
-    >
-      <p>🄯 2025-2026 Henrique Almeida.</p>
-      <p>Because knowledge should be free.</p>
-    </a>
-  </footer>
+  <Footer />
 </div>
 <ToastRegion toasts={toasts} />
