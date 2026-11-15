@@ -64,6 +64,52 @@ const zone = (root, name, allowed, message) => ({
 
 /** The import zones of the rewrite's layers, a function of the root so a test can lint a fixture tree. */
 export const layerZones = (root) => [
+  // Core imports only itself. Its tests may use vitest, and only compat tests reach the old app.
+  {
+    files: sourcesOf(['core']),
+    ignores: ['src/core/**/*.compat.test.ts'],
+    rules: {
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          basePath: root,
+          zones: [
+            {
+              target: './src/core',
+              from: './src',
+              except: ['./core'],
+              message: 'The core imports nothing outside core.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: sourcesOf(['core']),
+    ignores: testsOf(['core']),
+    rules: {
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          basePath: root,
+          zones: [
+            {
+              target: './src/core',
+              from: './src',
+              except: ['./core'],
+              message: 'The core imports nothing outside core.',
+            },
+            {
+              target: './src/core',
+              from: './node_modules',
+              message: 'The core imports no package.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   zone(
     root,
     'solver',

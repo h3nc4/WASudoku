@@ -21,10 +21,12 @@
 import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers'
 
 declare module 'vitest' {
-  // Both interfaces are empty because merging in the matchers is the whole point, and
-  // Assertion has to keep vitest's two parameters even though only R is used here.
+  // Vitest's exact type parameters, or every expect() turns unresolved under typed lint.
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface Assertion<R, _T> extends TestingLibraryMatchers<unknown, R> {}
+  interface Assertion<
+    R extends void | Promise<void> = void,
+    T = unknown,
+  > extends TestingLibraryMatchers<T, R> {}
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   interface AsymmetricMatchersContaining extends TestingLibraryMatchers<unknown, unknown> {}
 }

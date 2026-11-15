@@ -29,5 +29,5 @@
     }
   },
   "include": ["src"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "src/test"]
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "src/test", "src/core"]
 }
