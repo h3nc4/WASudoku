@@ -1,0 +1,61 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import CloseButton from './CloseButton.astro'
+
+interface Props {
+  id: string
+  title: string
+  description: string
+  confirmLabel: string
+  cancelLabel?: string
+  destructive?: boolean
+}
+
+const { id, title, description, confirmLabel, cancelLabel = 'Cancel', destructive } = Astro.props
+---
+
+{/* An alert dialog. Initial focus goes to Cancel, the first button, ahead of the irreversible action. */}
+<dialog
+  id={id}
+  role="alertdialog"
+  class="dlg sm:max-w-md"
+  closedby="any"
+  aria-labelledby={`${id}-title`}
+  aria-describedby={`${id}-description`}
+>
+  <form method="dialog" class="contents">
+    <div class="flex flex-col gap-2 text-center sm:text-left">
+      <h2 id={`${id}-title`} class="voice-ink text-ink text-xl leading-tight tracking-tight">
+        {title}
+      </h2>
+      <p id={`${id}-description`} class="text-muted-foreground text-sm">{description}</p>
+    </div>
+    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <Button type="submit" value="cancel" variant="paper" size="md">{cancelLabel}</Button>
+      <Button
+        type="submit"
+        value="confirm"
+        variant={destructive ? 'destructive' : 'primary'}
+        size="md">{confirmLabel}</Button
+      >
+    </div>
+    <CloseButton />
+  </form>
+</dialog>

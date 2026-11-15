@@ -1,0 +1,75 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import type { Variant } from './controls'
+import Icon from './Icon.astro'
+import { DIFFICULTIES } from './view'
+
+interface Props {
+  variant: Variant
+  custom: boolean
+}
+
+const { variant, custom } = Astro.props
+---
+
+<Button
+  variant={variant}
+  size="lg"
+  id="new-button"
+  class="flex-1 [anchor-name:--new-button]"
+  aria-haspopup="menu"
+  aria-expanded="false"
+  popovertarget="new-menu"
+>
+  <Icon name="wand-sparkles" class="mr-2 size-4" />
+  New Puzzle
+</Button>
+<div
+  id="new-menu"
+  popover="auto"
+  role="menu"
+  aria-labelledby="new-button"
+  class="menu [position-anchor:--new-button]"
+>
+  {
+    DIFFICULTIES.map((level) => (
+      <button
+        type="button"
+        role="menuitem"
+        tabindex="-1"
+        class="menu-item"
+        data-difficulty={level.toLowerCase()}
+      >
+        {level}
+      </button>
+    ))
+  }
+  {
+    custom && (
+      <>
+        <div role="separator" class="bg-border -mx-1 my-1 h-px" />
+        <button type="button" role="menuitem" tabindex="-1" class="menu-item" data-action="custom">
+          <Icon name="pen-line" class="mr-2 size-4" />
+          Custom
+        </button>
+      </>
+    )
+  }
+</div>

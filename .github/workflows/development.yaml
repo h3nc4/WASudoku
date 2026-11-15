@@ -109,9 +109,13 @@ jobs:
             tar -cf wasm-pkg-dev.tar -C src/wasudoku-wasm pkg
             npm run typecheck
             npm run test:ui
+            npm run check:next
+            npm run test:next
             npm run build
+            npm run build:next
             sh scripts/budget.test.sh
             sh scripts/budget.sh dist
+            sh scripts/budget.sh dist-next
             XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
           "
       - name: Run actions/upload-artifact
@@ -126,7 +130,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ui-coverage
-          path: coverage-ui.lcov
+          path: |
+            coverage-ui.lcov
+            coverage-next.lcov
           retention-days: 1
       - name: Run actions/upload-artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

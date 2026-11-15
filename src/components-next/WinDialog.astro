@@ -1,0 +1,55 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import CloseButton from './CloseButton.astro'
+import DifficultyPicker from './DifficultyPicker.astro'
+import Icon from './Icon.astro'
+
+interface Props {
+  summary: string
+}
+
+const { summary } = Astro.props
+---
+
+{/* Each difficulty button closes the dialog with its level as the return value. */}
+<dialog
+  id="win-dialog"
+  class="dlg sm:max-w-xl"
+  closedby="any"
+  aria-labelledby="win-title"
+  aria-describedby="win-summary"
+>
+  <form method="dialog" class="contents">
+    <div class="flex flex-col gap-2 text-center sm:text-left">
+      <h2
+        id="win-title"
+        class="voice-ink text-ink flex items-center gap-2 text-xl leading-tight tracking-tight"
+      >
+        <Icon name="party-popper" class="text-ink size-5" />
+        Puzzle solved
+      </h2>
+      <p id="win-summary" class="text-muted-foreground text-sm">{summary}</p>
+    </div>
+    <div class="flex flex-col gap-2">
+      <p class="voice-mono text-muted-foreground text-xs tracking-wider uppercase">Play another</p>
+      <DifficultyPicker submit />
+    </div>
+    <CloseButton />
+  </form>
+</dialog>

@@ -1,0 +1,333 @@
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* A cell's state is in its attributes. aria-readonly marks a given, aria-selected the active cell, */
+/* aria-invalid a wrong digit, and the data attributes the fills, rings and voices. */
+@layer components {
+  .board {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 2px solid var(--grid-thick);
+    border-radius: 3px;
+    background-color: var(--paper);
+    outline: none;
+    transition:
+      filter var(--motion-panel) var(--ease-out),
+      visibility 0s;
+  }
+
+  /* The board blurs at once and only goes invisible once the overlay is opaque. */
+  .board[data-paused] {
+    filter: blur(6px);
+    visibility: hidden;
+    transition:
+      filter 0s,
+      visibility 0s linear var(--motion-panel);
+  }
+
+  .board > [role='row'] {
+    display: contents;
+  }
+
+  /* Every layer is out of flow. Each row's height then comes from its borders alone. */
+  .c {
+    --ring-width: 0px;
+    --ring-color: var(--ink);
+
+    position: relative;
+    isolation: isolate;
+    border-right: 1px solid var(--grid-thin);
+    border-bottom: 1px solid var(--grid-thin);
+    background-clip: padding-box;
+    outline: none;
+    transition:
+      background-color var(--cell-motion, var(--motion-out)) var(--ease-out),
+      box-shadow var(--cell-motion, var(--motion-out)) var(--ease-out);
+  }
+
+  .c:nth-child(3n) {
+    border-right: 2px solid var(--grid-thick);
+  }
+
+  .c:nth-child(9) {
+    border-right-width: 0;
+  }
+
+  .board > [role='row']:nth-child(3n) > .c {
+    border-bottom: 2px solid var(--grid-thick);
+  }
+
+  .board > [role='row']:nth-child(9) > .c {
+    border-bottom-width: 0;
+  }
+
+  /* The highlighter is a layer of its own, so it can fade, which a gradient cannot. */
+  .c::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background-image: linear-gradient(
+      101deg,
+      transparent 4%,
+      var(--highlighter) 7% 93%,
+      transparent 96%
+    );
+    transition: opacity var(--motion-out) var(--ease-out);
+  }
+
+  /* The ring is drawn above the digit, which an inset shadow on the cell itself is not. */
+  .c::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 var(--ring-width) var(--ring-color);
+  }
+
+  /* A transition takes the duration of the state it moves into, so shading arrives at once and only fades out. */
+  .c:is(
+    [aria-selected='true'],
+    [data-peer],
+    [data-same],
+    [data-placed],
+    [data-cause],
+    [data-target]
+  ) {
+    --cell-motion: 0ms;
+  }
+
+  .c[data-peer] {
+    background-color: var(--peer);
+  }
+
+  .c[data-same] {
+    background-color: var(--same);
+  }
+
+  .c[aria-selected='true'] {
+    --ring-width: 2px;
+
+    background-color: transparent;
+  }
+
+  .c[aria-selected='true']::before {
+    opacity: 1;
+    transition-duration: 0ms;
+  }
+
+  /* A walkthrough placement gets a lit cell, since amber digits alone read close to grey on light paper. */
+  .c[data-placed] {
+    background-color: var(--solver-wash);
+  }
+
+  .c[data-cause] {
+    --ring-width: 1.5px;
+    --ring-color: var(--solver);
+  }
+
+  .c[data-target] {
+    --ring-width: 2px;
+    --ring-color: var(--solver);
+
+    background-color: transparent;
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--solver-wash) 0 3px,
+      transparent 3px 7px
+    );
+  }
+
+  .c:focus-visible {
+    --ring-width: 2px;
+  }
+
+  /* Red on the dark highlighter measures 2.2:1, so a selected wrong cell in dark keeps bare paper. */
+  :root:not([data-theme='light']) .c[aria-selected='true'][aria-invalid='true']::before {
+    opacity: 0;
+  }
+
+  /* Givens and walkthrough placements are inked and solver output is mono. Other digits are pencil. */
+  .c > .d {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--type-pencil);
+    font-size: 1.25rem;
+    font-variation-settings: 'CASL' 1;
+    font-weight: 450;
+    line-height: 1;
+    color: var(--pencil);
+    text-underline-offset: 3px;
+    transition-property: color, text-decoration-color;
+    transition-duration: var(--motion-out);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .c:is([aria-readonly='true'], [data-placed]) > .d {
+    font-family: inherit;
+    font-variation-settings:
+      'CASL' 0,
+      'MONO' 0;
+    font-weight: 700;
+  }
+
+  .c[aria-readonly='true'] > .d {
+    color: var(--ink);
+  }
+
+  .c[data-placed] > .d {
+    color: var(--solver);
+  }
+
+  .c[data-solved] > .d {
+    font-family: inherit;
+    font-variation-settings: 'MONO' 1;
+    font-weight: 400;
+  }
+
+  /* Same-number digits go bold, which shows the state in letterform and makes 20px count as large text. */
+  .c[data-same] > .d {
+    font-weight: 700;
+  }
+
+  .c[data-same]:is([aria-readonly='true'], [data-placed]) > .d {
+    font-weight: 800;
+  }
+
+  /* A mistake turns red at once. The wave is thin, so it shows two crests under a 1 and clears the cell's line. */
+  .c[aria-invalid='true'] > .d {
+    color: var(--error);
+    text-decoration: underline wavy 1.25px var(--error);
+    transition-duration: 0ms;
+  }
+
+  /* A cell-wide X in the error colour. A wrong digit reads by shape as well as hue. */
+  .c > .x {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    fill: none;
+    stroke: var(--error);
+    stroke-width: 2.25px;
+    stroke-linecap: round;
+  }
+
+  .c > .x path {
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* A paper halo breaks the X where it crosses the glyph and its underline. */
+  .c > .x + .d {
+    text-shadow:
+      2px 0 var(--paper),
+      -2px 0 var(--paper),
+      0 2px var(--paper),
+      0 -2px var(--paper),
+      1.5px 1.5px var(--paper),
+      -1.5px 1.5px var(--paper),
+      1.5px -1.5px var(--paper),
+      -1.5px -1.5px var(--paper);
+  }
+
+  /* Notes: corner marks sit on a 3x3 grid of their own, center marks in one line. */
+  .c > .n {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    padding: 0.125rem;
+    font-family: var(--type-pencil);
+    font-size: 0.75rem;
+    font-variation-settings: 'CASL' 1;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--note);
+  }
+
+  .c > .n > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .c > .n[data-center] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+  }
+
+  .c > .n[data-center='many'] {
+    font-size: 0.625rem;
+  }
+
+  .c > .n > [data-struck] {
+    color: var(--note-struck);
+    text-decoration: line-through 2px var(--solver);
+  }
+
+  @media (width >= 48rem) {
+    .c > .d {
+      font-size: 1.5rem;
+    }
+
+    .c > .n[data-center] {
+      font-size: 0.875rem;
+    }
+
+    .c > .n[data-center='many'] {
+      font-size: 0.75rem;
+    }
+  }
+
+  /* The overlay that hides a paused board, drawn in the board's own frame. */
+  .pause-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border: 2px solid var(--grid-thick);
+    border-radius: 3px;
+    background-color: var(--paper);
+    animation: pause-overlay-in var(--motion-panel) var(--ease-out) both;
+  }
+
+  .pause-overlay[hidden] {
+    display: none;
+  }
+}
+
+@keyframes pause-overlay-in {
+  from {
+    opacity: 0;
+  }
+}

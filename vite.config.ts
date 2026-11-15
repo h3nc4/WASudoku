@@ -25,11 +25,14 @@ import { createHash } from 'crypto'
 import { readFileSync } from 'fs'
 import path from 'path'
 import type { Plugin } from 'vite'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 import { precacheEntries } from './src/workers/precache-manifest.ts'
 
 const SERVICE_WORKER = 'sw.js'
+
+// The Astro UI compiles through Astro's own Vite config, so vitest.config.next.ts tests and covers it.
+const ASTRO_SOURCES = ['src/pages/**', 'src/layouts/**', 'src/components-next/**', 'src/preview/**']
 const VERSION_LENGTH = 16
 
 // The rest of public/ is for crawlers, hosts and installers, which never ask the service worker.
@@ -151,6 +154,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: 'src/test/setup.ts',
     css: false,
+    exclude: [...configDefaults.exclude, ...ASTRO_SOURCES],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
@@ -164,6 +168,7 @@ export default defineConfig({
         'src/components/ui/**',
         'src/wasudoku-wasm/**',
         'src/test/**',
+        ...ASTRO_SOURCES,
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/__mocks__/**',

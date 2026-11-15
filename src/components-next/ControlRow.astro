@@ -1,0 +1,72 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import Icon from './Icon.astro'
+import type { ControlsView } from './view'
+
+interface Props {
+  controls: ControlsView
+}
+
+const { undo, redo, autoFill, erase, sticky } = Astro.props.controls
+---
+
+<div class="grid w-full grid-cols-5 place-items-center gap-2">
+  <Button
+    variant="paper"
+    size="icon-lg"
+    id="undo-button"
+    title={undo.title}
+    aria-label={undo.title}
+    disabled={undo.disabled}><Icon name="undo" /></Button
+  >
+  <Button
+    variant="paper"
+    size="icon-lg"
+    id="redo-button"
+    title={redo.title}
+    aria-label={redo.title}
+    disabled={redo.disabled}><Icon name="redo" /></Button
+  >
+  <Button
+    variant="paper"
+    size="icon-lg"
+    id="autofill-button"
+    title={autoFill.title}
+    aria-label={autoFill.title}
+    disabled={autoFill.disabled}><Icon name="pencil" /></Button
+  >
+  <Button
+    variant="paper"
+    size="icon-lg"
+    id="erase-button"
+    title={erase.title}
+    aria-label={erase.title}
+    disabled={erase.disabled}><Icon name="eraser" /></Button
+  >
+  <Button
+    variant={sticky.on ? 'primary' : 'paper'}
+    size="icon-lg"
+    id="sticky-button"
+    title="Sticky numbers"
+    aria-label="Sticky numbers"
+    aria-pressed={sticky.on ? 'true' : 'false'}
+    disabled={sticky.disabled}><Icon name={sticky.on ? 'lock' : 'lock-open'} /></Button
+  >
+</div>

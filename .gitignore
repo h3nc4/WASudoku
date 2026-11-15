@@ -1,5 +1,8 @@
 # Node
 dist/
+dist-next/
+dist-preview/
+.astro/
 node_modules/
 
 # Rust
@@ -11,6 +14,7 @@ target/
 
 # Coverage reports
 coverage-*.*
+coverage-next/
 
 # Playwright
 playwright-report/

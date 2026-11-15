@@ -1,0 +1,49 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import { actionButtons, actionClass, newPuzzleVariant } from './controls'
+import Icon from './Icon.astro'
+import NewPuzzleMenu from './NewPuzzleMenu.astro'
+import type { AppView } from './view'
+
+interface Props {
+  view: AppView
+}
+
+const { view } = Astro.props
+---
+
+<div class="grid w-full grid-cols-2 gap-2">
+  <NewPuzzleMenu variant={newPuzzleVariant(view)} custom={view.mode !== 'selecting'} />
+  {
+    actionButtons(view).map((action) => (
+      <Button
+        variant={action.variant}
+        size="lg"
+        id={action.id}
+        title={action.title}
+        disabled={action.disabled}
+        class={actionClass(action)}
+      >
+        <Icon name={action.icon} class="mr-2 size-4" />
+        {action.label}
+      </Button>
+    ))
+  }
+</div>

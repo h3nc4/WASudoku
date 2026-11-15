@@ -1,0 +1,66 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import { padTones } from './controls'
+import { type CellView, padKeys } from './view'
+
+interface Props {
+  cells: readonly CellView[]
+  readOnly: boolean
+}
+
+const keys = padKeys(Astro.props.cells, Astro.props.readOnly)
+---
+
+<div class="grid grid-cols-9 gap-1" role="group" aria-label="On-screen number pad" id="number-pad">
+  {
+    keys.map((key) => (
+      <Button
+        variant="paper"
+        size="icon"
+        class="aspect-[1/1.12] h-auto min-h-11 w-full rounded-[4px]"
+        aria-label={key.label}
+        data-digit={key.digit}
+        disabled={key.disabled}
+      >
+        <div class="flex size-full flex-col items-center justify-center gap-0.5 md:gap-1">
+          <span
+            class:list={[
+              'voice-ink pad-strike text-xl leading-none md:text-2xl',
+              padTones(key, false).digit,
+            ]}
+            data-struck={key.remaining > 0 ? undefined : ''}
+          >
+            {key.digit}
+          </span>
+          {key.remaining > 0 && (
+            <span
+              class:list={[
+                'voice-mono text-2xs leading-none tabular-nums md:text-xs',
+                padTones(key, false).count,
+              ]}
+            >
+              {key.remaining}
+            </span>
+          )}
+        </div>
+      </Button>
+    ))
+  }
+</div>

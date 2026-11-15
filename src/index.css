@@ -18,6 +18,13 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* The Astro UI has a sheet of its own. Its sources stay out of this one. */
+@source not './pages';
+@source not './layouts';
+@source not './components-next';
+@source not './preview';
+@source not './styles';
+
 /* next-themes toggles a .dark class, so dark: must follow it rather than the OS scheme. */
 @custom-variant dark (&:where(.dark, .dark *));
 

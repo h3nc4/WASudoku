@@ -1,0 +1,27 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Icon from './Icon.astro'
+---
+
+<button
+  type="submit"
+  value="close"
+  class="ring-offset-card focus-visible:ring-ring text-muted-foreground hover:text-foreground absolute top-4 right-4 rounded-[4px] transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+  ><Icon name="x" class="size-4" /><span class="sr-only">Close</span></button
+>

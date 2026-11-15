@@ -1,0 +1,122 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import ActionRow from './ActionRow.astro'
+import Board from './Board.astro'
+import ConfirmDialog from './ConfirmDialog.astro'
+import ControlRow from './ControlRow.astro'
+import GameStatus from './GameStatus.astro'
+import Header from './Header.astro'
+import Icon from './Icon.astro'
+import InputMode from './InputMode.astro'
+import NumberPad from './NumberPad.astro'
+import SelectionScreen from './SelectionScreen.astro'
+import StepsPanel from './StepsPanel.astro'
+import ToastRegion from './ToastRegion.astro'
+import { type AppView, isReadOnly } from './view'
+import WinDialog from './WinDialog.astro'
+
+interface Props {
+  view: AppView
+  toasts?: readonly string[] | undefined
+}
+
+const { view, toasts } = Astro.props
+const selecting = view.mode === 'selecting'
+const visualizing = view.mode === 'visualizing'
+---
+
+<div class="text-foreground flex min-h-screen flex-col">
+  <Header />
+  {/* Inert behind the selection screen. Its dimmed controls take no focus. */}
+  <main
+    inert={selecting}
+    class:list={[
+      'container mx-auto flex flex-1 flex-col items-center justify-start px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none md:p-4',
+      selecting && 'pointer-events-none opacity-35',
+    ]}
+  >
+    <div
+      class:list={[
+        'w-full max-w-4xl gap-8',
+        visualizing
+          ? 'grid auto-rows-fr grid-cols-[minmax(0,1fr)] justify-items-center md:grid-cols-[16rem_28rem] md:justify-center'
+          : 'flex flex-col items-center md:flex-row md:items-start md:justify-center',
+      ]}
+    >
+      <div
+        class="flex w-full max-w-md flex-col gap-(--column-gap) [--column-gap:--spacing(3)] md:order-2 md:[--column-gap:--spacing(6)]"
+      >
+        {view.status && <GameStatus status={view.status} />}
+        <Board cells={view.cells} />
+        <div class="hint-slot" aria-hidden="true" inert>
+          <div class="min-h-0 overflow-hidden"></div>
+        </div>
+        <div class="flex flex-col gap-3 md:gap-4">
+          <ControlRow controls={view.controls} />
+          <NumberPad cells={view.playerCells ?? view.cells} readOnly={isReadOnly(view)} />
+          <InputMode mode={view.inputMode} disabled={visualizing} />
+          <ActionRow view={view} />
+          {
+            visualizing && (
+              <div class="text-primary mt-2 flex animate-bounce items-center justify-center motion-reduce:animate-none md:hidden">
+                <span class="text-sm font-medium">Scroll down for solving steps</span>
+                <Icon name="chevron-down" class="ml-1 size-5" />
+              </div>
+            )
+          }
+        </div>
+      </div>
+      {view.walkthrough && <StepsPanel walkthrough={view.walkthrough} />}
+    </div>
+  </main>
+  {selecting && <SelectionScreen />}
+  <WinDialog summary={view.winSummary ?? ''} />
+  <ConfirmDialog
+    id="abandon-dialog"
+    title="Abandon current game?"
+    description="The board in progress is replaced and cannot be restored."
+    confirmLabel="Start new puzzle"
+    destructive
+  />
+  <ConfirmDialog
+    id="reveal-dialog"
+    title="Reveal the solution?"
+    description="Every remaining cell is filled in and the solving steps open beside the board. Exit the walkthrough to return to this game."
+    confirmLabel="Reveal solution"
+  />
+  <ConfirmDialog
+    id="pending-dialog"
+    title="Start this puzzle?"
+    description="A puzzle was shared with WASudoku. It is checked for a unique solution before play starts."
+    confirmLabel="Start puzzle"
+    cancelLabel="Not now"
+  />
+  <footer class="text-muted-foreground container mx-auto px-4 py-3 text-center text-xs md:p-4">
+    <a
+      href="https://h3nc4.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="hover:text-foreground inline-block transition-colors"
+    >
+      <p>🄯 2025-2026 Henrique Almeida.</p>
+      <p>Because knowledge should be free.</p>
+    </a>
+  </footer>
+</div>
+<ToastRegion toasts={toasts} />

@@ -186,8 +186,12 @@ export default [
   {
     ignores: [
       'dist',
+      'dist-next',
+      'dist-preview',
+      '.astro',
       'src/wasudoku-wasm/pkg',
       'coverage',
+      'coverage-next',
       'coverage-wasm.xml',
       'playwright-report',
       'test-results',

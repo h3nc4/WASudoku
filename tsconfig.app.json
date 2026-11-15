@@ -29,5 +29,14 @@
     }
   },
   "include": ["src"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "src/test", "src/core"]
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/test",
+    "src/core",
+    "src/pages",
+    "src/layouts",
+    "src/components-next",
+    "src/preview"
+  ]
 }

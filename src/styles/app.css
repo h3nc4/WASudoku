@@ -1,0 +1,144 @@
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* The React app scans the whole tree for its own sheet. This sheet scans the Astro sources alone. */
+@import 'tailwindcss' source(none);
+@import '../assets/fonts/recursive.css';
+@import './tokens.css';
+@import './board.css';
+@import './controls.css';
+
+@source '../pages';
+@source '../layouts';
+@source '../components-next';
+
+@custom-variant dark (&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *));
+
+@theme inline {
+  --font-sans: var(--type-sans);
+  --font-pencil: var(--type-pencil);
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-control-border: var(--control-border);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-paper: var(--paper);
+  --color-grid-thin: var(--grid-thin);
+  --color-grid-thick: var(--grid-thick);
+  --color-ink: var(--ink);
+  --color-pencil: var(--pencil);
+  --color-note: var(--note);
+  --color-solver: var(--solver);
+  --color-solver-wash: var(--solver-wash);
+  --color-error: var(--error);
+}
+
+/* A step below text-xs for the pad's remaining count. */
+@theme {
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: calc(0.75 / 0.625);
+}
+
+/* One easing family across the app, which replaces the Tailwind default. */
+@theme static {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    background-image:
+      linear-gradient(var(--graph-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--graph-line) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
+}
+
+/* Unlayered rules override every layer. Native dialogs and menus have no reduced-motion guard. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Recursive axes give givens, player digits and instrument text their own hand. */
+/* A voice's weight is only a default, so a font-* class sets the Tailwind weight variable and wins. */
+@utility voice-ink {
+  font-variation-settings:
+    'CASL' 0,
+    'MONO' 0;
+  font-weight: var(--tw-font-weight, 700);
+}
+
+@utility voice-pencil {
+  font-family: var(--type-pencil);
+  font-variation-settings: 'CASL' 1;
+  font-weight: var(--tw-font-weight, 450);
+}
+
+@utility voice-mono {
+  font-variation-settings: 'MONO' 1;
+}
+
+/* The theme toggle wraps its flip in a view transition, which cross-fades the whole page. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-panel);
+  animation-timing-function: var(--ease-out);
+}
+
+/* The new snapshot must show the finished theme, so colour transitions are held off while it flips. */
+.theme-switching :not(svg),
+.theme-switching ::before,
+.theme-switching ::after {
+  transition: none;
+}

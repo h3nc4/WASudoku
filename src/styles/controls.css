@@ -1,0 +1,508 @@
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* The components layer is below the utilities layer. A Tailwind class on an element overrides these rules. */
+@layer components {
+  .icon {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* The sprite is never drawn, and the hidden attribute does not reach an svg element. */
+  .sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* Buttons: data-variant and data-size replace the class variants of the React app. */
+  /* Disabled turns every variant into a dashed outline on paper, a change of shape rather than a fade. */
+  .btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: calc(1.25 / 0.875);
+    white-space: nowrap;
+    outline: none;
+    transition-property: color, background-color, border-color, box-shadow, translate, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .btn svg {
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  .btn:not(:disabled):active {
+    translate: 0 1px;
+  }
+
+  .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
+  }
+
+  .btn[data-variant='primary'],
+  .btn[data-variant='destructive'] {
+    border-radius: 4px;
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.18);
+  }
+
+  .btn[data-variant='primary'] {
+    background-color: var(--primary);
+  }
+
+  .btn[data-variant='destructive'] {
+    background-color: var(--destructive);
+  }
+
+  .btn[data-variant='primary']:not(:disabled):hover {
+    background-color: color-mix(in oklab, var(--primary) 88%, transparent);
+  }
+
+  .btn[data-variant='destructive']:not(:disabled):hover {
+    background-color: color-mix(in oklab, var(--destructive) 88%, transparent);
+  }
+
+  .btn[data-variant='primary']:focus-visible,
+  .btn[data-variant='destructive']:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring),
+      0 1px 0 rgb(0 0 0 / 0.18);
+  }
+
+  .btn[data-variant='paper'] {
+    border-color: var(--control-border);
+    border-radius: var(--corner-md);
+    background-color: var(--paper);
+    color: var(--foreground);
+  }
+
+  .btn[data-variant='paper']:not(:disabled):hover {
+    border-color: color-mix(in oklab, var(--ink) 60%, transparent);
+    background-color: var(--accent);
+  }
+
+  .btn[data-variant='ghost'] {
+    border-radius: var(--corner-md);
+    color: var(--muted-foreground);
+  }
+
+  .btn[data-variant='ghost']:not(:disabled):hover {
+    background-color: var(--accent);
+    color: var(--foreground);
+  }
+
+  .btn:disabled {
+    border-style: dashed;
+    border-color: var(--control-border);
+    color: var(--disabled-foreground);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .btn:is([data-variant='primary'], [data-variant='destructive']):disabled {
+    background-color: var(--paper);
+  }
+
+  .btn[data-size='md'] {
+    height: 2.25rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .btn[data-size='md']:has(> svg) {
+    padding-inline: 0.75rem;
+  }
+
+  .btn[data-size='lg'] {
+    height: 2.5rem;
+    padding-inline: 1.5rem;
+  }
+
+  .btn[data-size='lg']:has(> svg) {
+    padding-inline: 1rem;
+  }
+
+  .btn[data-size='icon'] {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .btn[data-size='icon-sm'] {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .btn[data-size='icon-lg'] {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn {
+      transition: none;
+    }
+
+    .btn:not(:disabled):active {
+      translate: none;
+    }
+  }
+
+  /* A used-up digit is struck out, so it reads as spent rather than unavailable. */
+  .pad-strike {
+    position: relative;
+  }
+
+  .pad-strike::after {
+    content: '';
+    position: absolute;
+    inset-inline: -0.1em;
+    top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .pad-strike[data-struck]::after {
+    transform: scaleX(1);
+  }
+
+  /* Segmented control: native radios, with one indicator that follows the checked one. */
+  .seg {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    padding: 3px;
+    border: 1px solid var(--control-border);
+    border-radius: var(--corner-md);
+    background-color: light-dark(var(--muted), var(--background));
+
+    --item-count: 3;
+    --item-index: 0;
+  }
+
+  .seg:has(label:nth-of-type(2) :checked) {
+    --item-index: 1;
+  }
+
+  .seg:has(label:nth-of-type(3) :checked) {
+    --item-index: 2;
+  }
+
+  .seg::before {
+    content: '';
+    position: absolute;
+    inset-block: 3px;
+    left: 3px;
+    z-index: -1;
+    width: calc((100% - 6px - (var(--item-count) - 1) * 3px) / var(--item-count));
+    border-radius: 4px;
+    background-color: light-dark(var(--paper), var(--accent));
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.14),
+      0 0 0 1px var(--border);
+    pointer-events: none;
+    transform: translateX(calc(var(--item-index) * (100% + 3px)));
+    transition: transform var(--motion-panel) var(--ease-move);
+  }
+
+  .seg > label {
+    position: relative;
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 2.75rem;
+    padding-inline: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: calc(1.25 / 0.875);
+    white-space: nowrap;
+    transition-property: color, background-color, box-shadow;
+    transition-duration: 150ms;
+  }
+
+  .seg input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    appearance: none;
+    cursor: inherit;
+    outline: none;
+  }
+
+  .seg > label:has(:checked) {
+    font-weight: 600;
+  }
+
+  .seg:not(:disabled) > label:has(:checked) {
+    color: var(--ink);
+  }
+
+  .seg:not(:disabled) > label:hover {
+    background-color: color-mix(in oklab, var(--paper) 60%, transparent);
+  }
+
+  .seg > label:has(:focus-visible) {
+    z-index: 10;
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+
+  .seg:disabled > label {
+    border-style: dashed;
+    border-color: var(--control-border);
+    color: var(--disabled-foreground);
+    cursor: not-allowed;
+  }
+
+  @media (width >= 48rem) {
+    .seg > label {
+      height: 2.25rem;
+    }
+  }
+
+  /* A grid row moving from 0fr to 1fr opens the strip to its content height without measuring it. */
+  .hint-slot {
+    display: grid;
+    grid-template-rows: 0fr;
+    margin-bottom: calc(var(--column-gap, 0px) * -1);
+    transition: grid-template-rows var(--motion-panel) var(--ease-out);
+  }
+
+  .hint-slot[data-open] {
+    grid-template-rows: 1fr;
+  }
+
+  /* Dialogs: showModal() gives the top layer and the inert page, and these place them as before. */
+  .dlg {
+    position: fixed;
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    max-width: calc(100% - 2rem);
+    max-height: none;
+    margin: 0;
+    padding: 1.5rem;
+    overflow: visible;
+    overscroll-behavior: contain;
+    border: 1px solid var(--border);
+    border-radius: var(--corner-md);
+    background-color: var(--card);
+    color: var(--card-foreground);
+    box-shadow: 0 18px 48px -12px rgb(0 0 0 / 0.35);
+    translate: -50% -50%;
+    transition:
+      opacity 200ms,
+      scale 200ms,
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
+
+  .dlg[open] {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .dlg:not([open]) {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  .dlg::backdrop {
+    background-color: rgb(0 0 0 / 0.45);
+    transition:
+      opacity 200ms,
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
+
+  .dlg:not([open])::backdrop {
+    opacity: 0;
+  }
+
+  @starting-style {
+    .dlg[open] {
+      opacity: 0;
+      scale: 0.95;
+    }
+
+    .dlg[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  /* Menus: an auto popover anchored to its button, flipped above it when it would overflow below. */
+  .menu {
+    position: fixed;
+    inset: auto;
+    min-width: 8rem;
+    margin: 4px 0 0;
+    padding: 0.25rem;
+    overflow: hidden auto;
+    border: 1px solid var(--border);
+    border-radius: var(--corner-md);
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.3);
+    position-area: block-end;
+    position-try-fallbacks: flip-block;
+    transition:
+      opacity 150ms,
+      scale 150ms,
+      overlay 150ms allow-discrete,
+      display 150ms allow-discrete;
+  }
+
+  .menu:not(:popover-open) {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  @starting-style {
+    .menu:popover-open {
+      opacity: 0;
+      scale: 0.95;
+    }
+  }
+
+  .menu[data-align='end'] {
+    position-area: block-end span-inline-start;
+  }
+
+  /* Without anchor positioning the menu centres in the viewport, as the popover defaults place it. */
+  @supports not (anchor-name: --a) {
+    .menu {
+      inset: 0;
+      margin: auto;
+    }
+  }
+
+  .menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--corner-sm);
+    font-size: 0.875rem;
+    line-height: calc(1.25 / 0.875);
+    text-align: left;
+    cursor: default;
+    outline: none;
+    user-select: none;
+  }
+
+  .menu-item:is(:focus, :hover) {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .menu-item svg {
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  .menu-item svg:not([class*='text-']) {
+    color: var(--muted-foreground);
+  }
+
+  /* Toasts: a polite live list in a manual popover, pinned above the bottom edge. */
+  .toasts {
+    position: fixed;
+    inset: auto 16px calc(16px + env(safe-area-inset-bottom)) auto;
+    display: grid;
+    gap: 14px;
+    width: min(356px, calc(100% - 32px));
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    background: none;
+    list-style: none;
+    pointer-events: none;
+  }
+
+  .toasts:not(:popover-open) {
+    display: none;
+  }
+
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    font-size: 13px;
+    box-shadow:
+      0 10px 15px -3px rgb(0 0 0 / 0.1),
+      0 4px 6px -4px rgb(0 0 0 / 0.1);
+    pointer-events: auto;
+  }
+
+  @media (width >= 48rem) {
+    .toasts {
+      inset: auto 24px 24px auto;
+    }
+  }
+
+  /* The solver trace scrolls natively, with a thin bar in the board's line colour. */
+  .scroller {
+    overflow-y: auto;
+    scrollbar-color: var(--border) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+}
+
+/* An icon without a size class takes the control's 16px, over its own width and height utilities. */
+@layer utilities {
+  :is(.btn, .menu-item) svg:not([class*='size-']) {
+    width: 1rem;
+    height: 1rem;
+  }
+}

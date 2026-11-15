@@ -1,0 +1,132 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import { rowClass, traceStyle } from './controls'
+import Icon from './Icon.astro'
+import {
+  endRow,
+  isSolution,
+  solvedInText,
+  stepTag,
+  traceRows,
+  type WalkthroughView,
+} from './view'
+
+interface Props {
+  walkthrough: WalkthroughView
+}
+
+const { walkthrough } = Astro.props
+const rows = traceRows(walkthrough)
+const first = endRow(0, walkthrough)
+const last = endRow(walkthrough.steps.length, walkthrough)
+---
+
+{/* Size containment lets the panel take the board column's height instead of the trace's. */}
+<div data-toast-floor class="w-full [contain:size] md:order-1 md:w-64" id="steps-panel">
+  <section
+    aria-labelledby="steps-title"
+    class="bg-paper border-grid-thin flex h-full min-w-0 flex-col gap-2 rounded-md border p-3"
+    style={traceStyle(walkthrough)}
+  >
+    <div class="flex items-center justify-between gap-2">
+      <h2
+        id="steps-title"
+        class="voice-mono text-muted-foreground text-xs font-semibold tracking-[0.08em] uppercase"
+      >
+        Solving Steps
+      </h2>
+      <div class="flex items-center gap-1">
+        <span class="voice-mono text-muted-foreground mr-1 text-xs tabular-nums"
+          >{stepTag(walkthrough.current, walkthrough.steps.length)}/{walkthrough.steps.length}</span
+        >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7"
+          id="previous-step"
+          title="Previous step (Left arrow)"
+          aria-label="Previous step"
+          disabled={walkthrough.current <= 0}><Icon name="chevron-left" /></Button
+        >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7"
+          id="next-step"
+          title="Next step (Right arrow)"
+          aria-label="Next step"
+          disabled={isSolution(walkthrough)}><Icon name="chevron-right" /></Button
+        >
+      </div>
+    </div>
+    <div class="border-grid-thin flex min-h-0 flex-1 flex-col gap-1 border-t pt-2">
+      <button
+        type="button"
+        class={rowClass(first.tone)}
+        data-step={first.position}
+        aria-current={first.current ? 'step' : undefined}
+      >
+        <span>{first.tag}</span>
+        <span class="col-span-2">Initial Board State</span>
+      </button>
+      <ol aria-label="Solver trace" class="scroller min-h-0 flex-1">
+        {
+          rows.map((row) => (
+            <li id={`solver-step-${String(row.position - 1)}`}>
+              <button
+                type="button"
+                class={rowClass(row.tone)}
+                data-step={row.position}
+                aria-current={row.tone === 'current' ? 'step' : undefined}
+              >
+                <span class="sr-only">Step</span>
+                <span>{row.tag}</span>
+                <span class="whitespace-nowrap">{row.where}</span>
+                <span class="min-w-0 break-words">{row.label}</span>
+              </button>
+            </li>
+          ))
+        }
+      </ol>
+      <button
+        type="button"
+        class={rowClass(last.tone)}
+        data-step={last.position}
+        aria-current={last.current ? 'step' : undefined}
+      >
+        <span>{last.tag}</span>
+        <span class="col-span-2">Solution</span>
+      </button>
+    </div>
+    <p
+      aria-live="polite"
+      class="border-grid-thin text-foreground h-36 shrink-0 overflow-y-auto border-t pt-2 text-sm leading-snug"
+    >
+      {walkthrough.explanation}
+      {
+        isSolution(walkthrough) && (
+          <span class="voice-mono text-solver mt-2 block text-xs font-semibold">
+            {solvedInText(walkthrough.steps.length)}
+          </span>
+        )
+      }
+    </p>
+  </section>
+</div>

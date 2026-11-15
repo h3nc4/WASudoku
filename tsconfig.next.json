@@ -1,0 +1,24 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.next.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["astro/client", "node"],
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "astro.config.ts",
+    "vitest.config.next.ts",
+    "src/pages",
+    "src/layouts",
+    "src/components-next",
+    "src/preview"
+  ],
+  "exclude": ["dist-next", "dist-preview"]
+}

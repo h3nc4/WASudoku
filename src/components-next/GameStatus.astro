@@ -1,0 +1,63 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import Icon from './Icon.astro'
+import { isMistakeLimit, mistakesText, type StatusView } from './view'
+
+interface Props {
+  status: StatusView
+}
+
+const { status } = Astro.props
+---
+
+<div
+  id="game-status"
+  class="voice-mono text-muted-foreground bg-paper flex min-h-10 w-full items-center justify-between rounded-md px-3 text-sm tabular-nums"
+>
+  <div class="flex items-center gap-3">
+    <span class="text-foreground" data-status="difficulty">{status.difficulty}</span>
+    <span class="flex items-center gap-1.5">
+      <span>Mistakes:</span>
+      <span
+        data-status="mistakes"
+        class:list={[isMistakeLimit(status.mistakes) && 'text-error font-bold']}
+        >{mistakesText(status.mistakes)}</span
+      >
+    </span>
+  </div>
+  <div class="flex items-center gap-2">
+    {status.solved && <span class="text-ink font-bold">Solved</span>}
+    <span class="text-foreground" data-status="time">{status.time}</span>
+    {
+      !status.solved && (
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          class="-mr-3"
+          id="pause-button"
+          aria-label="Pause game"
+          title="Pause game"
+        >
+          <Icon name="pause" />
+        </Button>
+      )
+    }
+  </div>
+</div>

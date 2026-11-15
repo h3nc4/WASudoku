@@ -1,0 +1,78 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import Icon from './Icon.astro'
+import Wordmark from './Wordmark.astro'
+---
+
+<header
+  class="relative z-30 container mx-auto flex items-center justify-between px-4 py-2 md:p-4"
+>
+  <h1><Wordmark class="text-2xl tracking-tight md:text-3xl" /></h1>
+  <div class="flex items-center gap-1">
+    <Button
+      variant="ghost"
+      size="icon-lg"
+      id="share-button"
+      class="[anchor-name:--share-button]"
+      title="Share puzzle"
+      aria-label="Share puzzle"
+      aria-haspopup="menu"
+      aria-expanded="false"
+      popovertarget="share-menu"
+    >
+      <Icon name="share-2" class="size-5" />
+    </Button>
+    <div
+      id="share-menu"
+      popover="auto"
+      role="menu"
+      aria-labelledby="share-button"
+      class="menu [position-anchor:--share-button]"
+      data-align="end"
+    >
+      <button type="button" role="menuitem" tabindex="-1" class="menu-item" data-action="copy-link"
+        ><Icon name="link" />Copy puzzle link</button
+      >
+      <button type="button" role="menuitem" tabindex="-1" class="menu-item" data-action="copy-text"
+        ><Icon name="type" />Copy board as text</button
+      >
+    </div>
+    <a
+      href="https://github.com/h3nc4/WASudoku"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="GitHub Repository"
+      class="btn"
+      data-variant="ghost"
+      data-size="icon-lg"><Icon name="github" class="size-5" /></a
+    >
+    <Button variant="ghost" size="icon-lg" id="theme-button">
+      <Icon
+        name="sun"
+        class="scale-100 rotate-0 transition-transform duration-200 motion-reduce:transition-none dark:scale-0 dark:-rotate-90"
+      />
+      <Icon
+        name="moon"
+        class="absolute scale-0 rotate-90 transition-transform duration-200 motion-reduce:transition-none dark:scale-100 dark:rotate-0"
+      />
+      <span class="sr-only">Toggle theme</span>
+    </Button>
+  </div>
+</header>
