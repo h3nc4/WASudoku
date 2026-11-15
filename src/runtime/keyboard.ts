@@ -23,11 +23,23 @@ import type { Store } from './store'
 
 const GRID_CELL = '[role="gridcell"]'
 const OPEN_DIALOG = 'dialog[open]'
+/** Input types that take no characters, so a focused radio or checkbox still passes S on. */
+const UNTYPED_INPUTS: ReadonlySet<string> = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+])
 
 /** A field that takes typing keeps its letters, while a read-only one passes them on. */
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLTextAreaElement ||
-  (target instanceof HTMLInputElement && !target.readOnly) ||
+  (target instanceof HTMLInputElement && !target.readOnly && !UNTYPED_INPUTS.has(target.type)) ||
   (target instanceof HTMLElement && target.isContentEditable)
 
 const inGrid = (target: EventTarget | null): boolean =>

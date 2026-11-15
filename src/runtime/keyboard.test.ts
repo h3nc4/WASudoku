@@ -35,7 +35,8 @@ let store: ReturnType<typeof createStore>
 beforeEach(() => {
   document.body.innerHTML = `
     <div role="grid"><div role="row"><div role="gridcell" tabindex="0"><span>.</span></div></div></div>
-    <input id="field" /><input id="locked" readonly /><textarea></textarea><div id="editor"></div>
+    <input id="field" /><input id="locked" readonly /><input id="mode" type="radio" />
+    <input id="check" type="checkbox" /><input id="search" type="search" /><textarea></textarea><div id="editor"></div>
     <dialog id="dialog"><button>Close</button></dialog>
   `
   const { deps, storage } = fakeDeps({
@@ -94,6 +95,15 @@ describe('bindKeyboard', () => {
     expect(sticky()).toBe(false)
     expect(press(element('#locked'), 's')).toBe(true)
     expect(sticky()).toBe(true)
+  })
+
+  it('toggles sticky numbers on S from a radio or checkbox, which take no typing', () => {
+    expect(press(element('#search'), 's')).toBe(false)
+    expect(sticky()).toBe(false)
+    expect(press(element('#mode'), 's')).toBe(true)
+    expect(sticky()).toBe(true)
+    expect(press(element('#check'), 's')).toBe(true)
+    expect(sticky()).toBe(false)
   })
 
   it('releases a locked digit on Escape and lets the browser have the key too', () => {

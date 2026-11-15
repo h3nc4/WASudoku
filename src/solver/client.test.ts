@@ -368,6 +368,30 @@ describe('createSolverClient', () => {
       await expect(next).resolves.toEqual({ ok: true, result: { kind: 'several' } })
     })
 
+    it('rejects the failed task and each queued one when no replacement worker spawns', async () => {
+      const spawnError = new Error('spawn failed')
+      let spawned = 0
+      const fragile = createSolverClient(() => {
+        spawned += 1
+        if (spawned > 1) throw spawnError
+        const first = new FakeWorker()
+        workers.push(first)
+        return first as unknown as Worker
+      })
+      const running = outcome(fragile.run(solve))
+      const queued = outcome(fragile.run(validate))
+      const last = outcome(fragile.run(generate))
+      worker(0).fire('error')
+      await expect(running).resolves.toEqual(failure('crashed'))
+      for (const pending of [queued, last]) {
+        await expect(pending).resolves.toEqual({
+          error: expect.objectContaining({ reason: 'load', cause: spawnError }) as unknown,
+        })
+      }
+      expect(vi.getTimerCount()).toBe(0)
+      fragile.dispose()
+    })
+
     it('rejects every task with disposed when shut down', async () => {
       const running = outcome(client.run(validate))
       const queued = outcome(client.run(validate))

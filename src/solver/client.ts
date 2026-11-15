@@ -81,7 +81,7 @@ const MESSAGES: Readonly<Record<Failure, string>> = {
 export class SolverError extends Error {
   readonly reason: Failure
 
-  /** `cause` is the signal's reason for an aborted task. */
+  /** `cause` is the signal's reason for an aborted task, or what a failed worker spawn threw. */
   constructor(reason: Failure, cause?: unknown) {
     super(MESSAGES[reason], { cause })
     this.name = 'SolverError'
@@ -170,16 +170,25 @@ class WorkerLane {
     return worker
   }
 
+  // A worker that cannot be spawned rejects each waiting job as a load failure, so none hangs.
   private next(): void {
-    if (this.running !== null) return
-    const job = this.queue.shift()
-    if (job === undefined) return
-    this.worker ??= this.start()
-    const timer = setTimeout(() => {
-      this.fail(new SolverError('timeout'))
-    }, job.timeoutMs)
-    this.running = { job, timer }
-    this.worker.postMessage(job.request, job.transfer)
+    while (this.running === null) {
+      const job = this.queue.shift()
+      if (job === undefined) return
+      let worker: Worker
+      try {
+        worker = this.worker ?? this.start()
+      } catch (error) {
+        job.reject(new SolverError('load', error))
+        continue
+      }
+      this.worker = worker
+      const timer = setTimeout(() => {
+        this.fail(new SolverError('timeout'))
+      }, job.timeoutMs)
+      this.running = { job, timer }
+      worker.postMessage(job.request, job.transfer)
+    }
   }
 
   private receive(data: unknown): void {
@@ -200,9 +209,8 @@ class WorkerLane {
 
   // Wasm cannot be interrupted, so a stuck or failed worker is replaced, but only for a waiting job.
   private fail(reason: SolverError): void {
-    const job = this.running?.job
+    this.running?.job.reject(reason)
     this.stop()
-    job?.reject(reason)
   }
 
   private stop(): void {
