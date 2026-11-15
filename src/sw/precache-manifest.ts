@@ -23,6 +23,8 @@ export interface PrecacheManifest {
   readonly hashed: readonly string[]
   /** The other paths, with `./` standing for the app shell. */
   readonly urls: readonly string[]
+  /** The directory every hashed path sits in, so the worker can tell a shell from another deploy. */
+  readonly assetsDir: string
 }
 
 /** A file the build writes, with its path relative to the output directory. */

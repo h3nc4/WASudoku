@@ -82,6 +82,7 @@ describe('finishBuild', () => {
       version: expect.stringMatching(/^[0-9a-f]{16}$/),
       hashed: ['assets/main.woff2'],
       urls: ['./', 'manifest.json'],
+      assetsDir: 'assets',
     })
   })
 

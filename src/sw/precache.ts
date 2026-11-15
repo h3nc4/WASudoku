@@ -31,6 +31,17 @@ const SKIP_WAITING: SkipWaitingMessage['type'] = 'SKIP_WAITING'
 const isSkipWaiting = (data: unknown): boolean =>
   typeof data === 'object' && data !== null && 'type' in data && data.type === SKIP_WAITING
 
+const escapeRegExp = (text: string) => text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+
+/** Every path under the assets directory a page names, as an attribute or a CSS url() spells it. */
+export function assetPaths(html: string, assetsDir: string): string[] {
+  const reference = new RegExp(
+    String.raw`(?<=[\s"'(=/])${escapeRegExp(assetsDir)}/[^\s"'()<>]+`,
+    'g',
+  )
+  return [...new Set(html.match(reference))]
+}
+
 /** Precaches the build, reusing earlier copies, and serves the shell cache-first. */
 export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: PrecacheManifest): void {
   const cacheName = `${CACHE_PREFIX}${manifest.version}`
@@ -39,6 +50,7 @@ export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: Preca
   const unhashed = manifest.urls.map(resolve)
   const urls = new Set([...hashed, ...unhashed])
   const shell = resolve('./')
+  const known = new Set(hashed)
   const shellPaths = new Set([shell, resolve('index.html')])
   const isEarlier = (name: string) => name.startsWith(CACHE_PREFIX) && name !== cacheName
 
@@ -48,6 +60,19 @@ export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: Preca
       if (cached) return cached
     }
     return undefined
+  }
+
+  /** Refuses a shell a later deploy served, whose assets this precache would lack offline. */
+  async function addShell(cache: Cache) {
+    const response = await sw.fetch(new Request(shell, { cache: 'no-cache' }))
+    if (!response.ok) throw new TypeError(`the shell answered ${String(response.status)}`)
+    const foreign = assetPaths(await response.clone().text(), manifest.assetsDir)
+      .map(resolve)
+      .filter((url) => !known.has(url))
+    if (foreign.length > 0) {
+      throw new Error(`the shell names assets of another deploy: ${foreign.join(' ')}`)
+    }
+    await cache.put(shell, response)
   }
 
   async function install() {
@@ -60,7 +85,9 @@ export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: Preca
         return cached ? cache.put(url, cached) : cache.add(url)
       }),
       // A plain name says nothing about its version. The server revalidates each one.
-      ...unhashed.map((url) => cache.add(new Request(url, { cache: 'no-cache' }))),
+      ...unhashed.map((url) =>
+        url === shell ? addShell(cache) : cache.add(new Request(url, { cache: 'no-cache' })),
+      ),
     ])
   }
 

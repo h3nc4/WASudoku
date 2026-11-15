@@ -218,6 +218,40 @@ test.describe('service worker', () => {
     expect(outside).toBe('failed')
   })
 
+  test('refuses a shell a later deploy served before its own worker arrived', async ({ page }) => {
+    const site = copyBuild()
+    const { url } = await serve(site)
+    // The next deploy renamed the entry script, while sw.js still lists this deploy's assets.
+    const entry =
+      /src="\/(assets\/[^"]+\.js)"/.exec(
+        readFileSync(path.join(site, 'index.html'), 'utf8'),
+      )?.[1] ?? ''
+    const next = entry.replace(/\.js$/, '.next.js')
+    cpSync(path.join(site, entry), path.join(site, next))
+    edit(site, 'index.html', entry, next)
+
+    await page.goto(url)
+    await expect(page.getByRole('heading', { name: WELCOME })).toBeVisible()
+    // The page registers the worker too, so this one may join its install or start another.
+    const state = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        updateViaCache: 'none',
+      })
+      const worker = registration.installing ?? registration.waiting ?? registration.active
+      const settled = () => worker?.state !== 'installing'
+      if (settled()) return worker?.state
+      return new Promise<string | undefined>((resolve) => {
+        worker?.addEventListener('statechange', () => {
+          if (settled()) resolve(worker.state)
+        })
+      })
+    })
+
+    expect(state).toBe('redundant')
+    const cachedShell = await page.evaluate(async () => (await caches.match('/')) !== undefined)
+    expect(cachedShell).toBe(false)
+  })
+
   test('a deploy waits behind the cached shell until the page lets its worker take over', async ({
     page,
   }) => {

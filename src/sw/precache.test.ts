@@ -18,7 +18,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { setUpServiceWorker } from './precache'
+import { assetPaths, setUpServiceWorker } from './precache'
 
 const ORIGIN = 'https://wasudoku.test'
 const CURRENT = 'wasudoku-v2'
@@ -68,6 +68,7 @@ function createScope() {
     version: 'v2',
     hashed: ['assets/index-abc.js', 'assets/font-def.woff2'],
     urls: ['./', 'sudoku.wasm'],
+    assetsDir: 'assets',
   })
   const dispatch = (type: string, event: FakeEvent) => {
     handlers.get(type)?.(event)
@@ -100,41 +101,90 @@ describe('setUpServiceWorker', () => {
     )
   }
 
+  /** A shell naming only assets this build precaches, as the server answers the install with. */
+  const SHELL_HTML =
+    '<script type="module" src="/assets/index-abc.js"></script><style>url(./assets/font-def.woff2)</style>'
+
+  function serveShell(html: string, status = 200) {
+    sw.scope.fetch.mockImplementation(() => Promise.resolve(new Response(html, { status })))
+  }
+
   async function install() {
     const event = sw.dispatch('install', createEvent())
     await event.pending()
     return event
   }
 
+  /** The shell request the install sent, which must ask the server and not the HTTP cache. */
+  const shellRequest = () => {
+    const [entry] = sw.scope.fetch.mock.calls[0] as [Request]
+    return entry
+  }
+
   it('fetches a hashed file through the HTTP cache when no earlier version holds it', async () => {
     holdInEarlierCaches({})
+    serveShell(SHELL_HTML)
     await install()
 
     expect(sw.caches.open).toHaveBeenCalledWith(CURRENT)
     expect(sw.cache.add).toHaveBeenCalledWith(`${ORIGIN}/assets/index-abc.js`)
     expect(sw.cache.add).toHaveBeenCalledWith(`${ORIGIN}/assets/font-def.woff2`)
-    expect(sw.cache.put).not.toHaveBeenCalled()
+    expect(sw.cache.put).not.toHaveBeenCalledWith(
+      expect.stringContaining('/assets/'),
+      expect.anything(),
+    )
   })
 
   it('revalidates every unhashed file with the server', async () => {
     holdInEarlierCaches({})
+    serveShell(SHELL_HTML)
     await install()
 
     const requests = sw.cache.add.mock.calls
       .map(([entry]) => entry as unknown)
       .filter((entry): entry is Request => entry instanceof Request)
-    expect(requests.map((r) => [r.url, r.cache])).toEqual([
-      [`${ORIGIN}/`, 'no-cache'],
-      [`${ORIGIN}/sudoku.wasm`, 'no-cache'],
-    ])
+    expect(requests.map((r) => [r.url, r.cache])).toEqual([[`${ORIGIN}/sudoku.wasm`, 'no-cache']])
+    expect([shellRequest().url, shellRequest().cache]).toEqual([`${ORIGIN}/`, 'no-cache'])
+  })
+
+  it('caches a shell that names only assets of its own build', async () => {
+    holdInEarlierCaches({})
+    serveShell(SHELL_HTML)
+    await install()
+
+    const [url, response] = sw.cache.put.mock.calls[0] as [string, Response]
+    expect(url).toBe(`${ORIGIN}/`)
+    await expect(response.text()).resolves.toBe(SHELL_HTML)
+  })
+
+  it('fails the install when the shell names an asset of another deploy', async () => {
+    holdInEarlierCaches({})
+    serveShell(SHELL_HTML.replace('index-abc.js', 'index-next.js'))
+
+    const event = sw.dispatch('install', createEvent())
+
+    await expect(event.pending()).rejects.toThrow(`${ORIGIN}/assets/index-next.js`)
+    expect(sw.cache.put).not.toHaveBeenCalledWith(`${ORIGIN}/`, expect.anything())
+  })
+
+  it('fails the install when the shell does not answer with success', async () => {
+    holdInEarlierCaches({})
+    serveShell('busy', 503)
+
+    const event = sw.dispatch('install', createEvent())
+
+    await expect(event.pending()).rejects.toThrow('503')
+    expect(sw.cache.put).not.toHaveBeenCalled()
   })
 
   it('copies a hashed file an earlier version cached instead of fetching it', async () => {
     holdInEarlierCaches({ 'wasudoku-v1': ['/assets/index-abc.js'] })
+    serveShell(SHELL_HTML)
     await install()
 
-    expect(sw.cache.put).toHaveBeenCalledTimes(1)
-    const [url, response] = sw.cache.put.mock.calls[0] as [string, Response]
+    const copies = sw.cache.put.mock.calls.filter(([url]) => url !== `${ORIGIN}/`)
+    expect(copies).toHaveLength(1)
+    const [url, response] = copies[0] as [string, Response]
     expect(url).toBe(`${ORIGIN}/assets/index-abc.js`)
     await expect(response.text()).resolves.toBe(`wasudoku-v1${ORIGIN}/assets/index-abc.js`)
     expect(sw.cache.add).not.toHaveBeenCalledWith(`${ORIGIN}/assets/index-abc.js`)
@@ -143,6 +193,7 @@ describe('setUpServiceWorker', () => {
 
   it('stops at the first earlier version holding a file and never reads another cache', async () => {
     holdInEarlierCaches({ 'wasudoku-v0': ['/assets/font-def.woff2'] })
+    serveShell(SHELL_HTML)
     await install()
 
     const searched = (path: string) =>
@@ -155,6 +206,7 @@ describe('setUpServiceWorker', () => {
 
   it('fails the install when a file cannot be cached', async () => {
     holdInEarlierCaches({})
+    serveShell(SHELL_HTML)
     sw.cache.add.mockRejectedValueOnce(new TypeError('offline'))
 
     const event = sw.dispatch('install', createEvent())
@@ -283,5 +335,28 @@ describe('setUpServiceWorker', () => {
   ])('leaves %s to the browser', (_, req) => {
     const event = sw.dispatch('fetch', createEvent({ request: req }))
     expect(event.respondWith).not.toHaveBeenCalled()
+  })
+})
+
+describe('assetPaths', () => {
+  it('finds each asset a page names once, however the URL is spelled', () => {
+    const html = [
+      '<script src="/assets/a.1.js"></script>',
+      '<link href=./assets/b.2.woff2>',
+      '<style>@font-face{src:url(assets/c.3.woff2)}</style>',
+      "<img src='/assets/a.1.js'>",
+    ].join('')
+    expect(assetPaths(html, 'assets')).toEqual([
+      'assets/a.1.js',
+      'assets/b.2.woff2',
+      'assets/c.3.woff2',
+    ])
+  })
+
+  it('ignores a name that only contains the directory and escapes it as a literal', () => {
+    expect(assetPaths('<a href="/myassets/x.js">assets</a>', 'assets')).toEqual([])
+    expect(assetPaths('<script src="/a.b/x.js"></script><p src="/aXb/y.js">', 'a.b')).toEqual([
+      'a.b/x.js',
+    ])
   })
 })

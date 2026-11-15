@@ -41,6 +41,7 @@ describe('precacheManifest', () => {
     const manifest = precacheManifest(files, 'assets')
     expect(manifest.hashed).toEqual(['assets/font.woff2'])
     expect(manifest.urls).toEqual(['favicon.svg', './'])
+    expect(manifest.assetsDir).toBe('assets')
     expect(manifest.version).toMatch(/^[0-9a-f]{16}$/)
     expect(precacheManifest([...files].reverse(), 'assets').version).toBe(manifest.version)
   })
@@ -77,11 +78,11 @@ describe('precacheCandidates', () => {
 })
 
 describe('injectManifest', () => {
-  const manifest = { version: 'v1', hashed: [], urls: ['./'] }
+  const manifest = { version: 'v1', hashed: [], urls: ['./'], assetsDir: 'assets' }
 
   it('replaces every placeholder with the manifest', () => {
     expect(injectManifest('a(__PRECACHE_MANIFEST__)', manifest)).toBe(
-      'a({"version":"v1","hashed":[],"urls":["./"]})',
+      'a({"version":"v1","hashed":[],"urls":["./"],"assetsDir":"assets"})',
     )
   })
 

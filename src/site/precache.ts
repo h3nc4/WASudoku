@@ -42,7 +42,7 @@ export function precacheManifest(
   const { files: precached, hashed, urls } = precacheEntries(sorted, assetsDir)
   const hash = createHash('sha256')
   for (const file of precached) hash.update(file.name).update(file.content)
-  return { version: hash.digest('hex').slice(0, VERSION_LENGTH), hashed, urls }
+  return { version: hash.digest('hex').slice(0, VERSION_LENGTH), hashed, urls, assetsDir }
 }
 
 /** The files of a static build a worker may precache, out of everything in its directory. */
