@@ -33,9 +33,10 @@ const last = endRow(walkthrough.steps.length, walkthrough)
 ---
 
 {/* Size containment lets the panel take the board column's height instead of the trace's. */}
+{/* The height rounds to a whole pixel as the legacy offsetHeight sync did. */}
 <div
   data-toast-floor
-  class="w-full [contain:size] md:order-1 md:w-64"
+  class="w-full [height:round(100%,1px)] [contain:size] md:order-1 md:w-64"
   id="steps-panel"
   hidden={panel.hidden}
 >

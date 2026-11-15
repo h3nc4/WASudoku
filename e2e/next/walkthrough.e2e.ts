@@ -102,6 +102,25 @@ test.describe('the walkthrough on a phone', () => {
   })
 })
 
+test.describe('the walkthrough on a tablet', () => {
+  test.use({ viewport: { width: 768, height: 1024 } })
+
+  // The number pad leaves the board column a fraction of a pixel tall, which the panel rounds off.
+  test('the steps panel is the board column height in whole pixels', async ({ page, open }) => {
+    await open({ game: savedGame() })
+    await page.locator('#solve-button').click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reveal solution' }).click()
+    const panel = page.locator('#steps-panel')
+    await expect(panel).toBeVisible()
+    const heights = await panel.evaluate((node) => ({
+      panel: node.getBoundingClientRect().height,
+      column: node.parentElement?.firstElementChild?.getBoundingClientRect().height ?? 0,
+    }))
+    expect(heights.column % 1).not.toBe(0)
+    expect(heights.panel).toBe(Math.round(heights.column))
+  })
+})
+
 test.describe('a shared puzzle link', () => {
   test('offers the puzzle, which starts as a custom game', async ({ page, open }) => {
     await open({ path: `/?p=${PUZZLE}` })
