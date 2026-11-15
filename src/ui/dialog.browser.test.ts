@@ -70,6 +70,21 @@ describe('the modal dialog in a real engine', () => {
     expect(getComputedStyle(document.documentElement).overflow).not.toBe('hidden')
   })
 
+  it("positions the body while open, so an overlay in it spans the page as in today's app", () => {
+    const { dialog } = mount()
+    const page = document.createElement('div')
+    page.style.height = `${String(innerHeight * 2)}px`
+    const overlay = document.createElement('div')
+    overlay.style.cssText = 'position:absolute;inset:0'
+    document.body.append(page, overlay)
+    handle = bindDialog(dialog)
+    expect(overlay.getBoundingClientRect().height).toBe(innerHeight)
+    handle.open()
+    expect(overlay.getBoundingClientRect().height).toBe(document.body.offsetHeight)
+    handle.close()
+    expect(overlay.getBoundingClientRect().height).toBe(innerHeight)
+  })
+
   it('wraps Tab and Shift+Tab inside the dialog', async () => {
     const { byId, dialog } = mount()
     handle = bindDialog(dialog)

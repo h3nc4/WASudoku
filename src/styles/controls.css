@@ -448,14 +448,15 @@
     color: var(--muted-foreground);
   }
 
-  /* Toasts: a polite live list in a manual popover, pinned above the bottom edge. */
+  /* Toasts: a polite live list in a manual popover, pinned above the bottom edge.
+     As in sonner, it is centred below 768px and stretched to the gutters at 600px and under. */
   .toasts {
     position: fixed;
-    inset: auto 16px calc(16px + env(safe-area-inset-bottom)) auto;
+    inset: auto 0 calc(16px + env(safe-area-inset-bottom));
     display: grid;
     gap: 14px;
     width: min(356px, calc(100% - 32px));
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     overflow: visible;
     border: 0;
@@ -468,19 +469,19 @@
     display: none;
   }
 
+  /* Sonner's styled toast, whose unlayered rules beat the React app's utility classes. */
   .toast {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 16px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--toast-border);
     border-radius: 8px;
-    background-color: var(--popover);
-    color: var(--popover-foreground);
+    background-color: var(--toast);
+    color: var(--toast-foreground);
+    font-family: var(--type-toast);
     font-size: 13px;
-    box-shadow:
-      0 10px 15px -3px rgb(0 0 0 / 0.1),
-      0 4px 6px -4px rgb(0 0 0 / 0.1);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
     pointer-events: auto;
     transition:
       opacity 200ms,
@@ -500,9 +501,28 @@
     pointer-events: none;
   }
 
+  /* A 20px glyph overhangs its 16px box, which sits 3px into the padding. */
+  .toast-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+    margin: 0 4px 0 -3px;
+  }
+
+  .toast-glyph {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-left: -1px;
+  }
+
   .toast-message {
     flex: 1;
     min-width: 0;
+    font-weight: 500;
+    line-height: 1.5;
   }
 
   .toast-action {
@@ -510,8 +530,8 @@
     min-height: 1.5rem;
     padding: 0 0.5rem;
     border-radius: 4px;
-    background-color: var(--primary);
-    color: var(--primary-foreground);
+    background-color: var(--toast-foreground);
+    color: var(--toast);
     font-size: 12px;
     font-weight: 500;
   }
@@ -540,9 +560,16 @@
     outline-offset: 2px;
   }
 
+  @media (width <= 600px) {
+    .toasts {
+      width: calc(100% - 32px);
+    }
+  }
+
   @media (width >= 48rem) {
     .toasts {
       inset: auto 24px 24px auto;
+      margin: 0;
     }
   }
 

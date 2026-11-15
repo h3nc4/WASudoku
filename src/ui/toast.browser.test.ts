@@ -17,7 +17,7 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { TOAST_ACTIONS } from '../core/text/messages'
 import { applyBuiltStyles } from '../test/built-page'
@@ -28,6 +28,12 @@ import { createToaster, type Toaster } from './toast'
 const TOAST_INSET_PX = 16
 const LIFT_GAP_PX = 12
 const FLOOR_RISE_PX = 300
+/** Sonner's 20px glyph, 1px border plus 16px padding in, less its box's 3px and its own 1px pull. */
+const GLYPH_PX = 20
+const GLYPH_INSET_PX = 13
+const PHONE_HEIGHT_PX = 780
+const WIDE_PX = 768
+const WIDE_INSET_PX = 24
 
 function mount() {
   document.body.innerHTML = `
@@ -76,6 +82,64 @@ describe('toasts in a real engine', () => {
     expect(host.matches(':popover-open')).toBe(true)
     await settled(item)
     expect(hitsCentre(item)).toBe(true)
+  })
+
+  it.each([
+    ['dark', 'rgb(0, 0, 0)', 'rgb(252, 252, 252)'],
+    ['light', 'rgb(255, 255, 255)', 'rgb(23, 23, 23)'],
+  ] as const)(
+    "draws sonner's %s surface with the status icon overhanging its box",
+    async (theme, bg, fg) => {
+      document.documentElement.dataset['theme'] = theme
+      const { host } = mount()
+      toaster = createToaster(host)
+      const item = toaster.show('Board imported from clipboard.', { tone: 'success' })
+      await settled(item)
+      const style = getComputedStyle(item)
+      expect(style.backgroundColor).toBe(bg)
+      expect(style.color).toBe(fg)
+      expect(style.fontFamily).toMatch(/^ui-sans-serif, system-ui/)
+      expect(getComputedStyle(item.querySelector('.toast-message')!).fontWeight).toBe('500')
+      const glyph = item.querySelector('.toast-glyph')!.getBoundingClientRect()
+      const box = item.getBoundingClientRect()
+      expect([glyph.width, glyph.height]).toEqual([GLYPH_PX, GLYPH_PX])
+      expect(glyph.left - box.left).toBe(GLYPH_INSET_PX)
+      delete document.documentElement.dataset['theme']
+    },
+  )
+
+  it.each([
+    [360, 16, 328],
+    [412, 16, 380],
+    [700, 172, 356],
+  ])(
+    'sits %ipx wide at left %i with width %i, as sonner does below 768px',
+    async (vw, left, width) => {
+      const before = [innerWidth, innerHeight] as const
+      await page.viewport(vw, PHONE_HEIGHT_PX)
+      try {
+        const { host } = mount()
+        toaster = createToaster(host)
+        await settled(toaster.show('Board cleared.', { tone: 'info' }))
+        const box = host.getBoundingClientRect()
+        expect([box.left, box.width]).toEqual([left, width])
+      } finally {
+        await page.viewport(...before)
+      }
+    },
+  )
+
+  it('keeps its right inset on a wide screen', async () => {
+    const before = [innerWidth, innerHeight] as const
+    await page.viewport(WIDE_PX, PHONE_HEIGHT_PX)
+    try {
+      const { host } = mount()
+      toaster = createToaster(host)
+      await settled(toaster.show('Board cleared.', { tone: 'info' }))
+      expect(innerWidth - host.getBoundingClientRect().right).toBe(WIDE_INSET_PX)
+    } finally {
+      await page.viewport(...before)
+    }
   })
 
   it('keeps its buttons usable over an open modal, and goes back when it closes', async () => {

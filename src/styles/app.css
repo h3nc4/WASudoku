@@ -96,6 +96,11 @@
   html:has(dialog:modal) {
     overflow: hidden;
   }
+
+  /* Today's scroll lock also positions the body, so an overlay in it spans the page, not the viewport. */
+  html:has(dialog:modal) body {
+    position: relative;
+  }
 }
 
 /* Unlayered rules override every layer. Native dialogs and menus have no reduced-motion guard. */

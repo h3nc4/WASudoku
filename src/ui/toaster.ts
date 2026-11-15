@@ -39,6 +39,7 @@ export const notifier =
   (notice: Notice): void => {
     toaster.show(NOTICES[notice], {
       id: notice,
+      tone: 'info',
       ...(notice === 'cleared' ? { action: { label: TOAST_ACTIONS.undo, run: undo } } : {}),
     })
   }

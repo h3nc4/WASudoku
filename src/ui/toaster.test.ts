@@ -37,29 +37,31 @@ describe('toastSink', () => {
 })
 
 describe('notifier', () => {
-  it('offers an undo with a cleared board, and nothing with the auto-fill', () => {
+  it('offers an undo with a cleared board, and nothing with the auto-fill, both as info', () => {
     const { toaster, show } = fakeToaster()
     const undo = vi.fn()
     const notify = notifier(toaster, undo)
     notify('cleared')
     const [message, options] = show.mock.calls[0]
     expect(message).toBe(NOTICES.cleared)
+    expect(options?.tone).toBe('info')
     expect(options?.action?.label).toBe(TOAST_ACTIONS.undo)
     options?.action?.run()
     expect(undo).toHaveBeenCalled()
     notify('autoFilled')
-    expect(show).toHaveBeenLastCalledWith(NOTICES.autoFilled, { id: 'autoFilled' })
+    expect(show).toHaveBeenLastCalledWith(NOTICES.autoFilled, { id: 'autoFilled', tone: 'info' })
   })
 })
 
 describe('updateOffer', () => {
-  it('keeps the offer up until the player reloads into the new build', () => {
+  it('keeps the offer up, without a status icon, until the player reloads into the new build', () => {
     const { toaster, show } = fakeToaster()
     const apply = vi.fn()
     updateOffer(toaster)(apply)
     const [message, options] = show.mock.calls[0]
     expect(message).toBe(NOTICES.updateAvailable)
     expect(options?.duration).toBe(Infinity)
+    expect(options?.tone).toBeUndefined()
     expect(options?.action?.label).toBe(TOAST_ACTIONS.reload)
     options?.action?.run()
     expect(apply).toHaveBeenCalled()

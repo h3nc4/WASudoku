@@ -155,7 +155,7 @@ describe('the first visit', async () => {
 
   it('draws every icon from the inline sprite', () => {
     const symbols = new Set([...doc.querySelectorAll('svg.sprite symbol')].map((s) => s.id))
-    expect(symbols.size).toBe(25)
+    expect(symbols.size).toBe(28)
     const uses = [...doc.querySelectorAll('use')].map((u) => u.getAttribute('href')?.slice(1))
     expect(uses.length).toBeGreaterThan(0)
     for (const id of uses) expect(symbols.has(id ?? '')).toBe(true)

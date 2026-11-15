@@ -58,7 +58,8 @@ describe('createToaster', () => {
     const toaster = createToaster(host, { reducedMotion: () => false })
     const item = toaster.show('Board cleared.')
     expect(item).toHaveTextContent('Board cleared.')
-    expect(item).toHaveAttribute('data-tone', 'info')
+    expect(item).not.toHaveAttribute('data-tone')
+    expect(item.querySelector('.toast-icon')).toBeNull()
     expect(item.querySelector('button')).toBeNull()
     expect(state.open).toBe(true)
     vi.advanceTimersByTime(TOAST_DURATION_MS - 1)
@@ -70,6 +71,31 @@ describe('createToaster', () => {
     expect(state.open).toBe(false)
     vi.advanceTimersByTime(TOAST_LEAVE_MS)
     expect(items(host)).toHaveLength(0)
+  })
+
+  it.each([
+    ['success', '#i-toast-success'],
+    ['error', '#i-toast-error'],
+    ['info', '#i-toast-info'],
+  ] as const)('draws the %s status icon before the message', (tone, href) => {
+    const { host } = mount()
+    const toaster = createToaster(host)
+    const item = toaster.show('Board imported.', { tone })
+    expect(item).toHaveAttribute('data-tone', tone)
+    const [box, text] = item.children
+    expect(box).toHaveClass('toast-icon')
+    expect(box.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(box.querySelector('use')).toHaveAttribute('href', href)
+    expect(text).toHaveClass('toast-message')
+  })
+
+  it('drops the tone and its icon when a toast of the same id comes back without one', () => {
+    const { host } = mount()
+    const toaster = createToaster(host)
+    const item = toaster.show('Copied', { id: 'copy', tone: 'success' })
+    toaster.show('Copied', { id: 'copy' })
+    expect(item).not.toHaveAttribute('data-tone')
+    expect(item.querySelector('.toast-icon')).toBeNull()
   })
 
   it('removes a leaving toast whose transition never ends', () => {

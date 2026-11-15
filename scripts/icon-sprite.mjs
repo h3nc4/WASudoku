@@ -27,6 +27,9 @@ const ROOT = join(import.meta.dirname, '..')
 const OUT = join(ROOT, 'src/assets/icons/sprite.svg')
 const LUCIDE = join(ROOT, 'node_modules/lucide-react/dist/esm/icons')
 const SIMPLE_ICONS = join(ROOT, 'node_modules/react-icons/si/index.mjs')
+const SONNER = join(ROOT, 'node_modules/sonner/dist/index.mjs')
+// The status icons sonner draws in today's toasts, filled on its own 20px grid.
+const TOAST_ICONS = { success: 'SuccessIcon', error: 'ErrorIcon', info: 'InfoIcon' }
 
 const ICONS = [
   'brain-circuit',
@@ -94,6 +97,15 @@ if (!github) throw new Error('react-icons no longer ships SiGithub in this form'
 symbols.push(
   `<symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="${github[1]}"/></symbol>`,
 )
+
+const sonner = readFileSync(SONNER, 'utf8')
+for (const [tone, component] of Object.entries(TOAST_ICONS)) {
+  const icon = new RegExp(`const ${component} = [\\s\\S]*?d: "([^"]+)"`).exec(sonner)
+  if (!icon) throw new Error(`sonner no longer ships ${component} in this form`)
+  symbols.push(
+    `<symbol id="i-toast-${tone}" viewBox="0 0 20 20"><path fill="currentColor" stroke="none" fill-rule="evenodd" clip-rule="evenodd" d="${icon[1]}"/></symbol>`,
+  )
+}
 
 const sprite = `<svg xmlns="http://www.w3.org/2000/svg" class="sprite" aria-hidden="true">${symbols.join('')}</svg>`
 writeFileSync(OUT, `${optimize(sprite, SAFE).data}\n`)

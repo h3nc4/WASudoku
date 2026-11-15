@@ -16,6 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { iconHref, type IconName } from '../components-next/icons'
 import { TOAST_ACTIONS } from '../core/text/messages'
 
 // A polite live list in a manual popover, which puts it in the top layer without light dismiss.
@@ -31,6 +32,7 @@ export interface ToastAction {
 export interface ToastOptions {
   /** A toast with the id of one on screen replaces it. */
   readonly id?: string
+  /** Draws the tone's status icon before the message. A toast without one has no icon. */
   readonly tone?: ToastTone
   /** Milliseconds on screen, or Infinity for a toast that stays until its close button. */
   readonly duration?: number
@@ -59,14 +61,27 @@ const SVG = 'http://www.w3.org/2000/svg'
 const prefersReducedMotion = (): boolean =>
   globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-function closeIcon(doc: Document): SVGSVGElement {
+const TONE_ICONS: Readonly<Record<ToastTone, IconName>> = {
+  success: 'toast-success',
+  error: 'toast-error',
+  info: 'toast-info',
+}
+
+function icon(doc: Document, name: IconName, className: string): SVGSVGElement {
   const svg = doc.createElementNS(SVG, 'svg')
-  svg.setAttribute('class', 'icon')
+  svg.setAttribute('class', className)
   svg.setAttribute('aria-hidden', 'true')
   const use = doc.createElementNS(SVG, 'use')
-  use.setAttribute('href', '#i-x')
+  use.setAttribute('href', iconHref(name))
   svg.append(use)
   return svg
+}
+
+function toneIcon(doc: Document, tone: ToastTone): HTMLSpanElement {
+  const box = doc.createElement('span')
+  box.className = 'toast-icon'
+  box.append(icon(doc, TONE_ICONS[tone], 'toast-glyph'))
+  return box
 }
 
 function button(doc: Document, className: string, onClick: () => void): HTMLButtonElement {
@@ -161,16 +176,21 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
     )
 
   const show = (message: string, toast: ToastOptions = {}): HTMLLIElement => {
-    const { id, tone = 'info', duration = TOAST_DURATION_MS, action } = toast
+    const { id, tone, duration = TOAST_DURATION_MS, action } = toast
     const shown = (id === undefined ? undefined : find(id)) ?? create(id)
     stop(shown)
     delete shown.dataset['leaving']
     shown.className = 'toast'
-    shown.dataset['tone'] = tone
+    delete shown.dataset['tone']
+    const parts: Element[] = []
+    if (tone !== undefined) {
+      shown.dataset['tone'] = tone
+      parts.push(toneIcon(doc, tone))
+    }
     const text = doc.createElement('span')
     text.className = 'toast-message'
     text.textContent = message
-    const parts: Element[] = [text]
+    parts.push(text)
     if (action) {
       const run = button(doc, 'toast-action', () => {
         action.run()
@@ -185,7 +205,7 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
         leave(shown)
       })
       close.setAttribute('aria-label', TOAST_ACTIONS.close)
-      close.append(closeIcon(doc))
+      close.append(icon(doc, 'x', 'icon'))
       parts.push(close)
     }
     shown.replaceChildren(...parts)
