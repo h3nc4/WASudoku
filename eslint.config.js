@@ -21,7 +21,7 @@ import { createRequire } from 'node:module'
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
+import { reactRefresh } from 'eslint-plugin-react-refresh'
 import { configs as tseslintConfigs } from 'typescript-eslint'
 import reactPlugin from 'eslint-plugin-react'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
@@ -45,6 +45,8 @@ export default [
       'test-results',
     ],
   },
+  // Global, since the react plugin's recommended set also lints this file and warns without it.
+  { settings: { react: { version: reactVersion } } },
   js.configs.recommended,
   ...tseslintConfigs.recommended,
   reactPlugin.configs.flat.recommended,
@@ -65,9 +67,6 @@ export default [
       },
     },
     settings: {
-      react: {
-        version: reactVersion,
-      },
       'import-x/resolver': {
         typescript: {
           alwaysTryTypes: true,
@@ -78,7 +77,7 @@ export default [
     },
     plugins: {
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
+      'react-refresh': reactRefresh.plugin,
       'simple-import-sort': simpleImportSort,
       'unused-imports': unusedImports,
     },
