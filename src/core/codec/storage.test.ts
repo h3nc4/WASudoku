@@ -19,6 +19,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { type Board, boardFromCells, type Cell, cellAt, EMPTY_BOARD, parseBoard } from '../board'
+import { MS_PER_SECOND } from '../clock'
 import { type Digit, digitsOf, FULL_MASK, maskOf } from '../digits'
 import { CELLS } from '../geometry'
 import { fromStack, type History, startHistory } from '../history'
@@ -28,6 +29,7 @@ import {
   encodeBoard,
   encodeGame,
   GAME_FORMAT_VERSION,
+  MAX_TIMER_SECONDS,
   readGame,
   readMetrics,
   readPool,
@@ -319,6 +321,14 @@ describe('metrics', () => {
       expect(readMetrics(text).status).toBe('corrupt')
     },
   )
+
+  it('keeps a timer only while its milliseconds count exactly', () => {
+    const at = (timer: number) => readMetrics(JSON.stringify({ timer, mistakes: 0 })).status
+    expect(at(MAX_TIMER_SECONDS)).toBe('ok')
+    expect(Number.isSafeInteger(MAX_TIMER_SECONDS * MS_PER_SECOND)).toBe(true)
+    expect(at(MAX_TIMER_SECONDS + 1)).toBe('corrupt')
+    expect(at(1e306)).toBe('corrupt')
+  })
 
   it('returns nothing from a missing key', () => {
     expect(readMetrics(null)).toEqual({ status: 'absent' })

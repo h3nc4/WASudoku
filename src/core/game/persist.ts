@@ -78,6 +78,10 @@ export function serialize(state: State, key: StorageKey, now: number): string | 
 
 const save = (key: StorageKey, when: 'idle' | 'now'): Effect => ({ kind: 'save', key, when })
 
+/** Normalises a key at once, unless it failed to decode, which stays as it is until the next save. */
+const saveNow = (key: StorageKey, loaded: Loaded<Metrics> | Loaded<Pool>): Effect[] =>
+  loaded.status === 'corrupt' ? [] : [save(key, 'now')]
+
 const corruptKey = (
   key: StorageKey,
   loaded: LoadedGame | Loaded<Metrics> | Loaded<Pool>,
@@ -105,8 +109,8 @@ export function onLoaded(state: State, { game, metrics, pool }: LoadedSlices): O
     ...corruptKey(STORAGE_KEYS.GAME, game),
     ...corruptKey(STORAGE_KEYS.METRICS, metrics),
     ...corruptKey(STORAGE_KEYS.POOL, pool),
-    save(STORAGE_KEYS.POOL, 'now'),
-    save(STORAGE_KEYS.METRICS, 'now'),
+    ...saveNow(STORAGE_KEYS.POOL, pool),
+    ...saveNow(STORAGE_KEYS.METRICS, metrics),
   ]
   if (saved !== null)
     effects.push(save(STORAGE_KEYS.GAME, game.status === 'legacy' ? 'now' : 'idle'))

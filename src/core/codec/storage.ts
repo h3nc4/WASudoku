@@ -26,6 +26,7 @@ import {
   parseBoard,
   valueAt,
 } from '../board'
+import { MS_PER_SECOND } from '../clock'
 import { isDigit, isMask, type Mask, maskOf, toDigit } from '../digits'
 import { CELL_COUNT, CELLS } from '../geometry'
 import { fromStack, type History, toStack } from '../history'
@@ -286,10 +287,15 @@ export function readGame(text: string | null): LoadedGame {
 
 const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0
 
+/** The longest stored timer whose milliseconds still count exactly, so the clock stays finite. */
+export const MAX_TIMER_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / MS_PER_SECOND)
+
+const isTimer = (n: unknown): n is number => isCount(n) && n <= MAX_TIMER_SECONDS
+
 function readMetricsValue(raw: unknown): Metrics {
   if (!isRecord(raw)) return fail('Bad metrics')
   const { timer, mistakes } = raw
-  return isCount(timer) && isCount(mistakes) ? { timer, mistakes } : fail('Bad metrics')
+  return isTimer(timer) && isCount(mistakes) ? { timer, mistakes } : fail('Bad metrics')
 }
 
 export const writeMetrics = ({ timer, mistakes }: Metrics): string =>

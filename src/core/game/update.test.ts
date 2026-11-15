@@ -220,6 +220,17 @@ describe('update', () => {
       expect(step(state, { type: 'flashEnded', pulse: 1 }).state.flash).toBeNull()
     })
 
+    it('keeps counting pulses across games, so a flash timer from the last one ends nothing', () => {
+      const clash: Event[] = [{ type: 'setMode', mode: 'candidate' }, select(2), digit(5)]
+      const again: Event[] = [{ type: 'newGame', difficulty: 'easy' }, ...clash]
+      const first = run(withPool(PUZZLE, PUZZLE), again).state
+      expect(first.flash).toEqual({ cells: [at(0)], pulse: 1 })
+      const { state, effects } = run(first, again)
+      expect(state.flash).toEqual({ cells: [at(0)], pulse: 2 })
+      expect(effects).toContainEqual({ kind: 'flash', pulse: 2, delayMs: 600 })
+      expect(step(state, { type: 'flashEnded', pulse: 1 }).state.flash).not.toBeNull()
+    })
+
     it('removes an existing note even when a peer now holds its digit', () => {
       const typed = run(entering(), [
         { type: 'setMode', mode: 'center' },
@@ -1160,6 +1171,21 @@ describe('update', () => {
       expect(effects).toContainEqual({ kind: 'tick', delayMs: 1_000 })
     })
 
+    it('drops a stored timer too large to count in milliseconds, so the clock ticks each second', () => {
+      const { state, effects } = step(INITIAL_STATE, {
+        type: 'loaded',
+        slices: slices(
+          serialize(saved, STORAGE_KEYS.GAME, T0),
+          '{"timer":1e306,"mistakes":0}',
+          null,
+        ),
+      })
+      expect(effects[0]).toMatchObject({ kind: 'corrupt', key: STORAGE_KEYS.METRICS })
+      expect(play(state).clock.elapsedMs).toBe(0)
+      expect(effects).toContainEqual({ kind: 'tick', delayMs: 1_000 })
+      expect(step(state, { type: 'tick' }).effects).toContainEqual({ kind: 'tick', delayMs: 1_000 })
+    })
+
     it('resumes a finished game as won, its clock stopped', () => {
       const won = run(playing(NEAR), [select(0), digit(5)]).state
       const state = step(INITIAL_STATE, {
@@ -1212,6 +1238,20 @@ describe('update', () => {
       const pool = step(INITIAL_STATE, { type: 'loaded', slices: slices(null, null, '[') })
         .effects[0]
       expect(pool).toMatchObject({ kind: 'corrupt', key: STORAGE_KEYS.POOL })
+    })
+
+    it('leaves a corrupt pool or metrics key unwritten, as the report says', () => {
+      const writes = (metrics: string | null, pool: string | null) =>
+        step(INITIAL_STATE, { type: 'loaded', slices: slices(null, metrics, pool) }).effects.map(
+          (effect) =>
+            effect.kind === 'save' || effect.kind === 'corrupt'
+              ? `${effect.kind} ${effect.key}`
+              : effect.kind,
+        )
+      const { METRICS, POOL } = STORAGE_KEYS
+      expect(writes(null, '[')).toEqual([`corrupt ${POOL}`, `save ${METRICS}`, 'refill'])
+      expect(writes('nope', null)).toEqual([`corrupt ${METRICS}`, `save ${POOL}`, 'refill'])
+      expect(writes('nope', '[')).toEqual([`corrupt ${METRICS}`, `corrupt ${POOL}`, 'refill'])
     })
   })
 

@@ -88,8 +88,8 @@ export const startSession = (
     pending: null,
     input: { ...INITIAL_INPUT, sticky: state.input.sticky },
     offer: null,
+    // The pulse count carries on, so a flash timer left from the last game never ends a new flash.
     flash: null,
-    pulses: 0,
   },
   effects: [...cancelPending(state), ...effects],
 })
