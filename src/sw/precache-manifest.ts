@@ -16,6 +16,15 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/** What the build writes into the service worker, with a version that changes on every deploy. */
+export interface PrecacheManifest {
+  readonly version: string
+  /** Paths relative to the worker's scope that hold a hash of their content in the file name. */
+  readonly hashed: readonly string[]
+  /** The other paths, with `./` standing for the app shell. */
+  readonly urls: readonly string[]
+}
+
 /** A file the build writes, with its path relative to the output directory. */
 export interface EmittedFile {
   readonly name: string
@@ -32,16 +41,22 @@ export interface PrecacheEntries {
 type CodePointRange = readonly [first: number, last: number]
 
 const HEX = 16
-const FONT_FACE = /@font-face\s*\{([^}]*)\}/g
+const FONT_FACE = /@font-face\s*\{[^}]*\}/g
 const UNICODE_RANGE = /unicode-range\s*:\s*([^;}]+)/i
-const SOURCE_URL = /url\(\s*(["']?)([^"')]+)\1\s*\)/g
+// A lookbehind, so the whole match is the URL without its quotes.
+const SOURCE_URL = /(?<=url\(\s*["']?)[^"')\s]+/g
 const TEXT_FILE = /\.(?:html|js|css)$/
+// A page may inline its stylesheet, so its @font-face rules sit in the HTML.
+const STYLE_FILE = /\.(?:html|css)$/
 const SHELL = 'index.html'
 
 /** Parses a CSS unicode-range such as `U+26, U+0-7F, U+4??` into inclusive ranges. */
 export function parseUnicodeRange(value: string): CodePointRange[] {
   return value.split(',').map((part) => {
-    const [first, last = first] = part.trim().replace(/^U\+/i, '').split('-')
+    const bounds = part.trim().replace(/^U\+/i, '')
+    const dash = bounds.indexOf('-')
+    const first = dash < 0 ? bounds : bounds.slice(0, dash)
+    const last = dash < 0 ? bounds : bounds.slice(dash + 1)
     return [
       Number.parseInt(first.replaceAll('?', '0'), HEX),
       Number.parseInt(last.replaceAll('?', 'F'), HEX),
@@ -57,7 +72,7 @@ const textOf = (file: EmittedFile) =>
 export function codePointsOf(files: readonly EmittedFile[]): Set<number> {
   const codePoints = new Set<number>()
   for (const file of files) {
-    for (const char of textOf(file)) codePoints.add(char.codePointAt(0) as number)
+    for (const char of textOf(file)) codePoints.add(Number(char.codePointAt(0)))
   }
   return codePoints
 }
@@ -70,7 +85,7 @@ export function unusedFonts(
   const used = new Set<string>()
   const judged = new Set<string>()
   for (const style of styles) {
-    for (const [, face] of textOf(style).matchAll(FONT_FACE)) {
+    for (const [face] of textOf(style).matchAll(FONT_FACE)) {
       const range = UNICODE_RANGE.exec(face)?.[1]
       const isUsed =
         range === undefined ||
@@ -78,7 +93,7 @@ export function unusedFonts(
           [...codePoints].some((codePoint) => codePoint >= first && codePoint <= last),
         )
       const files = isUsed ? used : judged
-      for (const [, , url] of face.matchAll(SOURCE_URL)) {
+      for (const [url] of face.matchAll(SOURCE_URL)) {
         // Resolved against the stylesheet, which maps a relative and a root-relative URL to one file.
         const name = new URL(url, `file:///${style.name}`).pathname.slice(1)
         files.add(name)
@@ -91,7 +106,7 @@ export function unusedFonts(
 /** Picks what the app can use out of the emitted files, keeping their order. */
 export function precacheEntries(files: readonly EmittedFile[], assetsDir: string): PrecacheEntries {
   const unused = unusedFonts(
-    files.filter((file) => file.name.endsWith('.css')),
+    files.filter((file) => STYLE_FILE.test(file.name)),
     codePointsOf(files.filter((file) => TEXT_FILE.test(file.name))),
   )
   const kept = files.filter((file) => !unused.has(file.name))

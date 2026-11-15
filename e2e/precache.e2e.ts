@@ -31,7 +31,7 @@ import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { type Plugin, preview, type PreviewServer } from 'vite'
 
-import { parseUnicodeRange } from '../src/workers/precache-manifest'
+import { parseUnicodeRange } from '../src/sw/precache-manifest'
 import { expect, test } from './fixtures'
 
 let server: PreviewServer | undefined

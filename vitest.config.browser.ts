@@ -68,6 +68,7 @@ export default {
       'src/pages/**',
       'src/layouts/**',
       'src/preview/**',
+      'src/site/**',
       'src/**/*.wasm.test.ts',
       'src/core/codec/wire.test.ts',
       'src/core/codec/wire.contract.test.ts',

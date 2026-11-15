@@ -26,7 +26,7 @@ workers_dev = false
 directory = "./dist"
 
 # The app has one page, /, and a shared puzzle is sent in its query, so a missing file
-# answers public/404.html with a 404 instead of the app with a 200.
+# answers 404.html with a 404 instead of the app with a 200.
 not_found_handling = "404-page"
 
 # A route, not a custom domain. A custom domain owns the DNS record and refuses

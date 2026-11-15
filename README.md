@@ -182,19 +182,21 @@ npm run dev
 
 `npm run dev` compiles the Rust crate in `src/wasudoku-wasm` with wasm-pack first, then starts Vite on <http://localhost:5173>. After a change to the Rust code, `npm run wasm:build:dev` rebuilds the crate.
 
-| Command                | Does                                                                     |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `npm run build`        | release build of the crate, a type check, then the site into `dist/`     |
-| `npm run preview`      | serves `dist/` locally                                                   |
-| `npm run test`         | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
-| `npm run test:browser` | the Vitest suite in real browsers through Playwright                     |
-| `npm run test:e2e`     | Playwright end-to-end tests against the build in `dist/`                 |
-| `npm run parity`       | the parity harness, one build against another                            |
-| `npm run lint`         | ESLint                                                                   |
-| `npm run lint:wasm`    | Clippy, with warnings as errors                                          |
-| `npm run typecheck`    | `tsc -b`                                                                 |
-| `npm run format:check` | Prettier over the whole repository                                       |
-| `npm run audit`        | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
+| Command                 | Does                                                                     |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `npm run build`         | release build of the crate, a type check, then the site into `dist/`     |
+| `npm run preview`       | serves `dist/` locally                                                   |
+| `npm run test`          | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
+| `npm run test:browser`  | the Vitest suite in real browsers through Playwright                     |
+| `npm run test:e2e`      | Playwright end-to-end tests against the build in `dist/`                 |
+| `npm run build:next`    | the Astro interface into `dist-next/`, with its worker and headers       |
+| `npm run test:e2e:next` | Playwright tests of the worker and headers in `dist-next/`               |
+| `npm run parity`        | the parity harness, one build against another                            |
+| `npm run lint`          | ESLint                                                                   |
+| `npm run lint:wasm`     | Clippy, with warnings as errors                                          |
+| `npm run typecheck`     | `tsc -b`                                                                 |
+| `npm run format:check`  | Prettier over the whole repository                                       |
+| `npm run audit`         | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
 
 ### Tests
 
@@ -208,6 +210,18 @@ Either takes `-- --project firefox` to run one project. CI runs both suites, one
 The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in two Web Workers, one for the player's requests and one that refills the puzzle pool in the background.
 
 To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
+
+### Astro build
+
+`npm run build:next` builds the new interface into `dist-next/`, which nothing serves until it replaces `dist/`. After the pages, `src/site/finish.ts` writes three files there. `sw.js` is `src/sw/sw.ts` with a precache list of what `dist-next/` holds. `manifest.json` is `public/manifest.json` with an `id`, shortcuts, screenshots from `src/assets/screenshots` and a `launch_handler`. `_headers` comes from `src/site/headers.ts`.
+
+The policy in `_headers` is reported, not enforced, apart from `frame-ancestors`. The build hashes every inline `<script>` and `<style>` in the pages into it. An inline script added to the layout, such as one that sets the theme before the first paint, gets its hash on the next build without an edit to the policy. `docker/Dockerfile` copies that policy into `nginx.conf` through `scripts/nginx-conf.sh`.
+
+The worker answers `/` from the cache of its own version, query included, and any other path from the network. The browser fetches `sw.js` again on each navigation, and any change to a precached file changes `sw.js`. A deploy then installs a waiting worker in the background. Once the player accepts the update, the page posts `{ type: 'SKIP_WAITING' }` to that worker and reloads on `controllerchange`.
+
+Each shortcut opens `/?new=<difficulty>`, with `easy`, `medium`, `hard`, `expert` or `extreme`. The app is expected to start a new puzzle of that difficulty and drop the query with `history.replaceState`, so a reload does not start another. `launch_handler` sends a shortcut into a window already open, which reloads it there.
+
+`npm run test:e2e:next` runs `e2e/next` against `dist-next/` in Chromium, Firefox and WebKit, through a server that applies `_headers` as the edge does. It checks the headers on every path, a 404 included, that the app and its 404 page break none of the policy, that a style without a hash is reported, the worker install, a reload with the server stopped and the update flow. CI runs it in each browser job after `npm run test:e2e`, from the `dist-next/` the build job uploads.
 
 ### Parity harness
 

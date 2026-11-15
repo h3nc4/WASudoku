@@ -22,7 +22,32 @@
   },
   "appVersionName": "0.3.2",
   "appVersionCode": 1,
-  "shortcuts": [],
+  "shortcuts": [
+    {
+      "name": "New easy puzzle",
+      "shortName": "Easy",
+      "url": "https://wasudoku.h3nc4.com/?new=easy",
+      "chosenIconUrl": "https://wasudoku.h3nc4.com/icon-192.png"
+    },
+    {
+      "name": "New medium puzzle",
+      "shortName": "Medium",
+      "url": "https://wasudoku.h3nc4.com/?new=medium",
+      "chosenIconUrl": "https://wasudoku.h3nc4.com/icon-192.png"
+    },
+    {
+      "name": "New hard puzzle",
+      "shortName": "Hard",
+      "url": "https://wasudoku.h3nc4.com/?new=hard",
+      "chosenIconUrl": "https://wasudoku.h3nc4.com/icon-192.png"
+    },
+    {
+      "name": "New expert puzzle",
+      "shortName": "Expert",
+      "url": "https://wasudoku.h3nc4.com/?new=expert",
+      "chosenIconUrl": "https://wasudoku.h3nc4.com/icon-192.png"
+    }
+  ],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://wasudoku.h3nc4.com/manifest.json",
   "fallbackType": "customtabs",
@@ -41,7 +66,7 @@
   "retainedBundles": [],
   "protocolHandlers": [],
   "fileHandlers": [],
-  "launchHandlerClientMode": "",
+  "launchHandlerClientMode": "navigate-existing",
   "displayOverride": [],
   "appVersion": "0.3.2"
 }

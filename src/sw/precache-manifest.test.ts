@@ -52,7 +52,7 @@ describe('codePointsOf', () => {
 })
 
 describe('unusedFonts', () => {
-  const ascii = new Set([...'Sudoku'].map((char) => char.codePointAt(0) as number))
+  const ascii = new Set(Array.from('Sudoku', (char) => char.codePointAt(0) as number))
 
   it('drops a face whose range holds none of the text', () => {
     const styles = [
@@ -121,5 +121,17 @@ describe('precacheEntries', () => {
   it('keeps a font once the text needs one of its characters', () => {
     const withVietnamese = [...files, { name: 'assets/vi-e.js', content: 'Ồ' }]
     expect(precacheEntries(withVietnamese, 'assets').hashed).toContain('assets/vietnamese-d.woff2')
+  })
+
+  it('reads the faces of a stylesheet a page inlines', () => {
+    const page: EmittedFile = {
+      name: 'index.html',
+      content: `<style>${face('/assets/latin-c.woff2', 'U+??')}${face('/assets/vietnamese-d.woff2', 'U+1EA0-1EF9')}</style>`,
+    }
+    const inlined = [...files.filter((file) => !file.name.endsWith('.css')), page]
+    expect(precacheEntries(inlined, 'assets').hashed).toEqual([
+      'assets/index-a.js',
+      'assets/latin-c.woff2',
+    ])
   })
 })

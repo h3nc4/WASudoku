@@ -21,22 +21,18 @@
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { createHash } from 'crypto'
-import { readFileSync } from 'fs'
+import { copyFileSync, readFileSync } from 'fs'
 import path from 'path'
 import type { Plugin } from 'vite'
 import { configDefaults, defineConfig } from 'vitest/config'
 
-import { precacheEntries } from './src/workers/precache-manifest.ts'
+import { PRECACHED_PUBLIC_FILES, precacheManifest as manifestOf } from './src/site/precache.ts'
 
 const SERVICE_WORKER = 'sw.js'
+const NOT_FOUND_PAGE = '404.html'
 
 // The Astro UI compiles through Astro's own Vite config, so vitest.config.next.ts tests and covers it.
 const ASTRO_SOURCES = ['src/pages/**', 'src/layouts/**', 'src/components-next/**', 'src/preview/**']
-const VERSION_LENGTH = 16
-
-// The rest of public/ is for crawlers, hosts and installers, which never ask the service worker.
-const PRECACHED_PUBLIC_FILES = ['manifest.json', 'favicon.svg']
 
 /** Writes what the app can use into sw.js, with a version that changes whenever any of it does. */
 function precacheManifest(): Plugin {
@@ -71,14 +67,24 @@ function precacheManifest(): Plugin {
               content: readFileSync(path.join(publicDir, name)),
             })),
           )
-          .sort((a, b) => a.name.localeCompare(b.name))
-        const { files: precached, hashed, urls } = precacheEntries(files, assetsDir)
-        const hash = createHash('sha256')
-        for (const file of precached) hash.update(file.name).update(file.content)
-        const version = hash.digest('hex').slice(0, VERSION_LENGTH)
-        const manifest = JSON.stringify({ version, hashed, urls })
+        const manifest = JSON.stringify(manifestOf(files, assetsDir))
         worker.code = worker.code.replaceAll('__PRECACHE_MANIFEST__', manifest)
       },
+    },
+  }
+}
+
+/** Copies the 404 page outside the bundle. Astro skips its own 404 page while public/ holds one. */
+function notFoundPage(): Plugin {
+  let outDir = ''
+  return {
+    name: 'wasudoku:not-found-page',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir)
+    },
+    writeBundle() {
+      copyFileSync(path.resolve(__dirname, NOT_FOUND_PAGE), path.join(outDir, NOT_FOUND_PAGE))
     },
   }
 }
@@ -124,7 +130,7 @@ function previewCachePolicy(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
-  plugins: [react(), tailwindcss(), precacheManifest(), previewCachePolicy()],
+  plugins: [react(), tailwindcss(), precacheManifest(), notFoundPage(), previewCachePolicy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -165,6 +171,7 @@ export default defineConfig({
       exclude: [
         'src/main.tsx',
         'src/workers/sw.ts',
+        'src/sw/sw.ts',
         // Vendored shadcn/ui source, which sonar-project.properties leaves out too, and test helpers.
         'src/components/ui/**',
         'src/wasudoku-wasm/**',

@@ -30,6 +30,7 @@
     "test:next": "vitest run --config vitest.config.next.ts --coverage; s=$?; mv coverage-next/lcov.info coverage-next.lcov; rm -rf coverage-next; exit $s",
     "test:browser": "vitest --config vitest.config.browser.ts",
     "test:e2e": "playwright test",
+    "test:e2e:next": "playwright test --config playwright.next.config.ts",
     "parity": "node parity/main.ts",
     "pretest": "npm run wasm:build:dev",
     "test": "rm -f coverage-*; npm run test:wasm && npm run test:wasm:node && npm run test:ui && npm run test:next",

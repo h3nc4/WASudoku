@@ -24,6 +24,8 @@ const isCI = Boolean(process.env.CI)
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
+  // playwright.next.config.ts runs the suite in e2e/next against dist-next.
+  testIgnore: 'next/**',
   fullyParallel: true,
   forbidOnly: isCI,
   retries: 0,

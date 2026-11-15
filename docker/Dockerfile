@@ -38,11 +38,13 @@ COPY public/ public/
 # Build app for production
 RUN npm run build
 
-# Create root filesystem and compress assets
+# Create root filesystem and compress assets. _headers is for the edge, and nginx.conf takes its policy.
 RUN mkdir -p /rootfs && \
-  mv /app/dist /rootfs/static
+  mv /app/dist /rootfs/static && \
+  mv /rootfs/static/_headers /app/_headers
 
-RUN find /rootfs/static -type f \
+# woff2 and PNG are compressed already, so a copy would only grow the image.
+RUN find /rootfs/static -type f ! -name '*.woff2' ! -name '*.png' \
   -exec gzip -9 -k "{}" \; \
   -exec brotli --best -k "{}" \;
 
@@ -52,16 +54,11 @@ FROM busybox:musl@sha256:80e38f9a1b39188b8bdb28879178edb322a4402b081a9aedda19246
 
 COPY --from=h3nc4/nginx-slim@sha256:0e0ecfb4e3bf8323fbf478ec2d71818755cdc50eaa614a8027245aae57194d70 / /rootfs/
 
-# Copy and minify nginx config
-COPY "nginx.conf" "/rootfs/nginx.conf"
-RUN \
-  # Remove comments and empty lines
-  sed -E '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "/rootfs/nginx.conf" | \
-  # Remove all newlines to produce a single-line config
-  tr -d '\n' | \
-  # Compress consecutive spaces into a single space
-  tr -s ' ' >"/rootfs/nginx.conf.min" && \
-  mv "/rootfs/nginx.conf.min" "/rootfs/nginx.conf"
+# Minify nginx config, with the report-only policy the build wrote for the edge
+COPY "nginx.conf" "/tmp/nginx.conf"
+COPY "scripts/nginx-conf.sh" "/tmp/nginx-conf.sh"
+COPY --from=wasudoku-builder "/app/_headers" "/tmp/_headers"
+RUN sh /tmp/nginx-conf.sh /tmp/nginx.conf /tmp/_headers >"/rootfs/nginx.conf"
 
 ################################################################################
 # Assemble runtime image

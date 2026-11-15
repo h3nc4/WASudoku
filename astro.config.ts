@@ -16,9 +16,15 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import tailwindcss from '@tailwindcss/vite'
 import type { AstroIntegration } from 'astro'
 import { defineConfig } from 'astro/config'
+import { build } from 'vite'
+
+import { finishBuild } from './src/site/finish.ts'
 
 // Underscored pages never route, so only a preview build adds them, into its own directory.
 const isPreview = process.env.PREVIEW === '1'
@@ -36,6 +42,52 @@ const previewPages: AstroIntegration = {
   },
 }
 
+const ASSETS_DIR = 'assets'
+const SERVICE_WORKER = 'sw.js'
+const fromRoot = (file: string) => fileURLToPath(new URL(file, import.meta.url))
+
+/** One classic script, since a worker registered without type: 'module' cannot import. */
+async function bundleWorker(): Promise<string> {
+  const result = await build({
+    configFile: false,
+    logLevel: 'warn',
+    publicDir: false,
+    build: {
+      write: false,
+      target: 'es2022',
+      minify: true,
+      lib: {
+        entry: fromRoot('./src/sw/sw.ts'),
+        formats: ['iife'],
+        name: 'sw',
+        fileName: () => SERVICE_WORKER,
+      },
+    },
+  })
+  const outputs = (Array.isArray(result) ? result : [result]).flatMap((out) =>
+    'output' in out ? out.output : [],
+  )
+  const worker = outputs.find((chunk) => chunk.fileName === SERVICE_WORKER)
+  if (worker?.type !== 'chunk') throw new Error(`the build wrote no ${SERVICE_WORKER}`)
+  return worker.code
+}
+
+// Writes the worker, the extended web manifest and the edge headers once the pages exist.
+const pwa: AstroIntegration = {
+  name: 'wasudoku:pwa',
+  hooks: {
+    'astro:build:done': async ({ dir }) => {
+      await finishBuild({
+        outDir: fileURLToPath(dir),
+        assetsDir: ASSETS_DIR,
+        baseManifest: readFileSync(fromRoot('./public/manifest.json'), 'utf8'),
+        screenshotsDir: fromRoot('./src/assets/screenshots'),
+        bundleWorker,
+      })
+    },
+  },
+}
+
 // The React app keeps src/components and dist until cutover. The new UI builds to dist-next.
 export default defineConfig({
   srcDir: './src',
@@ -43,8 +95,8 @@ export default defineConfig({
   outDir: isPreview ? './dist-preview' : './dist-next',
   output: 'static',
   devToolbar: { enabled: false },
-  integrations: isPreview ? [previewPages] : [],
-  build: { assets: 'assets', inlineStylesheets: 'always' },
+  integrations: isPreview ? [previewPages] : [pwa],
+  build: { assets: ASSETS_DIR, inlineStylesheets: 'always' },
   vite: {
     plugins: [tailwindcss()],
     build: {

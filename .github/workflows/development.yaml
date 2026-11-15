@@ -117,6 +117,7 @@ jobs:
             sh scripts/budget.sh dist
             sh scripts/budget.sh dist-next
             XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
+            XZ_OPT=-9e tar -cJf WASudoku-next.tar.xz -C dist-next .
           "
       - name: Run actions/upload-artifact
         if: always()
@@ -139,6 +140,12 @@ jobs:
         with:
           name: dev-build
           path: WASudoku-dev.tar.xz
+          retention-days: 1
+      - name: Run actions/upload-artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: next-build
+          path: WASudoku-next.tar.xz
           retention-days: 1
       - name: Run actions/upload-artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -219,10 +226,15 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: wasm-pkg-dev
-      - name: Unpack the build and the wasm package
+      - name: Run actions/download-artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: next-build
+      - name: Unpack the builds and the wasm package
         run: |
-          mkdir -p dist
+          mkdir -p dist dist-next
           tar -xJf WASudoku-dev.tar.xz -C dist
+          tar -xJf WASudoku-next.tar.xz -C dist-next
           tar -xf wasm-pkg-dev.tar -C src/wasudoku-wasm
       - name: Install the browser and run the browser and end-to-end tests
         run: |
@@ -233,6 +245,7 @@ jobs:
             status=0
             npm run test:browser -- ${{ matrix.projects }} || status=\$?
             npm run test:e2e -- ${{ matrix.projects }} || status=\$?
+            npm run test:e2e:next -- --project ${{ matrix.engine }} || status=\$?
             exit \${status}
           "
       - name: Run actions/upload-artifact
@@ -240,7 +253,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-report-${{ matrix.engine }}
-          path: playwright-report/
+          path: |
+            playwright-report/
+            playwright-report-next/
           retention-days: 7
 
   sonarqube:

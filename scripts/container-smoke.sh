@@ -48,6 +48,17 @@ expect() {
   echo "ok: $1 answered ${status} ${type}"
 }
 
+# expect_header <path> <header> <value it holds>
+expect_header() {
+  value="$(curl -s -o /dev/null -D - "${base}$1" | tr -d '\r' | grep -i "^$2:" | cut -d ' ' -f 2-)"
+  if [ "${value}" != "$3" ]; then
+    echo "fail: $1 sent $2 '${value}', not '$3'" >&2
+    failures=$((failures + 1))
+    return
+  fi
+  echo "ok: $1 sent $2"
+}
+
 expect / 200 text/html '<div id="root">'
 expect "/?p=${shared_puzzle}" 200 text/html '<div id="root">'
 expect /robots.txt 200 text/plain 'Sitemap:'
@@ -59,5 +70,10 @@ fi
 expect /sitemap.xml 200 application/xml '<urlset'
 expect /no-such-page 404 text/html 'Page not found'
 expect /.well-known/no-such-file.json 404 text/html 'Page not found'
+expect_header / Cache-Control no-cache
+expect_header /sw.js Cache-Control no-cache
+expect_header /no-such-page X-Content-Type-Options nosniff
+expect_header /no-such-page Cross-Origin-Opener-Policy same-origin
+expect_header /no-such-page Cross-Origin-Resource-Policy same-origin
 
 exit "$((failures > 0))"

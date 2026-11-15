@@ -235,7 +235,9 @@ export default [
       'coverage-next',
       'coverage-wasm.xml',
       'playwright-report',
+      'playwright-report-next',
       'test-results',
+      'test-results-next',
     ],
   },
   // Global, since the react plugin's recommended set also lints this file and warns without it.
