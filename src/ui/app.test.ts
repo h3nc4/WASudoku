@@ -26,10 +26,23 @@ import { createToaster } from './toast'
 
 const byId = (id: string) => document.getElementById(id)!
 
+/** The media query and resize observer that createToaster reads, which jsdom lacks. */
+function stubLayout() {
+  vi.stubGlobal('matchMedia', () => Object.assign(new EventTarget(), { matches: false }))
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn()
+      disconnect = vi.fn()
+    },
+  )
+}
+
 describe('mountApp', () => {
   let dispose: () => void = () => undefined
 
   beforeEach(() => {
+    stubLayout()
     mountPage()
   })
 
@@ -39,13 +52,17 @@ describe('mountApp', () => {
   })
 
   function start(test = harness(), href = 'https://w/') {
-    const toaster = createToaster(byId('toasts'), { reducedMotion: () => true })
+    const toaster = createToaster(byId('toasts'))
     const history = { state: null, replaceState: vi.fn() }
-    dispose = mountApp(document, test.store, {
+    const unmount = mountApp(document, test.store, {
       toaster,
       address: { search: new URL(href).search, href },
       history,
     })
+    dispose = () => {
+      unmount()
+      toaster.dispose()
+    }
     return test
   }
 
@@ -113,6 +130,7 @@ describe('startApp', () => {
   })
 
   it('starts the runtime on the page, and a shortcut puzzle from the query', () => {
+    stubLayout()
     mountPage()
     // An engine shares storage between files, and a pooled puzzle would skip the generate.
     localStorage.clear()

@@ -452,9 +452,7 @@
      As in sonner, it is centred below 768px and stretched to the gutters at 600px and under. */
   .toasts {
     position: fixed;
-    inset: auto 0 calc(16px + env(safe-area-inset-bottom));
-    display: grid;
-    gap: 14px;
+    inset: auto 0 max(calc(16px + env(safe-area-inset-bottom)), var(--toast-lift, 0px));
     width: min(356px, calc(100% - 32px));
     margin: 0 auto;
     padding: 0;
@@ -470,6 +468,10 @@
 
   /* Sonner's styled toast, whose unlayered rules beat the React app's utility classes. */
   .toast {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -484,7 +486,13 @@
     pointer-events: auto;
     transition:
       opacity 200ms,
-      translate 200ms;
+      translate 200ms,
+      scale 200ms,
+      height 200ms;
+  }
+
+  .toast > * {
+    transition: opacity 200ms;
   }
 
   @starting-style {
@@ -494,9 +502,33 @@
     }
   }
 
-  .toast[data-leaving] {
+  /* Collapsed, sonner shows the edges of the two toasts behind the front one, 14px apart. */
+  .toasts:not([data-expanded]) .toast[data-behind] {
+    height: var(--front-height);
+    translate: 0 calc(var(--index) * -14px);
+    scale: calc(1 - var(--index) * 0.05);
+  }
+
+  .toasts:not([data-expanded]) .toast[data-behind] > * {
     opacity: 0;
-    translate: 0 8px;
+  }
+
+  .toasts[data-expanded] .toast {
+    translate: 0 calc(-1 * var(--offset));
+  }
+
+  /* Bridges the gap above each spread toast, so the pointer never leaves the stack between two. */
+  .toasts[data-expanded] .toast::after {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: 100%;
+    height: 15px;
+    content: '';
+  }
+
+  .toast:is([data-leaving], [data-buried]) {
+    opacity: 0;
     pointer-events: none;
   }
 
@@ -586,36 +618,5 @@
   :is(.btn, .menu-item) svg:not([class*='size-']) {
     width: 1rem;
     height: 1rem;
-  }
-}
-
-/* Phones stack the steps below the board, so a toast rides up 1px per 1px the panel scrolls in.
-   Unguarded, Firefox 157 ran this on the document timeline and threw the toast 2000px up. */
-@media (width < 48rem) {
-  @supports (animation-timeline: view()) {
-    :root {
-      timeline-scope: --toast-floor;
-    }
-
-    [data-toast-floor] {
-      view-timeline: --toast-floor block;
-    }
-
-    /* Unlayered and more specific than the reduced-motion rule, since this follows the scroll. */
-    .toasts {
-      animation: toast-lift linear both;
-      animation-timeline: --toast-floor;
-      animation-range: cover 4px cover 2004px;
-    }
-
-    dialog .toasts {
-      animation: none;
-    }
-  }
-}
-
-@keyframes toast-lift {
-  to {
-    translate: 0 -2000px;
   }
 }

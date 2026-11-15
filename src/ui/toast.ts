@@ -48,18 +48,24 @@ export interface Toaster {
 }
 
 export interface ToasterOptions {
-  readonly reducedMotion?: () => boolean
+  /** The query for the wide layout, where toasts sit bottom right instead of bottom centre. */
+  readonly wide?: MediaQueryList
 }
 
 /** Sonner's default, which today's toasts use. */
 export const TOAST_DURATION_MS = 4000
-/** The exit transition is 200ms, so this removes a toast whose transitionend never comes. */
-export const TOAST_LEAVE_MS = 400
+/** Sonner unmounts a leaving toast this long after its exit starts, under any motion setting. */
+export const TOAST_UNMOUNT_MS = 200
+/** Sonner draws the newest three of a stack and keeps the rest transparent. */
+export const VISIBLE_TOASTS = 3
+/** Sonner's gap between spread toasts, also the step of a collapsed stack in controls.css. */
+export const TOAST_GAP_PX = 14
+export const WIDE_QUERY = '(min-width: 768px)'
+/** On a phone a toast keeps this far above the top of the steps panel once the panel is in view. */
+export const FLOOR_GAP_PX = 12
+const FLOOR_SELECTOR = '[data-toast-floor]'
 
 const SVG = 'http://www.w3.org/2000/svg'
-
-const prefersReducedMotion = (): boolean =>
-  globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const TONE_ICONS: Readonly<Record<ToastTone, IconName>> = {
   success: 'toast-success',
@@ -92,13 +98,68 @@ function button(doc: Document, className: string, onClick: () => void): HTMLButt
   return element
 }
 
+/** A toast's box with its own content, scaled as the stack draws it, which is what sonner records. */
+function boxHeight(item: HTMLElement): number {
+  const forced = item.style.height
+  item.style.height = 'auto'
+  const { height } = item.getBoundingClientRect()
+  item.style.height = forced
+  return height
+}
+
+/** Pixels of the viewport the steps panel covers from the bottom edge, or 0 while it is hidden. */
+function floorRise(doc: Document): number {
+  const floor = doc.querySelector(FLOOR_SELECTOR)
+  if (!floor || floor.getClientRects().length === 0) return 0
+  return Math.ceil(globalThis.innerHeight - floor.getBoundingClientRect().top)
+}
+
 export function createToaster(host: HTMLElement, options: ToasterOptions = {}): Toaster {
   const doc = host.ownerDocument
-  const reducedMotion = options.reducedMotion ?? prefersReducedMotion
+  const wide = options.wide ?? globalThis.matchMedia(WIDE_QUERY)
   const timers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
+  const unmounts = new WeakMap<Element, ReturnType<typeof setTimeout>>()
   const durations = new WeakMap<Element, number>()
   const controller = new AbortController()
   const { signal } = controller
+  const hold = { pointer: false, focus: false }
+  // Sonner's height record, newest first. Its first entry sizes every toast behind the front one.
+  let heights: { readonly item: Element; readonly height: number }[] = []
+
+  const items = () =>
+    [...host.children].filter((child): child is HTMLElement => child instanceof HTMLElement)
+
+  // Newest first, as sonner orders them. A leaving toast keeps its place until it unmounts.
+  // Spread out, a toast rises by the recorded heights ahead of it in the record, as in sonner.
+  const arrange = () => {
+    const list = items()
+    list.forEach((item, index) => {
+      const at = Math.max(
+        0,
+        heights.findIndex((known) => known.item === item),
+      )
+      const ahead = heights.slice(0, at).reduce((sum, known) => sum + known.height, 0)
+      item.style.setProperty('--index', String(index))
+      item.style.setProperty('--offset', `${String(at * TOAST_GAP_PX + ahead)}px`)
+      item.style.zIndex = String(list.length - index)
+      item.toggleAttribute('data-behind', index > 0)
+      item.toggleAttribute('data-buried', index >= VISIBLE_TOASTS)
+    })
+    host.style.setProperty('--front-height', `${String(heights[0]?.height ?? 0)}px`)
+  }
+
+  const record = (item: HTMLElement) => {
+    const entry = { item, height: boxHeight(item) }
+    heights = heights.some((known) => known.item === item)
+      ? heights.map((known) => (known.item === item ? entry : known))
+      : [entry, ...heights]
+  }
+
+  const place = () => {
+    const rise = wide.matches ? 0 : floorRise(doc)
+    if (rise > 0) host.style.setProperty('--toast-lift', `${String(rise + FLOOR_GAP_PX)}px`)
+    else host.style.removeProperty('--toast-lift')
+  }
 
   const raise = () => {
     // The app opens dialogs only through showModal(), so an open one is the modal.
@@ -115,34 +176,29 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
   }
 
   const remove = (item: HTMLElement) => {
-    if (!('leaving' in item.dataset)) return
+    unmounts.delete(item)
     item.remove()
+    heights = heights.filter((known) => known.item !== item)
+    arrange()
     if (host.childElementCount === 0) host.hidePopover()
   }
 
   const leave = (item: HTMLElement) => {
     stop(item)
     item.dataset['leaving'] = ''
-    if (reducedMotion()) {
-      remove(item)
-      return
-    }
-    item.addEventListener(
-      'transitionend',
-      () => {
+    if (unmounts.has(item)) return
+    unmounts.set(
+      item,
+      setTimeout(() => {
         remove(item)
-      },
-      { once: true },
+      }, TOAST_UNMOUNT_MS),
     )
-    setTimeout(() => {
-      remove(item)
-    }, TOAST_LEAVE_MS)
   }
 
   const start = (item: HTMLElement) => {
     stop(item)
     const duration = durations.get(item)
-    if (!Number.isFinite(duration)) return
+    if (hold.pointer || hold.focus || unmounts.has(item) || !Number.isFinite(duration)) return
     timers.set(
       item,
       setTimeout(() => {
@@ -151,35 +207,62 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
     )
   }
 
+  // A stack under the pointer or holding focus spreads out and pauses every timer, as sonner's does.
+  const holdStack = (reason: keyof typeof hold, on: boolean) => {
+    hold[reason] = on
+    host.toggleAttribute('data-expanded', hold.pointer || hold.focus)
+    for (const item of items()) {
+      if (on) stop(item)
+      else start(item)
+    }
+  }
+  host.addEventListener(
+    'pointerenter',
+    () => {
+      holdStack('pointer', true)
+    },
+    { signal },
+  )
+  host.addEventListener(
+    'pointerleave',
+    () => {
+      holdStack('pointer', false)
+    },
+    { signal },
+  )
+  host.addEventListener(
+    'focusin',
+    () => {
+      holdStack('focus', true)
+    },
+    { signal },
+  )
+  host.addEventListener(
+    'focusout',
+    (event) => {
+      if (event.relatedTarget instanceof Node && host.contains(event.relatedTarget)) return
+      holdStack('focus', false)
+    },
+    { signal },
+  )
+
   const create = (id: string | undefined): HTMLElement => {
     const item = doc.createElement('div')
     item.setAttribute('role', 'status')
     item.setAttribute('aria-atomic', 'true')
     if (id !== undefined) item.dataset['id'] = id
-    // A toast under the pointer or holding focus pauses its timer, which keeps its button on screen.
-    for (const type of ['pointerenter', 'focusin'] as const) {
-      item.addEventListener(type, () => {
-        stop(item)
-      })
-    }
-    for (const type of ['pointerleave', 'focusout'] as const) {
-      item.addEventListener(type, () => {
-        start(item)
-      })
-    }
-    host.append(item)
+    host.prepend(item)
     return item
   }
 
-  const find = (id: string) =>
-    [...host.children].find(
-      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset['id'] === id,
-    )
+  const find = (id: string) => items().find((child) => child.dataset['id'] === id)
 
   const show = (message: string, toast: ToastOptions = {}): HTMLElement => {
     const { id, tone, duration = TOAST_DURATION_MS, action } = toast
     const shown = (id === undefined ? undefined : find(id)) ?? create(id)
     stop(shown)
+    clearTimeout(unmounts.get(shown))
+    unmounts.delete(shown)
     delete shown.dataset['leaving']
     shown.className = 'toast'
     delete shown.dataset['tone']
@@ -212,9 +295,33 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
     shown.replaceChildren(...parts)
     durations.set(shown, duration)
     raise()
+    record(shown)
+    arrange()
+    place()
     start(shown)
     return shown
   }
+
+  // Sonner remounts its list when the layout flips its position. That shows a leaving toast again
+  // until it unmounts, restarts every other timer and records the heights again, oldest first.
+  wide.addEventListener(
+    'change',
+    () => {
+      heights = []
+      for (const item of items()) {
+        delete item.dataset['leaving']
+        start(item)
+        record(item)
+      }
+      arrange()
+      place()
+    },
+    { signal },
+  )
+  const resize = new ResizeObserver(place)
+  resize.observe(doc.body)
+  globalThis.addEventListener('scroll', place, { passive: true, signal })
+  globalThis.addEventListener('resize', place, { signal })
 
   doc.addEventListener(
     'toggle',
@@ -240,7 +347,11 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
     raise,
     dispose: () => {
       controller.abort()
-      for (const child of host.children) stop(child)
+      resize.disconnect()
+      for (const child of host.children) {
+        stop(child)
+        clearTimeout(unmounts.get(child))
+      }
     },
   }
 }

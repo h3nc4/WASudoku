@@ -44,7 +44,7 @@ describe('the bound page in a real engine', () => {
   })
 
   function start(test: Harness = playing()) {
-    const toaster = createToaster(byId('toasts'), { reducedMotion: () => true })
+    const toaster = createToaster(byId('toasts'))
     disposers.push(
       toaster.dispose,
       bindKeyboard(document, test.store),

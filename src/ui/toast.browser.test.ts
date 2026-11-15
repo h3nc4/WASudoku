@@ -24,7 +24,7 @@ import { applyBuiltStyles } from '../test/built-page'
 import { bindDialog } from './dialog'
 import { createToaster, type Toaster } from './toast'
 
-/** The bottom inset of `.toasts` on a phone, which the lift adds the panel's rise to. */
+/** The bottom inset of `.toasts` on a phone, which the lift replaces once the panel rises past it. */
 const TOAST_INSET_PX = 16
 const LIFT_GAP_PX = 12
 const FLOOR_RISE_PX = 300
@@ -34,6 +34,10 @@ const GLYPH_INSET_PX = 13
 const PHONE_HEIGHT_PX = 780
 const WIDE_PX = 768
 const WIDE_INSET_PX = 24
+/** Sonner's collapsed stack: each toast behind sits 14px higher and 5% smaller. */
+const STACK_GAP_PX = 14
+const STACK_SHRINK = 0.05
+const STACK_SCALE = 1 - STACK_SHRINK
 
 function mount() {
   document.body.innerHTML = `
@@ -53,8 +57,13 @@ const frame = () =>
     requestAnimationFrame(() => requestAnimationFrame(resolve))
   })
 
-const settled = (element: Element) =>
-  Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
+// A restyle mid-transition cancels it and rejects its promise, so this waits until none run.
+async function settled(element: Element) {
+  for (let running = element.getAnimations({ subtree: true }); running.length > 0;) {
+    await Promise.allSettled(running.map((animation) => animation.finished))
+    running = element.getAnimations({ subtree: true })
+  }
+}
 
 const hitsCentre = (element: Element) => {
   const box = element.getBoundingClientRect()
@@ -181,8 +190,8 @@ describe('toasts in a real engine', () => {
     dialog.close()
   })
 
-  it('rides above the steps panel as it scrolls in, or stays pinned without scroll timelines', async () => {
-    const { host } = mount()
+  it('rides above the steps panel as it scrolls in, in every engine and inside a modal', async () => {
+    const { host, dialog } = mount()
     toaster = createToaster(host)
     const item = toaster.show('Solver finished.', { duration: Infinity })
     await settled(item)
@@ -192,8 +201,32 @@ describe('toasts in a real engine', () => {
     const floor = document.querySelector('[data-toast-floor]')!
     window.scrollTo(0, floor.getBoundingClientRect().top + scrollY - innerHeight + FLOOR_RISE_PX)
     await frame()
-    const lifts = CSS.supports('animation-timeline: view()')
-    const expected = lifts ? FLOOR_RISE_PX + LIFT_GAP_PX : TOAST_INSET_PX
-    expect(Math.abs(gap() - expected)).toBeLessThanOrEqual(1)
+    expect(Math.abs(gap() - FLOOR_RISE_PX - LIFT_GAP_PX)).toBeLessThanOrEqual(1)
+    dialog.showModal()
+    await expect.poll(() => host.parentElement).toBe(dialog)
+    await frame()
+    expect(Math.abs(gap() - FLOOR_RISE_PX - LIFT_GAP_PX)).toBeLessThanOrEqual(1)
+    dialog.close()
+  })
+
+  it('keeps an earlier toast as an edge behind the newest, and spreads both on hover', async () => {
+    const { host } = mount()
+    // An earlier test clicked a toast, and a pointer resting on the stack spreads it.
+    await userEvent.hover(document.getElementById('page')!)
+    toaster = createToaster(host)
+    const older = toaster.show('Board imported from clipboard.', { tone: 'success' })
+    const newer = toaster.show('Puzzle is valid and has a unique solution.', { tone: 'success' })
+    await settled(host)
+    const front = newer.getBoundingClientRect()
+    const behind = older.getBoundingClientRect()
+    expect(behind.height).toBeCloseTo(front.height * STACK_SCALE, 1)
+    expect(front.top - behind.top).toBeCloseTo(STACK_GAP_PX - (front.height * STACK_SHRINK) / 2, 1)
+    expect(getComputedStyle(older.querySelector('.toast-message')!).opacity).toBe('0')
+    expect(hitsCentre(newer)).toBe(true)
+    await userEvent.hover(newer)
+    await settled(host)
+    expect(older.getBoundingClientRect().bottom).toBeCloseTo(front.top - STACK_GAP_PX, 1)
+    expect(getComputedStyle(older.querySelector('.toast-message')!).opacity).toBe('1')
+    await userEvent.unhover(newer)
   })
 })
