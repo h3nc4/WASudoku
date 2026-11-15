@@ -35,6 +35,7 @@
     "src/test",
     "src/core",
     "src/solver",
+    "src/runtime",
     "src/pages",
     "src/layouts",
     "src/components-next",

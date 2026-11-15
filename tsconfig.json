@@ -11,6 +11,9 @@
       "path": "./tsconfig.solver.json"
     },
     {
+      "path": "./tsconfig.runtime.json"
+    },
+    {
       "path": "./tsconfig.node.json"
     },
     {

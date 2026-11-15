@@ -58,6 +58,13 @@ beforeAll(() => {
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, 'export type T = number\nexport const x = 1\n')
   }
+  const library = join(root, 'node_modules', 'signals-lib')
+  mkdirSync(library, { recursive: true })
+  writeFileSync(
+    join(library, 'package.json'),
+    JSON.stringify({ name: 'signals-lib', main: 'index.js' }),
+  )
+  writeFileSync(join(library, 'index.js'), 'export const x = 1\n')
   writeFileSync(join(root, 'tsconfig.json'), JSON.stringify({ include: ['src'] }))
   eslint = new ESLint({
     cwd: root,
@@ -107,6 +114,8 @@ const cases = [
   ['ui', "import { x } from '../runtime/store'", true],
   ['ui', "import { x } from '../core/game/selectors'", true],
   ['ui', "import { x } from '../core/text/messages'", true],
+  ['ui', "import { x } from 'signals-lib'", false],
+  ['runtime', "import { x } from 'signals-lib'", true],
   ['sw', "import { x } from '../core/game/state'", false],
   ['sw', "import { x } from './precache'", true],
 ]

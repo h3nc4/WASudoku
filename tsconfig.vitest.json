@@ -1,5 +1,6 @@
 {
   "extends": "./tsconfig.app.json",
+  "include": ["src", "e2e/saves.ts"],
   "exclude": ["src/pages", "src/layouts", "src/components-next", "src/preview"],
   "compilerOptions": {
     "composite": true,

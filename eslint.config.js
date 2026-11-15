@@ -134,13 +134,53 @@ export const layerZones = (root) => [
       ],
     },
   },
-  zone(root, 'runtime', ['core', 'solver'], 'The runtime imports only core and solver.'),
+  {
+    ...zone(root, 'runtime', ['core', 'solver'], 'The runtime imports only core and solver.'),
+    ignores: testsOf(['runtime']),
+  },
+  // Its tests also share the fakes in src/test.
+  {
+    ...zone(
+      root,
+      'runtime',
+      ['core', 'solver', 'test'],
+      'Runtime tests import only core, solver and test.',
+    ),
+    files: testsOf(['runtime']),
+  },
   zone(
     root,
     'ui',
     ['runtime', 'core/game/selectors.ts', 'core/text'],
     'The ui imports only runtime, core/game/selectors and core/text, never solver.',
   ),
+  // The ui imports signals from runtime/signals. A swap of the library then touches only the runtime.
+  {
+    files: sourcesOf(['ui']),
+    ignores: testsOf(['ui']),
+    rules: {
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          basePath: root,
+          zones: [
+            {
+              target: './src/ui',
+              from: './src',
+              except: ['./ui', './runtime', './core/game/selectors.ts', './core/text'],
+              message:
+                'The ui imports only runtime, core/game/selectors and core/text, never solver.',
+            },
+            {
+              target: './src/ui',
+              from: './node_modules',
+              message: 'The ui imports no package, and reaches signals through runtime/signals.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   zone(root, 'sw', [], 'The service worker imports nothing outside sw.'),
 ]
 
