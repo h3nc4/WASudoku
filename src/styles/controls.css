@@ -482,6 +482,62 @@
       0 10px 15px -3px rgb(0 0 0 / 0.1),
       0 4px 6px -4px rgb(0 0 0 / 0.1);
     pointer-events: auto;
+    transition:
+      opacity 200ms,
+      translate 200ms;
+  }
+
+  @starting-style {
+    .toast {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+
+  .toast[data-leaving] {
+    opacity: 0;
+    translate: 0 8px;
+    pointer-events: none;
+  }
+
+  .toast-message {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .toast-action {
+    flex-shrink: 0;
+    min-height: 1.5rem;
+    padding: 0 0.5rem;
+    border-radius: 4px;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .toast-close {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 4px;
+    color: var(--muted-foreground);
+  }
+
+  .toast-close:hover {
+    color: var(--foreground);
+  }
+
+  .toast-close svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .toast :is(.toast-action, .toast-close):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   @media (width >= 48rem) {
@@ -504,5 +560,36 @@
   :is(.btn, .menu-item) svg:not([class*='size-']) {
     width: 1rem;
     height: 1rem;
+  }
+}
+
+/* Phones stack the steps below the board, so a toast rides up 1px per 1px the panel scrolls in.
+   Unguarded, Firefox 157 ran this on the document timeline and threw the toast 2000px up. */
+@media (width < 48rem) {
+  @supports (animation-timeline: view()) {
+    :root {
+      timeline-scope: --toast-floor;
+    }
+
+    [data-toast-floor] {
+      view-timeline: --toast-floor block;
+    }
+
+    /* Unlayered and more specific than the reduced-motion rule, since this follows the scroll. */
+    .toasts {
+      animation: toast-lift linear both;
+      animation-timeline: --toast-floor;
+      animation-range: cover 4px cover 2004px;
+    }
+
+    dialog .toasts {
+      animation: none;
+    }
+  }
+}
+
+@keyframes toast-lift {
+  to {
+    translate: 0 -2000px;
   }
 }

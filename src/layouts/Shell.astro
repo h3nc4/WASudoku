@@ -19,6 +19,7 @@
 import fontUrl from '../assets/fonts/recursive-main.woff2?url'
 import Sprite from '../components-next/Sprite.astro'
 import '../styles/app.css'
+import { THEME_SCRIPT } from '../ui/theme'
 
 interface Props {
   theme?: 'light' | 'dark'
@@ -35,6 +36,7 @@ const preview = `${site}wasudoku-preview.png`
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script is:inline set:html={THEME_SCRIPT} />
     <title>WASudoku</title>
     <meta name="description" content={description} />
     <link rel="manifest" href="/manifest.json" />

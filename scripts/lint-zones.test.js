@@ -41,6 +41,7 @@ const MODULES = [
   'ui/grid',
   'sw/precache',
   'lib/legacy',
+  'test/helper',
 ]
 
 const ZONE_RULES = new Set([
@@ -87,9 +88,9 @@ afterAll(() => {
 })
 
 /** The zone rules that report on `source` as written in a file of `layer`. */
-async function zoneFindings(layer, source) {
+async function zoneFindings(layer, source, file = 'probe.ts') {
   const [result] = await eslint.lintText(`${source}\n`, {
-    filePath: join(root, 'src', layer, 'probe.ts'),
+    filePath: join(root, 'src', layer, file),
   })
   const fatal = result.messages.filter((message) => message.fatal)
   expect(fatal).toEqual([])
@@ -116,13 +117,16 @@ const cases = [
   ['ui', "import { x } from '../core/text/messages'", true],
   ['ui', "import { x } from 'signals-lib'", false],
   ['runtime', "import { x } from 'signals-lib'", true],
+  ['ui', "import { x } from '../test/helper'", false],
+  ['ui', "import { x } from '../test/helper'", true, 'probe.test.ts'],
+  ['ui', "import { x } from '../solver/client'", false, 'probe.test.ts'],
   ['sw', "import { x } from '../core/game/state'", false],
   ['sw', "import { x } from './precache'", true],
 ]
 
 describe('layer import zones', () => {
-  it.each(cases)('%s: %s allowed is %s', async (layer, source, allowed) => {
-    const findings = await zoneFindings(layer, source)
+  it.each(cases)('%s: %s allowed is %s', async (layer, source, allowed, file) => {
+    const findings = await zoneFindings(layer, source, file)
     if (allowed) expect(findings).toEqual([])
     else expect(findings).not.toEqual([])
   })

@@ -34,6 +34,7 @@
     "**/*.test.tsx",
     "src/test",
     "src/core",
+    "src/ui",
     "src/solver",
     "src/runtime",
     "src/sw",

@@ -8,6 +8,9 @@
       "path": "./tsconfig.core.json"
     },
     {
+      "path": "./tsconfig.ui.json"
+    },
+    {
       "path": "./tsconfig.solver.json"
     },
     {
@@ -24,6 +27,9 @@
     },
     {
       "path": "./tsconfig.vitest.json"
+    },
+    {
+      "path": "./tsconfig.browser.json"
     },
     {
       "path": "./tsconfig.e2e.json"

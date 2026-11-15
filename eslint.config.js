@@ -148,12 +148,16 @@ export const layerZones = (root) => [
     ),
     files: testsOf(['runtime']),
   },
-  zone(
-    root,
-    'ui',
-    ['runtime', 'core/game/selectors.ts', 'core/text'],
-    'The ui imports only runtime, core/game/selectors and core/text, never solver.',
-  ),
+  // Its tests may also mount the built page through the shared test helpers.
+  {
+    ...zone(
+      root,
+      'ui',
+      ['runtime', 'core/game/selectors.ts', 'core/text', 'test'],
+      'The ui tests import only what the ui does, plus src/test.',
+    ),
+    files: testsOf(['ui']),
+  },
   // The ui imports signals from runtime/signals. A swap of the library then touches only the runtime.
   {
     files: sourcesOf(['ui']),
