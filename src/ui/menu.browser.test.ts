@@ -17,13 +17,17 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { applyBuiltStyles } from '../test/built-page'
 import { bindMenu, MENU_GAP_PX, type MenuHandle } from './menu'
 
 // Placement in WebKit lands 2 to 4px off the other engines, as the native report measured.
 const SLACK_PX = 6
+/** A button this far down fits its menu only above in the short frame, and also below in the tall one. */
+const LOW_BUTTON_PX = 300
+const SHORT_FRAME_PX = 480
+const TALL_FRAME_PX = 900
 
 function mount(anchored?: boolean) {
   document.body.innerHTML = `
@@ -150,6 +154,31 @@ describe('the menu button in a real engine', () => {
     const box = view.byId('share-menu').getBoundingClientRect()
     const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
     expect(view.byId('share-menu').contains(hit)).toBe(true)
+  })
+
+  it('tries below again when the window grows past the flip', async () => {
+    const view = mount()
+    handles = view.handles
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const opener = view.byId('new-button')
+    const menu = view.byId('new-menu')
+    opener.parentElement!.style.cssText = `position:fixed;top:${String(LOW_BUTTON_PX)}px;left:120px`
+    try {
+      await page.viewport(width, SHORT_FRAME_PX)
+      await userEvent.click(opener)
+      await expect.poll(focused).toBe(view.items('new-menu')[0])
+      await settled(menu)
+      expect(menu.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        opener.getBoundingClientRect().top,
+      )
+      await page.viewport(width, TALL_FRAME_PX)
+      await expect
+        .poll(() => menu.getBoundingClientRect().top)
+        .toBeGreaterThanOrEqual(opener.getBoundingClientRect().bottom)
+    } finally {
+      await page.viewport(width, height)
+    }
   })
 
   it.each([

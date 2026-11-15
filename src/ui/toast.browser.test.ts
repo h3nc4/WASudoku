@@ -42,7 +42,7 @@ function mount() {
     </dialog>
     <div id="page" style="height:1200px"></div>
     <div data-toast-floor style="height:800px"></div>
-    <ol id="toasts" class="toasts" popover="manual" aria-live="polite" aria-label="Notifications"></ol>`
+    <section id="toasts" class="toasts" popover="manual" aria-live="polite" aria-label="Notifications"></section>`
   const host = document.getElementById('toasts')!
   const dialog = document.querySelector('dialog')!
   return { host, dialog }

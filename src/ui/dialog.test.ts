@@ -203,6 +203,30 @@ describe('bindDialog', () => {
     expect(close).not.toHaveBeenCalled()
   })
 
+  it('takes focus back when the page sends it nowhere while open', async () => {
+    const { dialog, close } = mount('<svg id="mark"></svg>')
+    const handle = bindDialog(dialog)
+    const cancel = document.getElementById('cancel')!
+    const opener = document.getElementById('opener')!
+    handle.open()
+    cancel.focus()
+    cancel.blur()
+    await Promise.resolve()
+    expect(cancel).toHaveFocus()
+    opener.focus()
+    await Promise.resolve()
+    expect(opener).toHaveFocus()
+    document.getElementById('mark')!.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    opener.blur()
+    await Promise.resolve()
+    expect(document.body).toHaveFocus()
+    handle.close()
+    expect(close).toHaveBeenCalledOnce()
+    cancel.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    await Promise.resolve()
+    expect(document.body).toHaveFocus()
+  })
+
   it('stops listening once disposed', () => {
     const { dialog } = mount()
     const onClose = vi.fn()

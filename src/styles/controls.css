@@ -448,7 +448,7 @@
     color: var(--muted-foreground);
   }
 
-  /* Toasts: a polite live list in a manual popover, pinned above the bottom edge.
+  /* Toasts: a polite live region in a manual popover, pinned above the bottom edge.
      As in sonner, it is centred below 768px and stretched to the gutters at 600px and under. */
   .toasts {
     position: fixed;
@@ -461,7 +461,6 @@
     overflow: visible;
     border: 0;
     background: none;
-    list-style: none;
     pointer-events: none;
   }
 

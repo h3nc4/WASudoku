@@ -25,7 +25,7 @@ import { createToaster, TOAST_DURATION_MS, TOAST_LEAVE_MS } from './toast'
 function mount() {
   document.body.innerHTML = `
     <dialog id="d"><button>inside</button></dialog>
-    <ol id="toasts" aria-live="polite"></ol>`
+    <section id="toasts" aria-live="polite"></section>`
   const host = document.getElementById('toasts')!
   const dialog = document.querySelector('dialog')!
   const state = { open: false }
@@ -40,7 +40,7 @@ function mount() {
   return { host, dialog, state, show, hide }
 }
 
-const items = (host: HTMLElement) => [...host.querySelectorAll('li')]
+const items = (host: HTMLElement) => [...host.querySelectorAll('.toast')]
 
 describe('createToaster', () => {
   beforeEach(() => {
@@ -60,6 +60,8 @@ describe('createToaster', () => {
     expect(item).toHaveTextContent('Board cleared.')
     expect(item).not.toHaveAttribute('data-tone')
     expect(item.querySelector('.toast-icon')).toBeNull()
+    expect(item).toHaveAttribute('role', 'status')
+    expect(item).toHaveAttribute('aria-atomic', 'true')
     expect(item.querySelector('button')).toBeNull()
     expect(state.open).toBe(true)
     vi.advanceTimersByTime(TOAST_DURATION_MS - 1)

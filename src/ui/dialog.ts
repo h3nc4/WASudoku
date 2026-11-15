@@ -17,7 +17,7 @@
  */
 
 // showModal() gives the top layer, the inert page, Esc and focus return. CSS locks the scroll
-// through `html:has(dialog:modal)`. This adds the wrapped Tab, old-engine light dismiss and the result.
+// through `html:has(dialog:modal)`. This adds wrapped Tab, kept focus, old-engine light dismiss and the result.
 
 /** The result of a dialog closed by Esc or by a click outside it, which set an empty return value. */
 export const DISMISSED = 'cancel'
@@ -85,6 +85,19 @@ export function bindDialog(dialog: HTMLDialogElement, options: DialogOptions = {
       if (next === null) return
       event.preventDefault()
       stops[next]?.focus()
+    },
+    { signal },
+  )
+
+  // Focus sent to the page itself, as the scroll to a #fragment after load does, goes back inside.
+  dialog.addEventListener(
+    'focusout',
+    (event) => {
+      const { target } = event
+      if (event.relatedTarget !== null || !(target instanceof HTMLElement)) return
+      queueMicrotask(() => {
+        if (dialog.open && doc.activeElement === doc.body) target.focus()
+      })
     },
     { signal },
   )

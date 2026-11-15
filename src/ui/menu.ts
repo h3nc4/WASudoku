@@ -16,8 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// An APG menu button over a native auto popover, which already gives the top layer, Esc,
-// light dismiss and focus return. This adds the keys, the expanded state and old-engine placement.
+// An APG menu button over a native auto popover, which already gives the top layer, Esc and
+// light dismiss. This adds the keys, the expanded state, focus return and old-engine placement.
 
 const ITEM = '[role="menuitem"]:not([aria-disabled="true"]):not(:disabled)'
 /** Matches the 4px top margin of `.menu`. */
@@ -41,6 +41,10 @@ export interface Size {
 export type Align = 'start' | 'center' | 'end'
 
 const HALF = 2
+
+const TRY_FALLBACKS = 'position-try-fallbacks'
+/** The `.menu` fallback in controls.css, listed twice so it differs from that value and acts the same. */
+const REFIT_FALLBACKS = 'flip-block, flip-block'
 
 const ALIGNED: Readonly<Record<Align, (anchor: Box, width: number) => number>> = {
   start: (anchor) => anchor.left,
@@ -128,6 +132,13 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
     if (open) menu.hidePopover()
   }
 
+  // Native focus return skips a button that took no focus on press, as the controls keep the cell.
+  const closeToInvoker = () => {
+    if (!open) return
+    invoker.focus()
+    menu.hidePopover()
+  }
+
   const place = () => {
     const { clientWidth, clientHeight } = doc.documentElement
     // The layout size, since the entry transition scales the box getBoundingClientRect reads.
@@ -140,10 +151,20 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
     menu.style.setProperty('inset', 'auto')
     menu.style.setProperty('margin', '0')
     menu.style.setProperty('position-area', 'none')
-    menu.style.setProperty('position-try-fallbacks', 'none')
+    menu.style.setProperty(TRY_FALLBACKS, 'none')
     menu.style.setProperty('top', `${String(spot.top)}px`)
     menu.style.setProperty('left', `${String(spot.left)}px`)
     menu.style.removeProperty('visibility')
+  }
+
+  // CSS keeps the last fallback that fit until it overflows, so a menu flipped above stays there
+  // when the window grows. Each resize swaps between two spellings of the flip, and either resets it.
+  const refit = () => {
+    if (menu.style.getPropertyValue(TRY_FALLBACKS) === '') {
+      menu.style.setProperty(TRY_FALLBACKS, REFIT_FALLBACKS)
+    } else {
+      menu.style.removeProperty(TRY_FALLBACKS)
+    }
   }
 
   const unplace = () => {
@@ -168,7 +189,8 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
       open = event.newState === 'open'
       invoker.setAttribute('aria-expanded', String(open))
       if (!open) {
-        if (!anchored) unplace()
+        if (anchored) menu.style.removeProperty(TRY_FALLBACKS)
+        else unplace()
         return
       }
       if (!anchored) place()
@@ -176,6 +198,14 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
       const first = openAtEnd ? list.at(-1) : list[0]
       openAtEnd = false
       first?.focus()
+    },
+    { signal },
+  )
+
+  globalThis.addEventListener(
+    'resize',
+    () => {
+      if (open && anchored) refit()
     },
     { signal },
   )
@@ -200,8 +230,7 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
       }
       if (event.key === 'Escape') {
         event.preventDefault()
-        close()
-        invoker.focus()
+        closeToInvoker()
         return
       }
       const list = items()
@@ -222,7 +251,7 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
   menu.addEventListener(
     'click',
     (event) => {
-      if (event.target instanceof Element && event.target.closest(ITEM)) close()
+      if (event.target instanceof Element && event.target.closest(ITEM)) closeToInvoker()
     },
     { signal },
   )

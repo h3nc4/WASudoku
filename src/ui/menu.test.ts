@@ -201,8 +201,8 @@ describe('bindMenu', () => {
     expect(invoker).toHaveFocus()
   })
 
-  it('closes once an enabled item is chosen', () => {
-    const { menu, items, show, hide } = mount()
+  it('closes once an enabled item is chosen, with focus back on its button', () => {
+    const { menu, invoker, items, show, hide } = mount()
     bindMenu(menu, { anchored: true })
     show()
     items[1].click()
@@ -210,6 +210,7 @@ describe('bindMenu', () => {
     expect(hide).not.toHaveBeenCalled()
     items[2].click()
     expect(hide).toHaveBeenCalledTimes(1)
+    expect(invoker).toHaveFocus()
   })
 
   it('places itself from script without anchor positioning, and clears that on close', () => {
@@ -268,8 +269,33 @@ describe('bindMenu', () => {
   })
 
   it('does nothing on close while shut', () => {
-    const { menu, hide } = mount()
+    const { menu, items, hide } = mount()
     bindMenu(menu, { anchored: true }).close()
+    items[0].click()
     expect(hide).not.toHaveBeenCalled()
+  })
+
+  it('swaps its fallback spelling on each resize while open, and drops it on close', () => {
+    const { menu, show, hide } = mount()
+    bindMenu(menu, { anchored: true })
+    const fallbacks = () => menu.style.getPropertyValue('position-try-fallbacks')
+    window.dispatchEvent(new Event('resize'))
+    expect(fallbacks()).toBe('')
+    show()
+    window.dispatchEvent(new Event('resize'))
+    expect(fallbacks()).toBe('flip-block, flip-block')
+    window.dispatchEvent(new Event('resize'))
+    expect(fallbacks()).toBe('')
+    window.dispatchEvent(new Event('resize'))
+    hide()
+    expect(fallbacks()).toBe('')
+  })
+
+  it('leaves a menu placed from script alone on resize', () => {
+    const { menu, show } = mount()
+    bindMenu(menu, { anchored: false })
+    show()
+    window.dispatchEvent(new Event('resize'))
+    expect(menu.style.getPropertyValue('position-try-fallbacks')).toBe('none')
   })
 })

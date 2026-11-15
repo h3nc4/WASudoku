@@ -235,8 +235,10 @@ describe('preview states', () => {
     )
   })
 
-  it('lists a toast in the region', async () => {
+  it('shows a toast in the region as a status', async () => {
     const doc = await preview('toast')
-    expect(doc.querySelector('#toasts > li.toast')?.textContent).toBe('Board cleared.')
+    const toast = doc.querySelector('#toasts > .toast')
+    expect(toast?.textContent.trim()).toBe('Board cleared.')
+    expect(toast).toHaveAttribute('role', 'status')
   })
 })

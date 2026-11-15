@@ -23,7 +23,13 @@ interface Props {
 const { toasts = [] } = Astro.props
 ---
 
-{/* A manual popover, so a toast never light-dismisses and the region stays a polite live list. */}
-<ol id="toasts" class="toasts" popover="manual" aria-live="polite" aria-label="Notifications">
-  {toasts.map((message) => <li class="toast">{message}</li>)}
-</ol>
+{/* A manual popover, so a toast never light-dismisses. Each toast is a status, as today's are. */}
+<section id="toasts" class="toasts" popover="manual" aria-live="polite" aria-label="Notifications">
+  {
+    toasts.map((message) => (
+      <div class="toast" role="status" aria-atomic="true">
+        {message}
+      </div>
+    ))
+  }
+</section>

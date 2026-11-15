@@ -19,8 +19,8 @@
 import { iconHref, type IconName } from '../components-next/icons'
 import { TOAST_ACTIONS } from '../core/text/messages'
 
-// A polite live list in a manual popover, which puts it in the top layer without light dismiss.
-// Content outside an open modal is inert even there, and the list moves into the open dialog.
+// A polite live region of status toasts in a manual popover, in the top layer without light dismiss.
+// Content outside an open modal is inert even there, and the region moves into the open dialog.
 
 export type ToastTone = 'success' | 'error' | 'info'
 
@@ -40,9 +40,9 @@ export interface ToastOptions {
 }
 
 export interface Toaster {
-  readonly show: (message: string, options?: ToastOptions) => HTMLLIElement
+  readonly show: (message: string, options?: ToastOptions) => HTMLElement
   readonly dismiss: (id: string) => void
-  /** Moves the list into the open modal dialog, or back to the body, and on top of the layer. */
+  /** Moves the region into the open modal dialog, or back to the body, and on top of the layer. */
   readonly raise: () => void
   readonly dispose: () => void
 }
@@ -151,8 +151,10 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
     )
   }
 
-  const create = (id: string | undefined): HTMLLIElement => {
-    const item = doc.createElement('li')
+  const create = (id: string | undefined): HTMLElement => {
+    const item = doc.createElement('div')
+    item.setAttribute('role', 'status')
+    item.setAttribute('aria-atomic', 'true')
     if (id !== undefined) item.dataset['id'] = id
     // A toast under the pointer or holding focus pauses its timer, which keeps its button on screen.
     for (const type of ['pointerenter', 'focusin'] as const) {
@@ -171,11 +173,10 @@ export function createToaster(host: HTMLElement, options: ToasterOptions = {}): 
 
   const find = (id: string) =>
     [...host.children].find(
-      (child): child is HTMLLIElement =>
-        child instanceof HTMLLIElement && child.dataset['id'] === id,
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset['id'] === id,
     )
 
-  const show = (message: string, toast: ToastOptions = {}): HTMLLIElement => {
+  const show = (message: string, toast: ToastOptions = {}): HTMLElement => {
     const { id, tone, duration = TOAST_DURATION_MS, action } = toast
     const shown = (id === undefined ? undefined : find(id)) ?? create(id)
     stop(shown)
