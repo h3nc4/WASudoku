@@ -23,7 +23,7 @@ import {
   centerSize,
   cornerSlots,
   isCrossed,
-} from '../components-next/view'
+} from '../components/view'
 import { type CellView as GameCell, digitsOf } from '../core/game/selectors'
 
 // Maps the game's cell to the markup's, and writes one cell node as Board.astro first drew it.
@@ -120,7 +120,7 @@ export function cellContent(doc: Document, cell: CellView): Node[] {
     return isCrossed(cell) ? [cross(doc), digit] : [digit]
   }
   // A hidden break before each note splits the digits for name checks, as the label spells them.
-  // It adds no text, so the face reads as today's app does.
+  // It adds no text, so the face reads as the React app's did.
   const notes = span(doc, 'n', '')
   notes.setAttribute('aria-hidden', 'true')
   const center = cell.center ?? []

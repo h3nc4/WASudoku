@@ -16,8 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { rowClass } from '../components-next/controls'
-import { endRow, stepTag, type StepTone, stepTone, type TraceRow } from '../components-next/view'
+import { rowClass } from '../components/controls'
+import { endRow, stepTag, type StepTone, stepTone, type TraceRow } from '../components/view'
 import { selectWalkthrough, type Step, type WalkthroughView } from '../core/game/selectors'
 import { explainPosition, solvedInText, traceText } from '../core/text/techniques'
 import { watch } from '../runtime/signals'

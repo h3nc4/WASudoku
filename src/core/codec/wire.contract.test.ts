@@ -22,7 +22,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { initSync, solve_sudoku, validate_puzzle } from 'wasudoku-wasm'
 
 import { bindWire, type WireModule } from './abi'
 import {
@@ -36,11 +35,11 @@ import {
   encodeSolve,
   encodeValidate,
 } from './wire'
-import type { Decoded, Step } from './wire.types'
+import type { Decoded } from './wire.types'
 import { DIFFICULTIES } from './wire.types'
 
 // Runs the built crate, so this suite needs `npm run wasm:build:dev` first, as `npm run test` does.
-const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm_bg.wasm')
+const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm.wasm')
 const GOLDEN = resolve('src/wasudoku-wasm/tests/golden/wire.txt')
 
 const PUZZLE = '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79'
@@ -63,32 +62,57 @@ function ok<T>(decoded: Decoded<T>): T {
   return decoded.result
 }
 
-interface LegacySolve {
-  steps: Step[]
-  solution: string
+/** The raw exports these tests call past the binding. */
+interface RawExports {
+  readonly memory: WebAssembly.Memory
+  readonly wire_input: () => number
+  readonly wire_output: () => number
+  readonly wire_generate: (difficulty: number, seedLow: number, seedHigh: number) => number
 }
+
+const golden = new Map(
+  readFileSync(GOLDEN, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => line.split(' ') as [string, string]),
+)
+const hex = (bytes: Uint8Array) =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 
 describe('wire exports of the real wasm', () => {
   let wire: WireModule
-  let raw: ReturnType<typeof initSync>
+  let raw: RawExports
 
   beforeAll(() => {
-    raw = initSync({ module: readFileSync(WASM_PATH) })
+    const module = new WebAssembly.Module(readFileSync(WASM_PATH))
+    raw = new WebAssembly.Instance(module, {}).exports as unknown as RawExports
     wire = bindWire(raw)!
   })
 
   const solve = (text: string) => wire.solve(cellsOf(text))
 
   describe('solve', () => {
-    it.each([PUZZLE, NEARLY_EMPTY, W_WING, STALLS_LOGIC])(
-      'returns the steps and solution the legacy export returns for %s',
+    it.each([
+      ['solve', PUZZLE],
+      ['solve-w-wing', W_WING],
+    ])('answers the %s case of the golden file the Rust tests write', (name, text) => {
+      const bytes = solve(text)
+      expect(hex(bytes)).toBe(golden.get(name))
+      expect(encodeSolve(ok(decodeSolve(bytes)))).toEqual(bytes)
+    })
+
+    it.each([NEARLY_EMPTY, STALLS_LOGIC])(
+      'finishes %s on a full grid that keeps its givens',
       (text) => {
         const bytes = solve(text)
         const result = ok(decodeSolve(bytes))
-        const legacy = solve_sudoku(text) as LegacySolve
         if (result.kind !== 'solved') throw new Error(result.kind)
-        expect(textOf(result.solution)).toBe(legacy.solution)
-        expect(result.steps).toEqual(legacy.steps)
+        expect(textOf(result.solution)).toMatch(/^[1-9]{81}$/)
+        Array.from(cellsOf(text)).forEach((digit, i) => {
+          if (digit !== 0) expect(result.solution[i]).toBe(digit)
+        })
+        const validated = ok(decodeValidate(wire.validate(result.solution)))
+        expect(validated).toEqual({ kind: 'unique', solution: result.solution })
         expect(encodeSolve(result)).toEqual(bytes)
       },
     )
@@ -133,12 +157,9 @@ describe('wire exports of the real wasm', () => {
       expect(validate(CONFLICTING)).toEqual({ kind: 'conflict', cells: [0, 1] })
     })
 
-    it('agrees with the legacy export', () => {
+    it('encodes what it decodes', () => {
       for (const text of [PUZZLE, NORVIG, NEARLY_EMPTY, STALLS_LOGIC]) {
-        const result = validate(text)
-        const legacy = validate_puzzle(text)
-        expect(result.kind === 'unique' ? textOf(result.solution) : undefined).toBe(legacy)
-        expect(encodeValidate(result)).toEqual(wire.validate(cellsOf(text)))
+        expect(encodeValidate(validate(text))).toEqual(wire.validate(cellsOf(text)))
       }
     })
   })
@@ -170,15 +191,6 @@ describe('wire exports of the real wasm', () => {
   })
 
   describe('generate', () => {
-    const golden = new Map(
-      readFileSync(GOLDEN, 'utf8')
-        .trim()
-        .split('\n')
-        .map((line) => line.split(' ') as [string, string]),
-    )
-    const hex = (bytes: Uint8Array) =>
-      Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-
     it.each(DIFFICULTIES)(
       'gives the seeded %s puzzle of the golden file',
       (difficulty) => {

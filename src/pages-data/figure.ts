@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { boardRows, type CellView, type DrawnCell } from '../components-next/view'
+import { boardRows, type CellView, type DrawnCell } from '../components/view'
 
 // Assistive technology skips the figure. Its cells drop the focus, the id and the name.
 const LIVE_ONLY = new Set(['id', 'tabindex', 'aria-label', 'aria-selected'])

@@ -23,7 +23,7 @@ import { playwright } from '@vitest/browser-playwright'
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config'
 import type { BrowserCommand } from 'vitest/node'
 
-import viteConfig from './vite.config'
+import { ASTRO_SOURCES, unit } from './vitest.config'
 
 type BrowserType = 'chromium' | 'firefox' | 'webkit'
 
@@ -69,10 +69,11 @@ const axe: BrowserCommand<[]> = async ({ page, frame }) => {
 }
 
 const merged = mergeConfig(
-  viteConfig,
+  unit,
   defineConfig({
     test: {
-      // The built page comes from vite.config.ts's global setup, which this merges in.
+      name: 'browser',
+      // The built page comes from the unit project's global setup, which this merges in.
       browser: {
         enabled: true,
         commands: { axe },
@@ -93,19 +94,14 @@ export default {
     // through its container API, none of which a page can do
     exclude: [
       ...configDefaults.exclude,
-      'src/components-next/**',
-      'src/pages/**',
-      'src/layouts/**',
-      'src/preview/**',
-      'src/pages-data/**',
+      ...ASTRO_SOURCES,
       'src/site/**',
       'src/**/*.wasm.test.ts',
       'src/core/codec/wire.test.ts',
       'src/core/codec/wire.contract.test.ts',
       'src/core/codec/share.compat.test.ts',
-      'src/core/text/techniques.compat.test.ts',
+      'src/core/codec/storage.golden.test.ts',
       'scripts/**',
-      'parity/**',
     ],
   },
 }

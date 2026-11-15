@@ -92,11 +92,10 @@ const pwa: AstroIntegration = {
   },
 }
 
-// The React app keeps src/components and dist until cutover. The new UI builds to dist-next.
 export default defineConfig({
   srcDir: './src',
   publicDir: './public',
-  outDir: isPreview ? './dist-preview' : './dist-next',
+  outDir: isPreview ? './dist-preview' : './dist',
   output: 'static',
   devToolbar: { enabled: false },
   integrations: isPreview ? [previewPages] : [pwa],

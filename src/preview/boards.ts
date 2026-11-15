@@ -17,7 +17,7 @@
  */
 
 /** Boards captured from the React build in each preview state, one cell a line. */
-import type { CellView, TraceRow } from '../components-next/view'
+import type { CellView, TraceRow } from '../components/view'
 
 export const PLAYING: readonly CellView[] = [
   { value: 5, given: true, peer: true },

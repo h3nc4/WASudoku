@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { iconHref } from '../components-next/icons'
+import { iconHref } from '../components/icons'
 import {
   type Controls,
   INPUT_MODES,

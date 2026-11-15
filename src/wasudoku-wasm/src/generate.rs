@@ -23,7 +23,6 @@ use crate::solver;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
-use std::str::FromStr;
 
 /// Represents the target difficulty of the generated puzzle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,26 +47,6 @@ impl Difficulty {
     /// The difficulty a wire code stands for, the reverse of `self as u8`.
     pub fn from_code(code: u8) -> Option<Self> {
         Self::ALL.get(usize::from(code)).copied()
-    }
-}
-
-/// Parse the lower-case name the frontend sends, such as `"easy"`.
-///
-/// ### Errors
-///
-/// Returns an `Err` for any other string.
-impl FromStr for Difficulty {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "easy" => Ok(Self::Easy),
-            "medium" => Ok(Self::Medium),
-            "hard" => Ok(Self::Hard),
-            "expert" => Ok(Self::Expert),
-            "extreme" => Ok(Self::Extreme),
-            _ => Err("Invalid difficulty level.".to_string()),
-        }
     }
 }
 
@@ -210,18 +189,12 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
     }
 }
 
-/// Generates a puzzle of a specific difficulty, returned as `(puzzle, solution)`.
-#[cfg(feature = "legacy")]
-pub fn generate(difficulty: Difficulty) -> (Board, Board) {
-    generate_with_rng(difficulty, &mut rand::rng())
-}
-
-/// Same as [`generate`], but reproducible: one seed always yields the same pair.
+/// A puzzle of `difficulty` and its solution, as `(puzzle, solution)`. One seed always yields the same pair.
 pub fn generate_with_seed(difficulty: Difficulty, seed: u64) -> (Board, Board) {
     generate_with_rng(difficulty, &mut StdRng::seed_from_u64(seed))
 }
 
-/// Same as [`generate`], drawing every random choice from `rng`.
+/// Same as [`generate_with_seed`], drawing every random choice from `rng`.
 pub fn generate_with_rng<R: Rng + ?Sized>(difficulty: Difficulty, rng: &mut R) -> (Board, Board) {
     // For Easy puzzles, we stop minimizing around 32-36 clues to keep it approachable.
     // Standard min is 17, typical easy is 36+.

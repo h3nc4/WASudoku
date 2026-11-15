@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { LAYOUT_CLASSES, SELECTING_CLASSES } from '../components-next/controls'
+import { LAYOUT_CLASSES, SELECTING_CLASSES } from '../components/controls'
 import { type Mode, selectMode } from '../core/game/selectors'
 import { watch } from '../runtime/signals'
 import type { Store } from '../runtime/store'

@@ -19,11 +19,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import config from '../vite.config.ts'
+import config from '../vitest.config.ts'
 
 const FULL = { lines: 100, branches: 100, functions: 100, statements: 100 }
 
-describe('test:ui coverage', () => {
+describe('test:unit coverage', () => {
   it('fails below full coverage of every metric', () => {
     expect(config.test.coverage.thresholds).toEqual(FULL)
   })

@@ -59,8 +59,8 @@ expect_header() {
   echo "ok: $1 sent $2"
 }
 
-expect / 200 text/html '<div id="root">'
-expect "/?p=${shared_puzzle}" 200 text/html '<div id="root">'
+expect / 200 text/html '<div role="grid" id="board"'
+expect "/?p=${shared_puzzle}" 200 text/html '<div role="grid" id="board"'
 expect /robots.txt 200 text/plain 'Sitemap:'
 # The SPA fallback used to answer with index.html, which the edge then appended to its managed block.
 if grep -qF '<' "${body}"; then

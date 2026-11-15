@@ -25,7 +25,7 @@ export interface Grammar {
   readonly plural: (count: number) => Intl.LDMLPluralRule
 }
 
-// Intl.ListFormat in English adds a serial comma, "1, 2, and 3", which today's text never had.
+// Intl.ListFormat in English adds a serial comma, "1, 2, and 3", which the React app's text never had.
 const joinWords = (items: readonly string[], word: string): string => {
   const last = items.at(-1)
   return items.length <= 1 || last === undefined

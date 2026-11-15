@@ -8,26 +8,8 @@ license = "AGPL-3.0-or-later"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = ["legacy", "console_error_panic_hook"]
-# The string and serde exports the app calls until cutover, which deletes this feature and its dependencies.
-legacy = ["dep:wasm-bindgen", "dep:serde", "dep:serde-wasm-bindgen", "dep:getrandom", "rand/thread_rng"]
-
 [dependencies]
-wasm-bindgen = { version = "0.2.104", optional = true }
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde-wasm-bindgen = { version = "0.6", optional = true }
 rand = { version = "0.10", default-features = false, features = ["std", "std_rng"] }
-getrandom = { version = "0.4", features = ["wasm_js"], optional = true }
-
-# The `console_error_panic_hook` crate provides better debugging of panics by
-# logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
-# code size when deploying.
-console_error_panic_hook = { version = "0.1.7", optional = true }
-
-[dev-dependencies]
-wasm-bindgen-test = "=0.3.80"
 
 #
 # Build Profiles
@@ -49,21 +31,9 @@ opt-level = 3
 
 [profile.release]
 # Release profile: optimized for a balance of speed and small binary size.
-# `wasm-pack build --release` uses this profile.
+# `scripts/wasm-build.sh release` uses this profile.
 opt-level = 3       # Optimize for speed.
 lto = true          # Enable Link-Time Optimization for better whole-program optimization.
 codegen-units = 1   # Maximize optimization opportunities at the cost of compile time.
 panic = "abort"     # Abort on panic, which removes unwinding code and reduces binary size.
 strip = true        # Strip debug symbols from the final binary.
-
-#
-# wasm-pack metadata
-#
-# This section configures the behavior of wasm-pack, including the
-# arguments passed to the wasm-opt tool.
-#
-[package.metadata.wasm-pack.profile.release]
-# We pass the `--enable-bulk-memory` flag to wasm-opt.
-# This is necessary because modern Rust compilers emit bulk memory operations
-# by default, and wasm-opt needs to be explicitly told to handle them.
-wasm-opt = ["--enable-bulk-memory", "-O"]

@@ -31,24 +31,12 @@ const ALL_DIFFICULTIES: [Difficulty; 5] = [
     Difficulty::Extreme,
 ];
 
-#[test]
-fn test_difficulty_parses_each_frontend_name() {
-    let names = ["easy", "medium", "hard", "expert", "extreme"];
-    let parsed: Vec<Difficulty> = names.iter().map(|n| n.parse().unwrap()).collect();
-    assert_eq!(parsed, ALL_DIFFICULTIES);
-}
-
-#[test]
-fn test_difficulty_rejects_unknown_name() {
-    assert_eq!(
-        "Easy".parse::<Difficulty>(),
-        Err("Invalid difficulty level.".to_string())
-    );
-}
+/// Any seed, so a failure always replays.
+const SEED: u64 = 7;
 
 #[test]
 fn test_generate_creates_valid_puzzle() {
-    let (puzzle, _) = generate::generate(Difficulty::Easy);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Easy, SEED);
     assert_eq!(
         solver::count_solutions(&puzzle),
         1,
@@ -66,7 +54,7 @@ fn test_generate_creates_valid_puzzle() {
 
 #[test]
 fn test_generate_returns_solution_of_puzzle() {
-    let (puzzle, solution) = generate::generate(Difficulty::Extreme);
+    let (puzzle, solution) = generate::generate_with_seed(Difficulty::Extreme, SEED);
     let mut solved = puzzle;
     assert!(solver::solve(&mut solved));
     assert_eq!(solved.cells, solution.cells);
@@ -82,7 +70,7 @@ fn test_generate_returns_solution_of_puzzle() {
 
 #[test]
 fn test_generate_easy_puzzle_difficulty() {
-    let (puzzle, _) = generate::generate(Difficulty::Easy);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Easy, SEED);
     let (steps, _) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -96,7 +84,7 @@ fn test_generate_easy_puzzle_difficulty() {
 
 #[test]
 fn test_generate_medium_puzzle_difficulty() {
-    let (puzzle, _) = generate::generate(Difficulty::Medium);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Medium, SEED);
     let (steps, _) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -110,7 +98,7 @@ fn test_generate_medium_puzzle_difficulty() {
 
 #[test]
 fn test_generate_hard_puzzle_difficulty() {
-    let (puzzle, _) = generate::generate(Difficulty::Hard);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Hard, SEED);
     let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -129,7 +117,7 @@ fn test_generate_hard_puzzle_difficulty() {
 
 #[test]
 fn test_generate_expert_puzzle_difficulty() {
-    let (puzzle, _) = generate::generate(Difficulty::Expert);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Expert, SEED);
     let (steps, solved_board) = logical_solver::solve_with_steps(&puzzle);
     let stats = logical_solver::analyze_difficulty(&steps);
 
@@ -148,7 +136,7 @@ fn test_generate_expert_puzzle_difficulty() {
 
 #[test]
 fn test_generate_extreme_puzzle_difficulty() {
-    let (puzzle, _) = generate::generate(Difficulty::Extreme);
+    let (puzzle, _) = generate::generate_with_seed(Difficulty::Extreme, SEED);
     assert_eq!(
         solver::count_solutions(&puzzle),
         1,

@@ -22,6 +22,7 @@ import type { CellIndex, Digit } from '../digits'
 import { maskOf } from '../digits'
 import { BACKTRACKING_STEP, type Step, type Technique, TECHNIQUES } from '../game/steps'
 import {
+  explainHint,
   explainPosition,
   explainStep,
   solvedInText,
@@ -121,5 +122,23 @@ describe('walkthrough text', () => {
   it('counts the steps in the plural form', () => {
     expect(solvedInText(1)).toBe('Solved in 1 step')
     expect(solvedInText(3)).toBe('Solved in 3 steps')
+  })
+})
+
+describe('hint text', () => {
+  it('points at a wrong digit without naming the right one', () => {
+    expect(explainHint({ kind: 'mistake', index: at(2) })).toBe(
+      'Cell R1C3 does not match the solution. Erase it before looking further.',
+    )
+  })
+
+  it('gives the digit of a cell when logic is stuck', () => {
+    expect(explainHint({ kind: 'reveal', index: at(80), digit: 7 })).toBe(
+      'No logical technique applies here. Cell R9C9 is 7.',
+    )
+  })
+
+  it('explains a step as the walkthrough does', () => {
+    expect(explainHint({ kind: 'step', step: single })).toBe(explainStep(single))
   })
 })

@@ -28,7 +28,7 @@ dist_dir="${2:-dist}"
 timeout_seconds="${SMOKE_TIMEOUT_SECONDS:-660}"
 retry_interval_seconds=10
 request_timeout_seconds=30
-root_element='<div id="root">'
+board_element='<div role="grid" id="board"'
 
 script_path="$(sed -n 's|.*<script type="module"[^>]* src="\(/assets/[^"]*\.js\)".*|\1|p' "${dist_dir}/index.html")"
 if [ -z "${script_path}" ]; then
@@ -63,8 +63,8 @@ check_all() {
     "200 text/html"*) ;;
     *) failure="/ answered '${response}', not 200 text/html" && return ;;
   esac
-  if ! grep -qF "${root_element}" "${body}"; then
-    failure="/ has no ${root_element}" && return
+  if ! grep -qF "${board_element}" "${body}"; then
+    failure="/ has no ${board_element}" && return
   fi
   if ! grep -qF "src=\"${script_path}\"" "${body}"; then
     failure="/ does not load ${script_path}, so it is not this build" && return

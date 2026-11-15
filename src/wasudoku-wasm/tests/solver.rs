@@ -20,6 +20,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{RngExt, SeedableRng};
 use std::time::{Duration, Instant};
+use wasudoku_wasm::api::{self, ApiError, Validation};
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver;
@@ -27,7 +28,11 @@ use wasudoku_wasm::solver::{
     SearchLimit, count_solutions, count_within, solve, solve_randomized, solve_within,
     unique_solution,
 };
-use wasudoku_wasm::{solve_board, validate_puzzle};
+
+/// The 81 cell bytes of a board written with `.` for an empty cell.
+fn cells(text: &str) -> Vec<u8> {
+    text.parse::<Board>().unwrap().cells.to_vec()
+}
 
 #[test]
 fn test_solve_easy_puzzle() {
@@ -231,14 +236,20 @@ fn test_unique_solution_by_count() {
 }
 
 #[test]
-fn test_validate_puzzle_by_count() {
+fn test_validate_by_count() {
     assert_eq!(
-        validate_puzzle(UNIQUE).unwrap().as_deref(),
-        Some(UNIQUE_SOLUTION)
+        api::validate(&cells(UNIQUE)).unwrap(),
+        Validation::Unique(UNIQUE_SOLUTION.parse().unwrap())
     );
-    assert_eq!(validate_puzzle(TWO_SOLUTIONS).unwrap(), None);
-    assert_eq!(validate_puzzle(&".".repeat(81)).unwrap(), None);
-    assert_eq!(validate_puzzle(NO_SOLUTION).unwrap(), None);
+    assert_eq!(
+        api::validate(&cells(TWO_SOLUTIONS)).unwrap(),
+        Validation::Several
+    );
+    assert_eq!(api::validate(&[0; 81]).unwrap(), Validation::Several);
+    assert_eq!(
+        api::validate(&cells(NO_SOLUTION)).unwrap(),
+        Validation::Unsolvable
+    );
 }
 
 // Each took 0.1 to 6 s to reject before the counting search branched on units, and takes about 1 ms since.
@@ -268,10 +279,13 @@ fn within_budget<T>(puzzle: &str, f: impl FnOnce() -> T) -> T {
 fn test_slow_unsolvable_boards_are_rejected_in_budget() {
     for puzzle in SLOW_UNSOLVABLE {
         let board: Board = puzzle.parse().unwrap();
-        assert!(within_budget(puzzle, || solve_board(&board)).is_none());
         assert_eq!(
-            within_budget(puzzle, || validate_puzzle(puzzle).unwrap()),
-            None
+            within_budget(puzzle, || api::solve(&board.cells)),
+            Err(ApiError::NoSolution)
+        );
+        assert_eq!(
+            within_budget(puzzle, || api::validate(&board.cells)),
+            Ok(Validation::Unsolvable)
         );
         assert_eq!(within_budget(puzzle, || count_solutions(&board)), 0);
     }
@@ -306,11 +320,11 @@ const FIRST_SOLUTIONS: [(&str, &str); 6] = [
 ];
 
 #[test]
-fn test_solve_board_keeps_first_of_several_solutions() {
+fn test_solve_keeps_first_of_several_solutions() {
     for (puzzle, expected) in FIRST_SOLUTIONS {
         let board: Board = puzzle.parse().unwrap();
         assert_eq!(count_solutions(&board), 2, "{puzzle}");
-        let (_, solution) = solve_board(&board).unwrap();
+        let solution = api::solve(&board.cells).unwrap().solution;
         assert_eq!(solution.to_string(), expected, "{puzzle}");
     }
 }
@@ -322,13 +336,13 @@ const STALLS_LOGIC_SOLUTION: &str =
     "296183754183754296754296183962371548578429631341865927627938415819547362435612879";
 
 #[test]
-fn test_solve_board_finishes_with_the_unique_solution() {
+fn test_solve_finishes_with_the_unique_solution() {
     let board: Board = STALLS_LOGIC.parse().unwrap();
     let (_, after_logic) = logical_solver::solve_with_steps(&board);
     assert!(after_logic.cells.contains(&0), "logic alone solves it");
-    let (steps, solution) = solve_board(&board).unwrap();
-    assert!(!steps.is_empty());
-    assert_eq!(solution.to_string(), STALLS_LOGIC_SOLUTION);
+    let solved = api::solve(&board.cells).unwrap();
+    assert!(!solved.steps.is_empty());
+    assert_eq!(solved.solution.to_string(), STALLS_LOGIC_SOLUTION);
 }
 
 #[test]
@@ -502,9 +516,9 @@ fn bench_count_solutions_fixed_puzzles() {
         let count = std::hint::black_box(count_solutions(&board));
         let count_ms = time_per_call(|| count_solutions(std::hint::black_box(&board)));
         let solve_ms = time_per_call(|| solve(&mut std::hint::black_box(board)));
-        let validate_ms = time_per_call(|| validate_puzzle(std::hint::black_box(puzzle)).unwrap());
+        let validate_ms = time_per_call(|| api::validate(std::hint::black_box(&board.cells)));
         println!(
-            "{}: count={} count_solutions {:.4}ms solve {:.4}ms validate_puzzle {:.4}ms per call",
+            "{}: count={} count_solutions {:.4}ms solve {:.4}ms validate {:.4}ms per call",
             &puzzle[..20],
             count,
             count_ms,

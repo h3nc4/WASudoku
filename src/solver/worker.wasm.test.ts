@@ -23,7 +23,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { initSync } from 'wasudoku-wasm'
 
 import {
   BOARD_LENGTH,
@@ -36,7 +35,7 @@ import type { Decoded } from '../core/codec/wire.types'
 import { PROTOCOL_VERSION, type Response } from './protocol'
 
 // Runs the built crate, so this suite needs `npm run wasm:build:dev` first, as `npm run test` does.
-const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm_bg.wasm')
+const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm.wasm')
 
 const PUZZLE = '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79'
 const SOLUTION = '534678912672195348198342567859761423426853791713924856961537284287419635345286179'
@@ -58,8 +57,11 @@ describe('worker.ts against the real wasm', () => {
   let nextId = 0
 
   beforeAll(async () => {
-    // The worker's own init() then finds the module ready and skips the fetch node cannot make.
-    initSync({ module: readFileSync(WASM_PATH) })
+    // Node cannot fetch the dev server's URL, so the worker's own fetch reads the built file.
+    const module = readFileSync(WASM_PATH)
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(new Response(module, { headers: { 'Content-Type': 'application/wasm' } })),
+    )
     vi.stubGlobal('self', {
       addEventListener: (_: string, handler: typeof listener) => {
         listener = handler

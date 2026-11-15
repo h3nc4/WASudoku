@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { iconHref, type IconName } from '../components-next/icons'
+import { iconHref, type IconName } from '../components/icons'
 import { TOAST_ACTIONS } from '../core/text/messages'
 
 // A polite live region of status toasts in a manual popover, in the top layer without light dismiss.

@@ -37,10 +37,10 @@ const CAST_RULES = [
 const cases = [
   ['core', 'probe.ts', true],
   ['site', 'probe.ts', true],
-  ['components-next', 'probe.ts', true],
+  ['components', 'probe.ts', true],
   ['preview', 'probe.ts', true],
   ['site', 'probe.test.ts', false],
-  ['components-next', 'probe.test.ts', false],
+  ['components', 'probe.test.ts', false],
   ['lib', 'probe.ts', false],
 ]
 

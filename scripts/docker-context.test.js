@@ -68,7 +68,7 @@ describe('the runtime image build stage', () => {
   const untracked = lines('.gitignore')
   const roots = [...new Set(typecheckedRoots())].filter((path) => !covers(untracked, path))
 
-  it.each(roots)('copies %s, which tsc -b reads before vite build', (path) => {
+  it.each(roots)('copies %s, which tsc -b reads before astro build', (path) => {
     expect(covers(copied, path)).toBe(true)
     expect(covers(ignored, path)).toBe(false)
   })

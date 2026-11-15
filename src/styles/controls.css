@@ -36,7 +36,7 @@
     overflow: hidden;
   }
 
-  /* Buttons: data-variant and data-size replace the class variants of the React app. */
+  /* Buttons: data-variant and data-size took over from the class variants of the React app. */
   /* Disabled turns every variant into a dashed outline on paper, a change of shape rather than a fade. */
   .btn {
     display: inline-flex;
@@ -466,7 +466,7 @@
     display: none;
   }
 
-  /* Sonner's styled toast, whose unlayered rules beat the React app's utility classes. */
+  /* The styled toast of Sonner, which the React app drew, with its unlayered rules. */
   .toast {
     position: absolute;
     right: 0;

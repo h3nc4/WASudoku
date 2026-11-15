@@ -16,12 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/** The storage key of today's app, kept so a stored choice carries over to the rewrite. */
+/** The storage key of the React app, kept so a choice stored then still applies. */
 export const THEME_KEY = 'wasudoku-ui-theme'
 
 export type Theme = 'light' | 'dark'
 
-/** The app opens dark whatever the system says, as it does today. */
+/** The app opens dark whatever the system says, as the React app did. */
 export const DEFAULT_THEME: Theme = 'dark'
 
 // Sets the stored theme before first paint, a stored `system` following the OS.

@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { CellView } from '../components-next/view'
+import type { CellView } from '../components/view'
 import { type Board, isBoardFull, isGiven, parseBoard, place, valueAt } from '../core/board'
 import {
   type CellIndex,

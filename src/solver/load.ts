@@ -16,13 +16,17 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import init from 'wasudoku-wasm'
-
 import { bindWire, type WireModule } from '../core/codec/abi'
+import wasmUrl from '../wasudoku-wasm/pkg/wasudoku_wasm.wasm?url'
 
-/** The solver module's exports, instantiated by wasm-bindgen while the legacy exports need its imports. */
-// At cutover this becomes `new WebAssembly.Instance(module, {}).exports`, the one line that changes.
-export const instantiate = (): Promise<unknown> => init()
+/** The solver module imports nothing from the host. */
+const NO_IMPORTS = {}
+
+/** The solver module's exports, compiled while the module streams in. */
+export async function instantiate(): Promise<unknown> {
+  const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl), NO_IMPORTS)
+  return instance.exports
+}
 
 /** The wire exports, or a rejection if the module fails to load or lacks one. */
 export async function loadWire(): Promise<WireModule> {

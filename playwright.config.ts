@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025-2026  Henrique Almeida
+ * Copyright (C) 2026  Henrique Almeida
  * This file is part of WASudoku.
  *
  * WASudoku is free software: you can redistribute it and/or modify
@@ -18,22 +18,18 @@
 
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 4173
 const isCI = Boolean(process.env.CI)
 
+// Each suite serves the build in dist itself, through e2e/server.ts, which applies _headers as the edge does.
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
-  // playwright.next.config.ts runs the suite in e2e/next against dist-next.
-  testIgnore: 'next/**',
   fullyParallel: true,
   forbidOnly: isCI,
   retries: 0,
-  // Each page starts its own pool of solver workers, so one browser at a time keeps a laptop cool.
   workers: isCI ? 2 : 1,
   reporter: isCI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: `http://localhost:${PORT}`,
     colorScheme: 'light',
     reducedMotion: 'reduce',
     trace: 'retain-on-failure',
@@ -44,9 +40,4 @@ export default defineConfig({
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
     { name: 'iphone-15', use: { ...devices['iPhone 15'] } },
   ],
-  webServer: {
-    command: `npm run preview -- --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !isCI,
-  },
 })

@@ -57,15 +57,15 @@ jobs:
             export PATH=/cache/cargo/bin:\${PATH}
             ./scripts/wasm-deps.sh -d
             npm ci
+            npm run wasm:build:dev
             npm run format:check
             npm run lint
             npm run lint:md
             npm run lint:sh
             npm run lint:wasm
             npm run test:wasm
-            npm run wasm:build:dev
             npm run typecheck
-            npm run test:ui
+            npm run test:unit
             npm run build
           "
       - name: Open a pull request for the fix
@@ -185,8 +185,6 @@ jobs:
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: 'wasm32-unknown-unknown'
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Run actions/setup-node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -196,7 +194,7 @@ jobs:
         run: npm ci
       - name: Build project for analysis
         run: |
-          npm run wasm:build:prod
+          npm run wasm:build:dev
           npm run typecheck
       - name: Run github/codeql-action/analyze
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4

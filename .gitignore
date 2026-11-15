@@ -1,6 +1,5 @@
 # Node
 dist/
-dist-next/
 dist-preview/
 .astro/
 node_modules/
@@ -14,13 +13,10 @@ target/
 
 # Coverage reports
 coverage-*.*
-coverage-next/
 
 # Playwright
 playwright-report/
-playwright-report-next/
 test-results/
-test-results-next/
 
 # Android
 android.keystore
@@ -28,9 +24,6 @@ licenses/
 
 # rumdl
 .rumdl_cache/
-
-# Parity harness
-parity-out/
 
 # Vitest browser failure screenshots
 .vitest/

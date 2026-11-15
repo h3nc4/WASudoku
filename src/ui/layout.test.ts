@@ -18,7 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { LAYOUT_CLASSES } from '../components-next/controls'
+import { LAYOUT_CLASSES } from '../components/controls'
 import { answerSolve, harness, mountPage, playing } from '../test/app-page'
 import { ACTIONS, bindLayout } from './layout'
 

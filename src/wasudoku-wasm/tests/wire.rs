@@ -132,7 +132,7 @@ fn write_golden_file() {
     fs::write(TECHNIQUES, render_techniques()).unwrap();
 }
 
-/// The id the app keys a technique on, its legacy serde name, which `web.rs` checks.
+/// The id the app keys a technique on, which `src/core/codec/wire.test.ts` reads from the golden file.
 /// The match has no wildcard, so a new variant fails to compile until it is named here.
 fn technique_id(technique: Technique) -> &'static str {
     match technique {

@@ -21,8 +21,7 @@ set -e
 dev_tools="cargo-llvm-cov 0.9.0
 cargo-audit 0.22.0"
 
-tools="wasm-pack 0.15.0
-wasm-opt 0.116.1"
+tools="wasm-opt 0.116.1"
 
 while getopts "d" opt; do
   case "${opt}" in

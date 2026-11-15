@@ -16,11 +16,11 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { INITIAL_VIEW } from '../components-next/initial'
-import type { AppView, ControlsView, StatusView } from '../components-next/view'
+import { INITIAL_VIEW } from '../components/initial'
+import type { AppView, ControlsView, StatusView } from '../components/view'
 import { CONFLICT, IDLE, NOTES, PLAYING, STEPS, WALKTHROUGH, WON } from './boards'
 
-/** Fixture data for one static preview page per UI state, for a comparison with today's build. */
+/** Fixture data for one static preview page per UI state, for a side-by-side review of each state. */
 // A type rather than an interface, so it fits the props record a page receives.
 export type PreviewState = {
   readonly view: AppView

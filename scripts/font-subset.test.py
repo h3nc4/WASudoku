@@ -29,8 +29,7 @@ SPEC.loader.exec_module(font_subset)
 
 # One character per file, each above ASCII so only the file walk can bring it in.
 SOURCES = {
-    "index.html": "é",
-    "src/components-next/Footer.astro": "–",
+    "src/components/Footer.astro": "–",
     "src/layouts/Base.astro": "·",
     "src/ui/grid.ts": "—",
     "src/styles/app.css": "•",
@@ -52,7 +51,7 @@ class UiCharacters(unittest.TestCase):
             path.write_text(char, encoding="utf-8")
         self.saved = font_subset.ROOT, font_subset.UI_SOURCES
         font_subset.ROOT = root
-        font_subset.UI_SOURCES = [root / "index.html", root / "src"]
+        font_subset.UI_SOURCES = [root / "src"]
 
     def tearDown(self) -> None:
         font_subset.ROOT, font_subset.UI_SOURCES = self.saved

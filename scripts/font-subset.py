@@ -42,7 +42,7 @@ SOURCE_MEMBER = "package/files/recursive-latin-full-normal.woff2"
 SOURCE_DATE_EPOCH = 1784433118
 
 # A character that UI text in these files gains joins the subset on the next build.
-UI_SOURCES = [ROOT / "index.html", ROOT / "src"]
+UI_SOURCES = [ROOT / "src"]
 UI_SUFFIXES = {".ts", ".tsx", ".css", ".rs", ".html", ".astro"}
 SKIPPED_PARTS = {"test", "tests", "__mocks__", "target", "pkg"}
 

@@ -97,6 +97,8 @@ jobs:
             export PATH=/cache/cargo/bin:\${PATH}
             ./scripts/wasm-deps.sh -d
             npm ci
+            npm run wasm:build:dev
+            tar -cf wasm-pkg-dev.tar -C src/wasudoku-wasm pkg
             npm run format:check
             npm run lint
             npm run lint:md
@@ -104,20 +106,13 @@ jobs:
             npm run lint:type
             npm run lint:wasm
             npm run test:wasm
-            npm run test:wasm:node
-            npm run wasm:build:dev
-            tar -cf wasm-pkg-dev.tar -C src/wasudoku-wasm pkg
             npm run typecheck
-            npm run test:ui
-            npm run check:next
-            npm run test:next
+            npm run test:unit
+            npm run check:astro
             npm run build
-            npm run build:next
             sh scripts/budget.test.sh
-            sh scripts/budget.sh dist
-            sh scripts/budget.sh dist-next
+            npm run budget
             XZ_OPT=-9e tar -cJf WASudoku-dev.tar.xz -C dist .
-            XZ_OPT=-9e tar -cJf WASudoku-next.tar.xz -C dist-next .
           "
       - name: Run actions/upload-artifact
         if: always()
@@ -131,21 +126,13 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ui-coverage
-          path: |
-            coverage-ui.lcov
-            coverage-next.lcov
+          path: coverage-ui.lcov
           retention-days: 1
       - name: Run actions/upload-artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dev-build
           path: WASudoku-dev.tar.xz
-          retention-days: 1
-      - name: Run actions/upload-artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: next-build
-          path: WASudoku-next.tar.xz
           retention-days: 1
       - name: Run actions/upload-artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -228,15 +215,10 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: wasm-pkg-dev
-      - name: Run actions/download-artifact
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: next-build
-      - name: Unpack the builds and the wasm package
+      - name: Unpack the build and the wasm package
         run: |
-          mkdir -p dist dist-next
+          mkdir -p dist
           tar -xJf WASudoku-dev.tar.xz -C dist
-          tar -xJf WASudoku-next.tar.xz -C dist-next
           tar -xf wasm-pkg-dev.tar -C src/wasudoku-wasm
       - name: Install the browser and run the browser and end-to-end tests
         run: |
@@ -247,7 +229,6 @@ jobs:
             status=0
             npm run test:browser -- ${{ matrix.projects }} || status=\$?
             npm run test:e2e -- ${{ matrix.projects }} || status=\$?
-            npm run test:e2e:next -- ${{ matrix.projects }} || status=\$?
             exit \${status}
           "
       - name: Run actions/upload-artifact
@@ -255,9 +236,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-report-${{ matrix.engine }}
-          path: |
-            playwright-report/
-            playwright-report-next/
+          path: playwright-report/
           retention-days: 7
 
   sonarqube:

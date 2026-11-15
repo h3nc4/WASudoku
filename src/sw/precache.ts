@@ -65,13 +65,11 @@ export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: Preca
   /** Refuses a shell a later deploy served, whose assets this precache would lack offline. */
   async function addShell(cache: Cache) {
     const response = await sw.fetch(new Request(shell, { cache: 'no-cache' }))
-    if (!response.ok) throw new TypeError(`the shell answered ${String(response.status)}`)
+    if (!response.ok) throw new TypeError(`shell ${String(response.status)}`)
     const foreign = assetPaths(await response.clone().text(), manifest.assetsDir)
       .map(resolve)
       .filter((url) => !known.has(url))
-    if (foreign.length > 0) {
-      throw new Error(`the shell names assets of another deploy: ${foreign.join(' ')}`)
-    }
+    if (foreign.length > 0) throw new Error(`foreign ${foreign.join(' ')}`)
     await cache.put(shell, response)
   }
 

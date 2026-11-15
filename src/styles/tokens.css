@@ -22,7 +22,7 @@
   color-scheme: dark;
   --type-sans: 'Recursive Variable', 'Recursive Fallback', ui-sans-serif, system-ui, sans-serif;
   --type-pencil: 'Recursive Casual', var(--type-sans);
-  /* Toasts keep sonner's system stack and its black and white surfaces, which today's app draws. */
+  /* Toasts keep the system stack and the black and white surfaces Sonner drew in the React app. */
   --type-toast:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',

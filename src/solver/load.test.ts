@@ -16,23 +16,36 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { loadWire } from './load'
 
-const { init } = vi.hoisted(() => ({ init: vi.fn<() => Promise<unknown>>() }))
+// The smallest valid module, the magic number and version 1 with no sections, so it exports nothing.
+const EMPTY_MODULE = Uint8Array.of(0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00)
+const WASM = { 'Content-Type': 'application/wasm' }
 
-vi.mock('wasudoku-wasm', () => ({ default: init }))
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('loadWire', () => {
+  it('fetches the module it was built with', async () => {
+    const fetch = vi.fn(() => Promise.resolve(new Response(EMPTY_MODULE, { headers: WASM })))
+    vi.stubGlobal('fetch', fetch)
+    await loadWire().catch(() => undefined)
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/wasudoku_wasm\.wasm$/))
+  })
+
   it('rejects a module that lacks the wire exports', async () => {
-    init.mockResolvedValue({ memory: { buffer: new ArrayBuffer(1) } })
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response(EMPTY_MODULE, { headers: WASM })))
     await expect(loadWire()).rejects.toThrow(TypeError)
   })
 
-  it('rejects when the module fails to instantiate', async () => {
-    const failure = new Error('compile')
-    init.mockRejectedValue(failure)
+  it('rejects when the module fails to download', async () => {
+    const failure = new Error('offline')
+    vi.stubGlobal('fetch', () => Promise.reject(failure))
     await expect(loadWire()).rejects.toBe(failure)
   })
 })

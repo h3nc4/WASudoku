@@ -2,9 +2,6 @@
   "files": [],
   "references": [
     {
-      "path": "./tsconfig.app.json"
-    },
-    {
       "path": "./tsconfig.core.json"
     },
     {
@@ -35,17 +32,7 @@
       "path": "./tsconfig.e2e.json"
     },
     {
-      "path": "./tsconfig.next.json"
-    },
-    {
-      "path": "./tsconfig.parity.json"
+      "path": "./tsconfig.astro.json"
     }
-  ],
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "wasudoku-wasm": ["./src/wasudoku-wasm/pkg"]
-    }
-  }
+  ]
 }

@@ -16,22 +16,8 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#[cfg(feature = "legacy")]
-use serde::Serialize;
-
-/// The final result of the solver, sent to the UI.
-#[cfg(feature = "legacy")]
-#[derive(Serialize, Clone)]
-pub struct SolveResult {
-    /// A list of logical steps taken to solve the puzzle.
-    pub steps: Vec<SolvingStep>,
-    /// The final, fully solved board as an 81-character string.
-    pub solution: Option<String>,
-}
-
-/// A solving technique, serialized as the id the UI expects (e.g., "NakedSingle").
+/// A solving technique.
 /// The wire format sends the declaration index, so a new technique goes last.
-#[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Technique {
     NakedSingle,
@@ -43,18 +29,14 @@ pub enum Technique {
     PointingPair,
     PointingTriple,
     ClaimingCandidate,
-    #[cfg_attr(feature = "legacy", serde(rename = "X-Wing"))]
     XWing,
     Swordfish,
     Jellyfish,
-    #[cfg_attr(feature = "legacy", serde(rename = "XY-Wing"))]
     XyWing,
-    #[cfg_attr(feature = "legacy", serde(rename = "XYZ-Wing"))]
     XyzWing,
     Skyscraper,
     TwoStringKite,
     UniqueRectangleType1,
-    #[cfg_attr(feature = "legacy", serde(rename = "W-Wing"))]
     WWing,
 }
 
@@ -83,7 +65,6 @@ impl Technique {
 }
 
 /// A single logical step in solving the puzzle.
-#[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SolvingStep {
     /// The technique used.
@@ -97,7 +78,6 @@ pub struct SolvingStep {
 }
 
 /// A number placed in a cell.
-#[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Placement {
     pub index: usize,
@@ -105,7 +85,6 @@ pub struct Placement {
 }
 
 /// A candidate eliminated from a cell.
-#[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Elimination {
     pub index: usize,
@@ -113,7 +92,6 @@ pub struct Elimination {
 }
 
 /// A cell that is part of the cause of a logical deduction.
-#[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CauseCell {
     pub index: usize,

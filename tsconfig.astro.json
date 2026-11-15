@@ -1,0 +1,25 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.astro.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["astro/client", "node"],
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "astro.config.ts",
+    "vitest.astro.config.ts",
+    "src/pages",
+    "src/layouts",
+    "src/components",
+    "src/preview",
+    "src/pages-data"
+  ],
+  "exclude": ["dist", "dist-preview"]
+}

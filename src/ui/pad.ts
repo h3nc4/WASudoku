@@ -16,8 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { padTones } from '../components-next/controls'
-import { padLabel } from '../components-next/view'
+import { padTones } from '../components/controls'
+import { padLabel } from '../components/view'
 import { type PadKey, selectPad, toDigit } from '../core/game/selectors'
 import { watch } from '../runtime/signals'
 import type { Store } from '../runtime/store'

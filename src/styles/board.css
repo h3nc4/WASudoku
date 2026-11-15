@@ -162,7 +162,7 @@
     background-image: none;
   }
 
-  /* Any focus rings a cell, as it does the text field each cell is in today's app. */
+  /* Any focus rings a cell, as it rang the text field of each cell in the React app. */
   .c:focus {
     --ring-width: 2px;
   }

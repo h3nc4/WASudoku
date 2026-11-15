@@ -18,7 +18,7 @@ The image on Docker Hub serves the built site with nginx on port 80.
 docker run --rm -p 8080:80 h3nc4/wasudoku
 ```
 
-Then open <http://localhost:8080>. The image starts from scratch and holds nginx with the static files, running as uid 65534. The app has one page, `/`, and a shared puzzle is sent in its `?p=` query, so a request for an unknown path returns `404.html` with status 404, as the Cloudflare deploy does.
+Then open <http://localhost:8080>. The image starts from scratch and holds nginx with the static files, running as uid 65534. The app is the page at `/`, and a shared puzzle is sent in its `?p=` query. Beside it, `/solver/` describes the solver and `/techniques/<name>/` explains each technique. A request for an unknown path returns `404.html` with status 404, as the Cloudflare deploy does.
 
 Each release on GitHub also attaches the same static build as `WASudoku.tar.gz` and `WASudoku.tar.xz`, for any web server, and an Android package, `WASudoku.apk`, which wraps the live site as a Trusted Web Activity.
 
@@ -122,7 +122,7 @@ The generator keeps the solution unique at all five levels. It removes givens in
 
 The board, the notes, the undo history, the timer, the mistake count and the pool of pre-generated puzzles live in the browser's local storage. A closed tab reopens where it was left.
 
-The site has a web manifest, so a browser can install it as an app. On the first visit a service worker stores the whole build in the browser, after which the page and an installed copy both open without a connection. Navigations try the network before that copy, so a reload after a release gets the new build. An open tab meanwhile offers the release through an **Update available** toast with a **Reload** button.
+The site has a web manifest, so a browser can install it as an app. On the first visit a service worker stores the whole build in the browser, after which the page and an installed copy both open without a connection. The worker answers `/` from that copy. A reload after a release still shows the stored build until the player accepts the new one. The browser checks for a new worker on each visit, and once one has installed in the background the open tab offers it through an **Update available** toast with a **Reload** button.
 
 ## Theme and motion
 
@@ -169,7 +169,7 @@ Definitions follow the strategy reference at [SudokuWiki](https://www.sudokuwiki
 
 ## Building from source
 
-A build needs Node 24 or newer with npm 11 or newer, a Rust toolchain with the `wasm32-unknown-unknown` target, and wasm-pack. `scripts/wasm-deps.sh` installs wasm-pack and wasm-opt through `cargo install`, and with `-d` it adds cargo-llvm-cov and cargo-audit for the tests and the audit.
+A build needs Node 24 or newer with npm 11 or newer, a Rust toolchain with the `wasm32-unknown-unknown` target, and wasm-opt. `scripts/wasm-deps.sh` installs wasm-opt through `cargo install`, and with `-d` it adds cargo-llvm-cov and cargo-audit for the tests and the audit.
 
 The dev container in `.devcontainer.json` already includes all of that. Its image is pulled from Docker Hub, or built from `docker/dev.Dockerfile` when that tag is still unpublished.
 
@@ -180,93 +180,71 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` compiles the Rust crate in `src/wasudoku-wasm` with wasm-pack first, then starts Vite on <http://localhost:5173>. After a change to the Rust code, `npm run wasm:build:dev` rebuilds the crate.
+`npm run dev` compiles the Rust crate in `src/wasudoku-wasm` to `src/wasudoku-wasm/pkg/wasudoku_wasm.wasm` first, then starts Astro on <http://localhost:4321>. After a change to the Rust code, `npm run wasm:build:dev` rebuilds the crate.
 
-| Command                       | Does                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `npm run build`               | release build of the crate, a type check, then the site into `dist/`     |
-| `npm run preview`             | serves `dist/` locally                                                   |
-| `npm run test`                | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
-| `npm run test:browser`        | the Vitest suite in real browsers through Playwright                     |
-| `npm run test:e2e`            | Playwright end-to-end tests against the build in `dist/`                 |
-| `npm run build:next`          | the Astro interface into `dist-next/`, with its worker and headers       |
-| `npm run test:e2e:next`       | Playwright tests of the worker and headers in `dist-next/`               |
-| `npm run budget:next:enforce` | the byte budget on `dist-next/`, failing on any overrun                  |
-| `npm run parity`              | the parity harness, one build against another                            |
-| `npm run lint`                | ESLint                                                                   |
-| `npm run lint:wasm`           | Clippy, with warnings as errors                                          |
-| `npm run typecheck`           | `tsc -b`                                                                 |
-| `npm run format:check`        | Prettier over the whole repository                                       |
-| `npm run audit`               | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
+| Command                | Does                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run build`        | release build of the crate, a type check, then the site into `dist/`     |
+| `npm run preview`      | serves `dist/` locally, without the headers in `_headers`                |
+| `npm run budget`       | the byte budget on `dist/`, failing on any overrun                       |
+| `npm run test`         | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
+| `npm run test:browser` | the Vitest suite in real browsers through Playwright                     |
+| `npm run test:e2e`     | Playwright end-to-end tests against the build in `dist/`                 |
+| `npm run check:astro`  | `astro check` over the pages, layouts and components                     |
+| `npm run lint`         | ESLint                                                                   |
+| `npm run lint:wasm`    | Clippy, with warnings as errors                                          |
+| `npm run typecheck`    | `tsc -b`                                                                 |
+| `npm run format:check` | Prettier over the whole repository                                       |
+| `npm run audit`        | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
 
 ### Tests
 
-`npm run test` runs the Rust tests, the wasm-bindgen tests in `tests/web.rs` compiled to wasm and run in Node by `wasm-pack test --node`, and the Vitest suite in jsdom, building the crate first. Cargo fails it below 100% of lines and functions. That count leaves out `src/lib.rs` and `src/utils.rs`, the wasm-bindgen glue, since every `JsValue` call there panics on a native target. The Node run of `tests/web.rs` and `src/workers/sudoku.worker.wasm.test.ts` cover that glue instead, against the compiled wasm. The other two suites drive real browsers, which `npx playwright install` downloads once. Both run in the same four Playwright projects, `chromium`, `firefox`, `webkit` and `iphone-15`, where the last is WebKit at an iPhone 15 screen size.
+`npm run test` runs the Rust tests and then the Vitest suite, building the crate first. Cargo fails it below 100% of lines and functions. Vitest runs two projects in one pass, the modules in jsdom and the Astro components through Astro's own Vite config in Node, and fails below 100% of lines, branches, functions and statements over the `.ts` modules in `src`, leaving out the service worker entry and the test helpers. The `*.wasm.test.ts` suites and `src/core/codec/wire.contract.test.ts` load the compiled crate itself. The other two suites drive real browsers, which `npx playwright install` downloads once. Both run in the same four Playwright projects, `chromium`, `firefox`, `webkit` and `iphone-15`, where the last is WebKit at an iPhone 15 screen size.
 
 - `npm run test:browser` runs the Vitest suite in all four. It needs the crate built, by `npm run wasm:build:dev` or an earlier `npm run dev`, and it watches for changes until `--run` is added.
-- `npm run test:e2e` plays the app end to end, from the first visit to sharing, sticky numbers, pausing and winning, with an accessibility scan through axe. It serves `dist/` with `npm run preview` on port 4173, so `npm run build` comes first.
+- `npm run test:e2e` plays the app end to end, from the first visit to sharing, sticky numbers, pausing and winning, with an accessibility scan through axe. It serves `dist/` through `e2e/server.ts`, which applies `_headers` as the edge does, so `npm run build` comes first.
 
 Either takes `-- --project firefox` to run one project. CI runs both suites, one job per project, on every pull request and every push to `main`.
 
-The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in two Web Workers, one for the player's requests and one that refills the puzzle pool in the background.
+The interface is Astro static output with plain TypeScript modules. `src/core` holds the game as a pure update function over its state, `src/runtime` runs it in a signal store built on alien-signals and performs its effects, and `src/ui` binds the store to the markup that `src/components` renders at build time. The engine is Rust, compiled to a WebAssembly module with a plain C ABI and no imports, and runs in two Web Workers, one for the player's requests and one that refills the puzzle pool in the background. A request and its answer cross into the module as packed bytes, which `src/core/codec/wire.ts` reads.
 
 To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
 
-### Astro build
+### Build output
 
-`npm run build:next` builds the new interface into `dist-next/`, which nothing serves until it replaces `dist/`. After the pages, `src/site/finish.ts` writes three files there. `sw.js` is `src/sw/sw.ts` with a precache list of what `dist-next/` holds. `manifest.json` is `public/manifest.json` with an `id`, shortcuts, screenshots from `src/assets/screenshots` and a `launch_handler`. `_headers` comes from `src/site/headers.ts`.
+`npm run build` writes the pages into `dist/`. After them, `src/site/finish.ts` writes four files there. `sw.js` is `src/sw/sw.ts` with a precache list of what `dist/` holds. `manifest.json` is `public/manifest.json` with an `id`, shortcuts, screenshots from `src/assets/screenshots` and a `launch_handler`. `sitemap.xml` lists every page that may be indexed. `_headers` comes from `src/site/headers.ts`.
 
-The policy in `_headers` is reported, not enforced, apart from `frame-ancestors`. The build hashes every inline `<script>` and `<style>` in the pages into it. An inline script added to the layout, such as one that sets the theme before the first paint, gets its hash on the next build without an edit to the policy. `docker/Dockerfile` copies that policy into `nginx.conf` through `scripts/nginx-conf.sh`.
+The policy in `_headers` is reported, not enforced, apart from `frame-ancestors`. The build hashes every inline `<script>` and `<style>` in the pages into it. An inline script added to the layout, such as the one that sets the theme before the first paint, gets its hash on the next build without an edit to the policy. `docker/Dockerfile` copies that policy into `nginx.conf` through `scripts/nginx-conf.sh`.
 
 The worker answers `/` from the cache of its own version, query included, and any other path from the network. The browser fetches `sw.js` again on each navigation, and any change to a precached file changes `sw.js`. A deploy then installs a waiting worker in the background. Once the player accepts the update, the page posts `{ type: 'SKIP_WAITING' }` to that worker and reloads on `controllerchange`.
 
-Each shortcut opens `/?new=<difficulty>`, with `easy`, `medium`, `hard`, `expert` or `extreme`. The app is expected to start a new puzzle of that difficulty and drop the query with `history.replaceState`, so a reload does not start another. `launch_handler` sends a shortcut into a window already open, which reloads it there.
+Each shortcut opens `/?new=<difficulty>`, with `easy`, `medium`, `hard`, `expert` or `extreme`. The app starts a new puzzle of that difficulty and drops the query with `history.replaceState`, so a reload does not start another. `launch_handler` sends a shortcut into a window already open, which reloads it there.
 
-`npm run test:e2e:next` runs `e2e/next` against `dist-next/` in Chromium, Firefox and WebKit, through a server that applies `_headers` as the edge does. It checks the headers on every path, a 404 included, that the app and its 404 page break none of the policy, that a style without a hash is reported, the worker install, a reload with the server stopped and the update flow. CI runs it in each browser job after `npm run test:e2e`, from the `dist-next/` the build job uploads.
+The end-to-end suite checks the headers on every path, a 404 included, that the app and its 404 page break none of the policy, that a style without a hash is reported, the worker install, a reload with the server stopped and the update flow.
 
 ### Byte budget
 
-`scripts/budget.sh` brotli-compresses a build at quality 11 and sums the bytes a first visit downloads in each class, against one limit table. CI runs it on `dist/` and on `dist-next/` after the builds. An overrun prints a warning and the job still passes. Both builds are read against the same table, which shows how far `dist/` sits from the limits. `sh scripts/budget.test.sh` checks the class rules against a throwaway build.
+`scripts/budget.sh` brotli-compresses a build at quality 11 and sums the bytes a first visit downloads in each class, against one limit table. `npm run budget` runs it on `dist/` with `--enforce`, which exits 1 on any overrun, and CI runs it after the build. Without `--enforce` an overrun only prints a warning. `sh scripts/budget.test.sh` checks the class rules against a throwaway build.
 
-| Class        | Counts                                                                                | Limit   |
-| ------------ | ------------------------------------------------------------------------------------- | ------- |
-| `html`       | `index.html` without the text of its inline `<style>` elements                        | 5.6 KB  |
-| `css`        | every stylesheet, and the inline `<style>` text as `index.html:style`                 | 9.0 KB  |
-| `initial_js` | the scripts and module preloads that `index.html` references                          | 25.0 KB |
-| `fonts`      | every font file                                                                       | 32.6 KB |
-| `wasm`       | the wasm, the workers and any script that references a `.wasm` file                   | 30.0 KB |
-| `icons`      | the manifest and each `rel="icon"` link without `sizes`                               | 1.5 KB  |
-| `sw`         | `sw.js`                                                                               | 0.8 KB  |
-| `install`    | sized icons, `apple-touch-icon` and every `src` in the manifest, screenshots included | none    |
-| `other`      | everything else, such as lazy chunks, `404.html` and the link preview image           | none    |
+| Class        | Counts                                                                                | Size    | Limit   |
+| ------------ | ------------------------------------------------------------------------------------- | ------- | ------- |
+| `html`       | `index.html` without the text of its inline `<style>` elements                        | 6.5 KB  | 7.2 KB  |
+| `css`        | every stylesheet, and the inline `<style>` text as `index.html:style`                 | 8.6 KB  | 9.0 KB  |
+| `initial_js` | the scripts and module preloads that `index.html` references                          | 27.1 KB | 29.9 KB |
+| `fonts`      | every font file                                                                       | 29.5 KB | 32.6 KB |
+| `wasm`       | the wasm, the workers and any script that references a `.wasm` file                   | 25.9 KB | 28.5 KB |
+| `icons`      | the manifest and each `rel="icon"` link without `sizes`                               | 1.3 KB  | 1.5 KB  |
+| `sw`         | `sw.js`                                                                               | 1.0 KB  | 1.1 KB  |
+| `install`    | sized icons, `apple-touch-icon` and every `src` in the manifest, screenshots included | 181 KB  | none    |
+| `other`      | everything else, such as the content pages, `404.html` and the link preview image     | 260 KB  | none    |
 
-Each limit is the size of `dist-next/` plus 10%, rounded up to 100 bytes. `dist-next/` does not hold a script or wasm yet. Those two rows hold provisional limits until the first build that has them. `npm run budget:next:enforce` runs the same check on `dist-next/` with `--enforce`, which exits 1 on any overrun. CI does not call it yet. Once the Astro interface adds its scripts and worker and `dist-next/` is about to replace `dist/`, the limits are measured again and the build job runs `npm run budget:next:enforce` in place of the warning-only run.
-
-### Parity harness
-
-`parity/` compares two builds of the app, a reference and a candidate, by driving both through the same steps in Chromium. It exists to prove that a rewrite behaves like the build it replaces. Each check prints one `PASS` or `FAIL` line with its numbers, and the run exits non-zero on any failure.
-
-```sh
-npm run build
-scripts/parity.sh dist dist parity-out
-```
-
-`scripts/parity.sh <reference> <candidate> [output dir]` runs the harness in the Playwright image that `package.json` pins. Each build is a `dist` directory or a URL, which the harness serves or proxies on a loopback port of its own. Diff images are written to the output directory, `parity-out` by default. `PARITY_ONLY` picks checks from `states`, `pixels`, `a11y`, `keys`, `persistence` and `pwa`, `PARITY_SCENARIOS` picks scenarios by name, and `PARITY_KEEP=1` also keeps every reference frame. Inside the image, `npm run parity` does the same with `PARITY_REF` and `PARITY_CANDIDATE` set.
-
-- **States.** Every scenario in `parity/scenarios.ts` runs in light and dark, from the selection screen and each difficulty through entries, notes, conflicts, hints, the walkthrough, custom entry, pause, the win dialog, the confirmations and both menus. Each named capture compares what the player sees through accessible names and the documented test ids, and the whole of `localStorage` byte for byte.
-- **Pixels.** Each capture is a full-page screenshot at 360, 412, 768, 1024, 1350 and 1920 px, allowed 0.02% of differing pixels, with the page height compared at each width. The timer is the only mask, named in `MASKS`.
-- **Accessibility.** The accessible tree and the axe results run in one direction. A node or a fix in the candidate is a `NOTE`, and a lost node or a new violation is a `FAIL`.
-- **Keys.** Every key from `src/core/keymap.ts` once it exists and exports `KEYS`, `KEYMAP` or `BINDINGS`, or else every key the React handlers compare, is pressed with six modifier sets in nine modes, comparing the state after each press.
-- **Persistence.** The final save of each fixed scenario opens in both builds, which must show and keep the same.
-- **PWA.** The service worker install, an offline reload with a new game from the pool, and the update offer after a deploy are compared as what each build does.
-
-The scenarios start from literal saves in `e2e/saves.ts` and a pool deep enough that no build generates, with a paused fake clock and a pinned `Math.random`. Generation itself is random in today's build. The first visit with an empty pool, the pool refill and the distribution of generated puzzles are left out until seeded generation is merged behind `seedGeneration` in `parity/determinism.ts`, and the run lists them as notes.
+Each limit is a measured size plus 10%, rounded up to 100 bytes. `css`, `fonts` and `icons` were measured on an early build of the Astro interface. The other four were measured at the cutover from the React app, on the complete interface, and the sizes in the table are of that build. Until then `html` and `sw` held limits from the early build and `initial_js` and `wasm` provisional ones.
 
 ### Font
 
 The interface uses Recursive, cut down from the `@fontsource-variable/recursive` package to two files in `src/assets/fonts`. `recursive-main.woff2` contains the sans and mono voices at weights 400 to 800, and `recursive-casual-digits.woff2` contains only the digits that pencil marks and player entries draw in the casual voice. Both files are checked in. A normal build doesn't run Python.
 
-`scripts/font-subset.sh` rebuilds them in a pinned Python image and needs only Docker. It takes printable ASCII plus any other character it finds in `index.html` and in the source under `src`, leaving out tests. A character Recursive lacks, such as the copyleft sign in the footer, is reported and left to a fallback font.
+`scripts/font-subset.sh` rebuilds them in a pinned Python image and needs only Docker. It takes printable ASCII plus any other character it finds in the source under `src`, leaving out tests. A character Recursive lacks, such as the copyleft sign in the footer, is reported and left to a fallback font.
 
 Run `scripts/font-subset.sh` and commit both files after a change that brings a new character into UI text, a new weight or voice, or a new version of the source package, its Python image or `scripts/font-requirements.txt`. CI runs `scripts/font-subset.sh --check`, which fails when a fresh build differs from the checked-in files by even one byte. It also runs `scripts/font-subset.sh --test`, which checks that the walk reads `.astro` markup and skips tests.
 

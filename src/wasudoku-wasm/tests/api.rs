@@ -23,7 +23,6 @@ use wasudoku_wasm::api::{
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver;
-use wasudoku_wasm::solve_board;
 use wasudoku_wasm::solver;
 use wasudoku_wasm::types::Technique;
 
@@ -81,12 +80,14 @@ fn test_conflicts_lists_every_repeated_given() {
 }
 
 #[test]
-fn test_solve_matches_the_app_path() {
+fn test_solve_takes_the_logical_steps_before_the_search() {
     for text in [PUZZLE, STALLS_LOGIC, TWO_SOLUTIONS, NEARLY_EMPTY] {
         let solved = solve(&cells(text)).unwrap();
-        let (steps, solution) = solve_board(&board(text)).unwrap();
-        assert_eq!(solved.solution, solution, "{text}");
+        let (steps, after_logic) = logical_solver::solve_with_steps(&board(text));
         assert_eq!(solved.steps, steps, "{text}");
+        assert!(!solved.solution.cells.contains(&0), "{text}");
+        let kept = after_logic.cells.iter().zip(solved.solution.cells);
+        assert!(kept.into_iter().all(|(&a, s)| a == 0 || a == s), "{text}");
     }
     assert_eq!(solve(&cells(PUZZLE)).unwrap().solution, board(SOLUTION));
 }

@@ -24,12 +24,7 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
-    /* Path mapping */
-    "baseUrl": ".",
-    "paths": {
-      "wasudoku-wasm": ["./src/wasudoku-wasm/pkg"]
-    }
+    "noUncheckedSideEffectImports": true
   },
   "include": ["src/solver"],
   "exclude": ["src/solver/**/*.test.ts"]

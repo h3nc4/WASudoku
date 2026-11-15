@@ -1,14 +1,28 @@
 {
-  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.browser.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "types": ["vite/client", "@testing-library/jest-dom", "node"]
+  },
   "include": [
     "src/ui/**/*.browser.test.ts",
     "src/test/built-page.ts",
     "src/test/built-page.setup.ts",
     "src/test/provided.d.ts"
-  ],
-  "exclude": [],
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.browser.tsbuildinfo",
-    "types": ["vite/client", "@testing-library/jest-dom", "node"]
-  }
+  ]
 }

@@ -20,15 +20,15 @@
 # Usage: budget.sh [--enforce] [dist-dir]. Without --enforce an overrun warns and exits 0.
 set -eu
 
-# Bytes on the wire, 1000 to the kilobyte as Vite counts. Each limit is the dist-next size plus 10%
-# rounded up to 100 bytes, or a provisional one for a class dist-next does not hold yet.
-LIMIT_HTML=5600
+# Bytes on the wire, 1000 to the kilobyte as Vite counts. Each limit is a measured size plus 10%,
+# rounded up to 100 bytes. README.md says when each class was last measured and why.
+LIMIT_HTML=7200
 LIMIT_CSS=9000
-LIMIT_INITIAL_JS=25000
+LIMIT_INITIAL_JS=29900
 LIMIT_FONTS=32600
-LIMIT_WASM=30000
+LIMIT_WASM=28500
 LIMIT_ICONS=1500
-LIMIT_SW=800
+LIMIT_SW=1100
 BYTES_PER_KB=1000
 BROTLI_QUALITY=11
 

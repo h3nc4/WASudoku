@@ -23,7 +23,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { generate_sudoku, initSync, solve_sudoku, validate_puzzle } from 'wasudoku-wasm'
 
 import { boardToString } from '../core/board'
 import { bindWire, type WireModule } from '../core/codec/abi'
@@ -36,7 +35,7 @@ import type { Reply } from './results'
 import { runTask, toReply } from './results'
 
 // Runs the built crate, so this suite needs `npm run wasm:build:dev` first, as `npm run test` does.
-const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm_bg.wasm')
+const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm.wasm')
 
 // The contract suite's corpus, in src/core/codec/wire.contract.test.ts.
 const PUZZLE = '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79'
@@ -48,13 +47,22 @@ const STALLS_LOGIC =
 const CONFLICTING = '55' + '.'.repeat(79)
 const SOLVABLE = [PUZZLE, NEARLY_EMPTY, W_WING, STALLS_LOGIC]
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme'] as const
-// The legacy export generates unseeded, and expert has taken over 6 s on a loaded machine
+// Seeded generation runs on the unoptimized dev build, where expert has taken over 6 s on a loaded machine.
 const GENERATE_TIMEOUT_MS = 30_000
 const SEEDS = [1, 2, 3]
 
-interface LegacySolve {
+/** The wire's own answer, which keeps each cause's candidates in the order the solver emitted them. */
+const cellsOf = (puzzle: string) => Uint8Array.from(puzzle, (c) => (c === '.' ? 0 : Number(c)))
+
+function wireSolve(puzzle: string): {
   readonly steps: readonly Wire.Step[]
   readonly solution: string
+} {
+  const decoded = decodeSolve(
+    wire.solve(Uint8Array.from(puzzle, (c) => (c === '.' ? 0 : Number(c)))),
+  )
+  if (!decoded.ok || decoded.result.kind !== 'solved') throw new Error(`no solve of ${puzzle}`)
+  return { steps: decoded.result.steps, solution: decoded.result.solution.join('') }
 }
 
 let wire: WireModule
@@ -85,19 +93,21 @@ const reply = async (task: SolverTask, seed = 1): Promise<Reply> =>
   toReply(1, await runTask(client, task, () => seed, {}))
 
 beforeAll(() => {
-  wire = bindWire(initSync({ module: readFileSync(WASM_PATH) }))!
+  wire = bindWire(
+    new WebAssembly.Instance(new WebAssembly.Module(readFileSync(WASM_PATH)), {}).exports,
+  )!
   client = directClient(wire)
 })
 
 describe('wire results mapped onto core steps, against the real wasm', () => {
   it.each(SOLVABLE)('keeps every step and the solution of %s', async (puzzle) => {
-    const legacy = solve_sudoku(puzzle) as LegacySolve
+    const wired = wireSolve(puzzle)
     const mapped = await reply({ kind: 'solve', puzzle })
     if (mapped.type !== 'solved') throw new Error(mapped.type)
-    expect(boardToString(mapped.result.solution)).toBe(legacy.solution)
-    expect(mapped.result.steps).toHaveLength(legacy.steps.length)
+    expect(boardToString(mapped.result.solution)).toBe(wired.solution)
+    expect(mapped.result.steps).toHaveLength(wired.steps.length)
     mapped.result.steps.forEach((step, i) => {
-      const original = legacy.steps[i]
+      const original = wired.steps[i]
       expect(step.technique).toBe(original.technique)
       expect(step.placements).toEqual(
         original.placements.map(({ index, value }) => ({ index, digit: value })),
@@ -117,11 +127,11 @@ describe('wire results mapped onto core steps, against the real wasm', () => {
     const reordered = new Set<string>()
     for (const puzzle of SOLVABLE) {
       const mapped = await reply({ kind: 'solve', puzzle })
-      const legacy = solve_sudoku(puzzle) as LegacySolve
+      const wired = wireSolve(puzzle)
       if (mapped.type !== 'solved') throw new Error(mapped.type)
       mapped.result.steps.forEach((step, i) => {
         step.cause.forEach(({ candidates }, at) => {
-          const emitted = legacy.steps[i].cause[at].candidates
+          const emitted = wired.steps[i].cause[at].candidates
           if (digitsOf(candidates).join() !== emitted.join()) reordered.add(step.technique)
         })
       })
@@ -136,27 +146,30 @@ describe('wire results mapped onto core steps, against the real wasm', () => {
     expect(await reply({ kind: 'solve', puzzle })).toEqual({ type: 'failed', id: 1, reason })
   })
 
-  it('validates what the legacy export validates, and refuses the rest with a null solution', async () => {
+  it('validates what the wire validates, and refuses the rest with a null solution', async () => {
     for (const puzzle of [...SOLVABLE, NORVIG, CONFLICTING]) {
       const mapped = await reply({ kind: 'validate', puzzle })
       if (mapped.type !== 'validated') throw new Error(mapped.type)
-      const legacy = puzzle === CONFLICTING ? undefined : validate_puzzle(puzzle)
-      expect(mapped.solution === null ? undefined : boardToString(mapped.solution)).toBe(legacy)
+      const wired = decodeValidate(wire.validate(cellsOf(puzzle)))
+      const unique = wired.ok && wired.result.kind === 'unique' ? wired.result.solution : null
+      expect(mapped.solution === null ? null : boardToString(mapped.solution)).toBe(
+        unique === null ? null : unique.join(''),
+      )
     }
+    expect(
+      SOLVABLE.map((puzzle) => decodeValidate(wire.validate(cellsOf(puzzle))).ok),
+    ).not.toContain(false)
   })
 
   it.each(DIFFICULTIES)(
-    'generates %s puzzles in the strings the legacy export wrote',
+    'generates %s puzzles as the strings a saved pool holds',
     async (difficulty) => {
-      const legacy = generate_sudoku(difficulty) as { puzzle: string; solution: string }
       for (const seed of SEEDS) {
         const mapped = await reply({ kind: 'generate', difficulty }, seed)
         if (mapped.type !== 'generated') throw new Error(mapped.type)
         const { puzzleString, solutionString } = mapped.puzzle
         expect(puzzleString).toMatch(/^[1-9.]{81}$/)
         expect(solutionString).toMatch(/^[1-9]{81}$/)
-        expect(legacy.puzzle).toMatch(/^[1-9.]{81}$/)
-        expect(legacy.solution).toMatch(/^[1-9]{81}$/)
         expect(Array.from(puzzleString).every((c, i) => c === '.' || c === solutionString[i])).toBe(
           true,
         )

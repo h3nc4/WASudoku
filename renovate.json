@@ -28,14 +28,6 @@
       "enabled": false
     },
     {
-      "groupName": "radix-ui",
-      "matchPackageNames": ["/^@radix-ui/", "/^radix-ui/"]
-    },
-    {
-      "groupName": "react",
-      "matchPackageNames": ["/^react/", "/^@types/react/"]
-    },
-    {
       "groupName": "vite-ecosystem",
       "matchPackageNames": [
         "/^vite/",
@@ -61,18 +53,8 @@
     },
     {
       "matchManagers": ["cargo"],
-      "groupName": "wasm-bindgen",
-      "matchPackageNames": ["/^wasm-bindgen/"]
-    },
-    {
-      "matchManagers": ["cargo"],
-      "groupName": "serde",
-      "matchPackageNames": ["/^serde/"]
-    },
-    {
-      "matchManagers": ["cargo"],
       "groupName": "rand",
-      "matchPackageNames": ["/^rand/", "/^getrandom/"]
+      "matchPackageNames": ["/^rand/"]
     },
     {
       "description": "Group SonarQube server and scanner updates",

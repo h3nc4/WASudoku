@@ -21,10 +21,29 @@
 
 import { describe, expect, it } from 'vitest'
 
-import * as old from '@/lib/share'
-
 import { parseQuery, type QueryPair, serializeQuery } from './query'
 import { buildShareUrl, readSharedPuzzle, stripSharedPuzzle } from './share'
+
+// The share links of the React app before the cutover, which built them on URL and URLSearchParams.
+const SHARE_PARAM = 'p'
+const old = {
+  buildShareUrl(boardString: string, href: string): string {
+    const url = new URL(href)
+    url.search = ''
+    url.hash = ''
+    url.searchParams.set(SHARE_PARAM, boardString)
+    return url.toString()
+  },
+  readSharedPuzzle(search: string): string | null {
+    const value = new URLSearchParams(search).get(SHARE_PARAM)
+    return value !== null && /^[0-9.]{81}$/.test(value) ? value : null
+  },
+  stripSharedPuzzle(href: string): string {
+    const url = new URL(href)
+    url.searchParams.delete(SHARE_PARAM)
+    return url.toString()
+  },
+}
 
 const PUZZLE = '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79'
 

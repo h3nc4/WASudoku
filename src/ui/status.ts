@@ -16,8 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { iconHref } from '../components-next/icons'
-import { isMistakeLimit, mistakesText } from '../components-next/view'
+import { iconHref } from '../components/icons'
+import { isMistakeLimit, mistakesText } from '../components/view'
 import { selectSeconds, selectStatus, type StatusView } from '../core/game/selectors'
 import { formatTime } from '../core/text/format'
 import { difficultyName, PAUSE_LABELS } from '../core/text/labels'
