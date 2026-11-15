@@ -157,11 +157,16 @@
     );
   }
 
+  /* Notes on the highlighter over the stripes fall under 4.5:1, so a selected target keeps only its amber ring. */
+  .c[aria-selected='true'][data-target] {
+    background-image: none;
+  }
+
   .c:focus-visible {
     --ring-width: 2px;
   }
 
-  /* Red on the dark highlighter measures 2.2:1, so a selected wrong cell in dark keeps bare paper. */
+  /* Red on the dark highlighter clears 4.5:1 with no margin, so a selected wrong cell in dark keeps bare paper. */
   :root:not([data-theme='light']) .c[aria-selected='true'][aria-invalid='true']::before {
     opacity: 0;
   }

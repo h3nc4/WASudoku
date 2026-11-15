@@ -52,11 +52,12 @@
   --pencil: light-dark(#4f545d, #bcc3cd);
   /* Darker in light and lighter in dark than the React app. A note now clears 4.5:1 on the same-digit fill. */
   --note: light-dark(#51555d, #b1b8c1);
-  /* A struck note was the note at 55% opacity, 2.4:1. A solid tone keeps it dimmer and above 4.5:1 on paper. */
-  --note-struck: light-dark(#6c7077, #82878f);
+  /* A hint strikes notes on peer, selected and target cells too. The tone stays dimmer and clears 4.5:1 on each. */
+  --note-struck: light-dark(#5f636b, #adb4bd);
   --peer: light-dark(rgb(120 140 170 / 0.2), rgb(150 170 200 / 0.15));
   --same: light-dark(rgb(70 95 140 / 0.3), rgb(150 170 200 / 0.3));
-  --highlighter: light-dark(rgb(250 214 60 / 0.75), rgb(236 224 110 / 0.45));
+  /* In dark the highlighter is a low wash, so notes and pencil digits on it clear 4.5:1. */
+  --highlighter: light-dark(rgb(250 214 60 / 0.75), rgb(250 214 60 / 0.22));
   --error: light-dark(#b02a21, #ff958a);
   --solver: light-dark(#855000, #f2a541);
   --solver-wash: light-dark(rgb(184 115 10 / 0.16), rgb(242 165 65 / 0.18));
@@ -114,10 +115,10 @@
     --ink: #eef1f5;
     --pencil: #bcc3cd;
     --note: #b1b8c1;
-    --note-struck: #82878f;
+    --note-struck: #adb4bd;
     --peer: rgb(150 170 200 / 0.15);
     --same: rgb(150 170 200 / 0.3);
-    --highlighter: rgb(236 224 110 / 0.45);
+    --highlighter: rgb(250 214 60 / 0.22);
     --error: #ff958a;
     --solver: #f2a541;
     --solver-wash: rgb(242 165 65 / 0.18);
@@ -153,7 +154,7 @@
     --ink: #1d2a4d;
     --pencil: #4f545d;
     --note: #51555d;
-    --note-struck: #6c7077;
+    --note-struck: #5f636b;
     --peer: rgb(120 140 170 / 0.2);
     --same: rgb(70 95 140 / 0.3);
     --highlighter: rgb(250 214 60 / 0.75);

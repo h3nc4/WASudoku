@@ -26,7 +26,8 @@ export const BOARD_SIZE = 9
 
 export const CELL_COUNT = BOARD_SIZE * BOARD_SIZE
 
-/** One cell as drawn. Fills are exclusive, so at most one of selected, peer, same and placed is set. */
+/** One cell as drawn. Fills are exclusive, so at most one of selected, peer, same and placed is set.
+ * A target's stripes give way to the highlighter on a selected cell. */
 export interface CellView {
   readonly value?: Digit
   readonly given?: boolean
