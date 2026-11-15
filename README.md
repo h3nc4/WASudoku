@@ -197,7 +197,7 @@ npm run dev
 
 ### Tests
 
-`npm run test` runs the Rust tests and the Vitest suite in jsdom, building the crate first. The other two suites drive real browsers, which `npx playwright install` downloads once. Both run in the same four Playwright projects, `chromium`, `firefox`, `webkit` and `iphone-15`, where the last is WebKit at an iPhone 15 screen size.
+`npm run test` runs the Rust tests, the wasm-bindgen tests in `tests/web.rs` compiled to wasm and run in Node by `wasm-pack test --node`, and the Vitest suite in jsdom, building the crate first. The other two suites drive real browsers, which `npx playwright install` downloads once. Both run in the same four Playwright projects, `chromium`, `firefox`, `webkit` and `iphone-15`, where the last is WebKit at an iPhone 15 screen size.
 
 - `npm run test:browser` runs the Vitest suite in all four. It needs the crate built, by `npm run wasm:build:dev` or an earlier `npm run dev`, and it watches for changes until `--run` is added.
 - `npm run test:e2e` plays the app end to end, from the first visit to sharing, sticky numbers, pausing and winning, with an accessibility scan through axe. It serves `dist/` with `npm run preview` on port 4173, so `npm run build` comes first.

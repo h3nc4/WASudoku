@@ -30,8 +30,6 @@ struct SolveResult {
     solution: Option<String>,
 }
 
-wasm_bindgen_test_configure!(run_in_browser);
-
 #[wasm_bindgen_test]
 fn test_solve_sudoku_valid_puzzle() {
     let puzzle_str =
@@ -48,9 +46,9 @@ fn test_solve_sudoku_valid_puzzle() {
 
 #[wasm_bindgen_test]
 fn test_solve_sudoku_no_solution() {
-    // An unsolvable puzzle with conflicting givens that the solver can't satisfy.
+    // No two givens conflict, yet the last cell of row one needs the 9 its column already holds.
     let puzzle_str =
-        "1.2.3.4.5.6.7.8.9..............................................................";
+        "12345678.........9...............................................................";
     let result = solve_sudoku(puzzle_str);
     assert!(
         result.is_err(),
@@ -134,7 +132,7 @@ fn test_validate_puzzle_valid() {
 fn test_validate_puzzle_multiple_solutions() {
     // An almost empty board will have multiple solutions
     let puzzle_str =
-        "8..............................................................................";
+        "8................................................................................";
     let result = validate_puzzle(puzzle_str).unwrap();
     assert!(
         result.is_none(),
@@ -144,12 +142,16 @@ fn test_validate_puzzle_multiple_solutions() {
 
 #[wasm_bindgen_test]
 fn test_validate_puzzle_no_solution() {
-    // Puzzle with an impossible configuration
+    // Two 8s in the first row
     let puzzle_str =
         "88.........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4..";
     let result = validate_puzzle(puzzle_str);
     assert!(
         result.is_err(),
         "Expected validation to fail due to initial conflict"
+    );
+    assert_eq!(
+        result.err().unwrap().as_string().unwrap(),
+        "Invalid puzzle: initial configuration has conflicts."
     );
 }

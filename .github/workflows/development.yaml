@@ -94,6 +94,7 @@ jobs:
             npm run lint:sh
             npm run lint:wasm
             npm run test:wasm
+            npm run test:wasm:node
             npm run wasm:build:dev
             tar -cf wasm-pkg-dev.tar -C src/wasudoku-wasm pkg
             npm run typecheck

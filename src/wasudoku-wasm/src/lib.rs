@@ -40,7 +40,7 @@ pub struct GeneratedPuzzle {
 
 /// Set the panic hook to forward Rust panics to the browser console.
 #[wasm_bindgen(start)]
-pub fn main() {
+pub fn start() {
     utils::set_panic_hook();
 }
 
