@@ -76,6 +76,7 @@ const last = endRow(walkthrough.steps.length, walkthrough)
       </div>
     </div>
     <div class="border-grid-thin flex min-h-0 flex-1 flex-col gap-1 border-t pt-2">
+      {/* Screen readers join the spans on these spaces, which a grid leaves out of layout. */}
       <button
         type="button"
         id="step-start"
@@ -83,7 +84,7 @@ const last = endRow(walkthrough.steps.length, walkthrough)
         data-step={first.position}
         aria-current={first.current ? 'step' : undefined}
       >
-        <span data-tag>{first.tag}</span>
+        <span data-tag>{stepTag(0, walkthrough.steps.length)}</span>{' '}
         <span class="col-span-2">Initial Board State</span>
       </button>
       <ol aria-label="Solver trace" class="scroller min-h-0 flex-1" id="solver-trace">
@@ -96,9 +97,9 @@ const last = endRow(walkthrough.steps.length, walkthrough)
                 data-step={row.position}
                 aria-current={row.tone === 'current' ? 'step' : undefined}
               >
-                <span class="sr-only">Step</span>
-                <span>{row.tag}</span>
-                <span class="whitespace-nowrap">{row.where}</span>
+                <span class="sr-only">Step</span>{' '}
+                <span>{row.tag}</span>{' '}
+                <span class="whitespace-nowrap">{row.where}</span>{' '}
                 <span class="min-w-0 break-words">{row.label}</span>
               </button>
             </li>
@@ -112,7 +113,7 @@ const last = endRow(walkthrough.steps.length, walkthrough)
         data-step={last.position}
         aria-current={last.current ? 'step' : undefined}
       >
-        <span data-tag>{last.tag}</span>
+        <span></span>{' '}
         <span class="col-span-2">Solution</span>
       </button>
     </div>

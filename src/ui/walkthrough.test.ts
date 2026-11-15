@@ -37,6 +37,8 @@ describe('traceRow', () => {
       'Naked Single',
     ])
     expect(row.querySelector('span')).toHaveClass('sr-only')
+    // A screen reader reads the text, so the spans need the spaces a grid hides.
+    expect(row.querySelector('button')!).toHaveTextContent('Step 01 R1C3 = 4 Naked Single')
   })
 })
 
@@ -93,6 +95,9 @@ describe('bindWalkthrough', () => {
     expect(document.querySelector('[data-solved-in]')).toHaveTextContent('Solved in 3 steps')
     expect(document.querySelector<HTMLElement>('[data-solved-in]')!.hidden).toBe(false)
     expect(document.querySelector('#steps-panel section')).toHaveStyle('--trace-tag: 1ch')
+    // The solution row has no number, and every row spaces its number from its label.
+    expect(byId('step-start').textContent.trim()).toBe('0 Initial Board State')
+    expect(byId('step-end').textContent.trim()).toBe('Solution')
   })
 
   it('steps back and forth, marking the current row and its explanation', () => {

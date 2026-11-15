@@ -40,6 +40,10 @@ test.describe('solve and the walkthrough', () => {
     // The walkthrough opens at the solution, and the first row returns to the puzzle as given.
     await expect(page.locator('#step-count')).toHaveText(`${total}/${total}`)
     await expect(page.locator('[data-solved-in]')).toHaveText(`Solved in ${total} steps`)
+    // Each row's name spaces its number from its label, and the solution row has no number.
+    await expect(page.locator('#step-start')).toHaveAccessibleName(/^0+ Initial Board State$/)
+    await expect(page.locator('#step-end')).toHaveAccessibleName('Solution')
+    await expect(steps(page).first()).toHaveAccessibleName(/^Step 0*1 R\dC\d/)
     await page.locator('#step-start').click()
     await expect(page.locator('#step-start')).toHaveAttribute('aria-current', 'step')
     await expect(page.locator('#previous-step')).toBeDisabled()

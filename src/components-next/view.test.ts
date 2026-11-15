@@ -217,8 +217,8 @@ describe('walkthrough', () => {
   })
 
   it('keeps the current mark off the solution row', () => {
-    expect(endRow(0, walk(0))).toEqual({ position: 0, tag: '00', tone: 'current', current: true })
-    expect(endRow(12, walk(12))).toEqual({ position: 12, tag: '', tone: 'reached', current: false })
+    expect(endRow(0, walk(0))).toEqual({ position: 0, tone: 'current', current: true })
+    expect(endRow(12, walk(12))).toEqual({ position: 12, tone: 'reached', current: false })
     expect(endRow(12, walk(3))).toMatchObject({ tone: 'future', current: false })
     expect(isSolution(walk(12))).toBe(true)
     expect(isSolution(walk(11))).toBe(false)

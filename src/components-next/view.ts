@@ -262,7 +262,6 @@ export function endRow(position: number, walkthrough: WalkthroughView) {
   const reached = position > 0 && tone === 'current'
   return {
     position,
-    tag: position === 0 ? stepTag(0, walkthrough.steps.length) : '',
     tone: reached ? ('reached' as const) : tone,
     current: tone === 'current' && !reached,
   }

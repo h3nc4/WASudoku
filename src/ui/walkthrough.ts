@@ -46,10 +46,11 @@ export function traceRow(
     ['whitespace-nowrap', where],
     ['min-w-0 break-words', label],
   ]
-  for (const [className, text] of parts) {
+  for (const [k, [className, text]] of parts.entries()) {
     const span = doc.createElement('span')
     if (className !== '') span.className = className
     span.textContent = text
+    if (k > 0) button.append(' ')
     button.append(span)
   }
   item.append(button)
