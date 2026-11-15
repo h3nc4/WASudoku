@@ -24,6 +24,8 @@ import { bindBoard } from './grid'
 
 const cell = (index: number) => document.getElementById(`cell-${String(index)}`)!
 const board = () => document.getElementById('board')!
+/** How long the conflict pulse lasts, FLASH_MS in the core. */
+const PULSE_MS = 600
 
 function pasteEvent(data: string | null) {
   const event = new Event('paste', { bubbles: true, cancelable: true })
@@ -125,6 +127,24 @@ describe('bindBoard', () => {
     expect(board()).not.toHaveAttribute('data-paused')
     expect(board()).not.toHaveAttribute('aria-readonly')
     expect(state().game.mode).toBe('playing')
+  })
+
+  it('pulses the peer that refused a note, crossed and red, and replays it on a repeat clash', () => {
+    const { store, timers } = start()
+    const mark = () => cell(0).querySelector('[data-testid="cell-error-mark"]')
+    cell(2).focus()
+    store.dispatch({ type: 'setMode', mode: 'candidate' })
+    store.dispatch({ type: 'digit', digit: 5 })
+    expect(cell(0)).toHaveAttribute('data-flash', '')
+    expect(cell(0)).not.toHaveAttribute('aria-invalid')
+    expect(mark()?.nextElementSibling).toHaveTextContent('5')
+    expect(board()).toHaveAttribute('data-pulse', 'a')
+    store.dispatch({ type: 'digit', digit: 5 })
+    expect(board()).toHaveAttribute('data-pulse', 'b')
+    timers.advance(PULSE_MS)
+    expect(cell(0)).not.toHaveAttribute('data-flash')
+    expect(mark()).toBeNull()
+    expect(board()).not.toHaveAttribute('data-pulse')
   })
 
   it('marks the board busy while the solver reads it', () => {

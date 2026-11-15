@@ -104,14 +104,14 @@ test.describe('play', () => {
     await page.getByRole('radio', { name: 'Corner' }).click()
     await cell(page, R1C3).click()
     for (const key of ['1', '2', '4']) await page.keyboard.press(key)
-    await expect(notesOf(page, R1C3)).toHaveText('1 2 4')
+    await expect(notesOf(page, R1C3)).toHaveText('124')
     await expect(cell(page, R1C3)).toHaveAttribute('aria-label', 'R1C3, empty, candidates 1, 2, 4')
 
     await page.getByRole('radio', { name: 'Center' }).click()
     await cell(page, R1C4).click()
     for (const key of ['2', '6']) await page.keyboard.press(key)
     await expect(notesOf(page, R1C4)).toHaveAttribute('data-center', 'few')
-    await expect(notesOf(page, R1C4)).toHaveText('2 6')
+    await expect(notesOf(page, R1C4)).toHaveText('26')
 
     await page.getByRole('radio', { name: 'Pen' }).click()
     await cell(page, R1C3).click()

@@ -63,6 +63,10 @@ describe('drawnCell', () => {
       center: [],
     })
     expect(drawnCell({ ...BLANK, hintTarget: true }, false).target).toBe(true)
+    expect(drawnCell({ ...BLANK, digit: 5, flashing: true }, false)).toMatchObject({
+      flashing: true,
+      invalid: false,
+    })
   })
 
   it('voices only what a walkthrough filled in as solver output', () => {
@@ -81,6 +85,7 @@ describe('sameDrawn', () => {
     expect(sameDrawn({ peer: true }, {})).toBe(false)
     expect(sameDrawn({ corner: [1, 2] }, { corner: [1, 2] })).toBe(true)
     expect(sameDrawn({ struck: [1] }, { struck: [2] })).toBe(false)
+    expect(sameDrawn({ value: 5, flashing: true }, { value: 5 })).toBe(false)
   })
 })
 
@@ -91,6 +96,8 @@ describe('contentKey', () => {
     expect(contentKey({ center: [1], corner: [2] })).toBe(contentKey({ center: [1], corner: [3] }))
     expect(contentKey({ corner: [2], struck: [2] })).not.toBe(contentKey({ corner: [2] }))
     expect(contentKey({ struck: [2] })).toBe(contentKey({}))
+    expect(contentKey({ value: 4, flashing: true })).toBe(contentKey({ value: 4, invalid: true }))
+    expect(contentKey({ flashing: true })).toBe(contentKey({}))
   })
 })
 
@@ -105,20 +112,27 @@ describe('cellContent', () => {
     expect(html(wrong)).toContain('<path d="M10 10 90 90M90 10 10 90"></path>')
   })
 
+  it("crosses a digit while it pulses for a refused note, as today's app marks the clash", () => {
+    const [mark, digit] = cellContent(document, { value: 5, flashing: true })
+    expect(mark).toHaveAttribute('data-testid', 'cell-error-mark')
+    expect(digit).toHaveTextContent('5')
+  })
+
   it('draws center notes over corner notes, sized by their count', () => {
     const few = html(cellContent(document, { center: [2, 6], corner: [1] }))
     expect(few).toBe(
-      '<span class="n" aria-hidden="true" data-center="few"> <span>2</span> <span>6</span></span>',
+      '<span class="n" aria-hidden="true" data-center="few"><br><span>2</span><br><span>6</span></span>',
     )
+    expect(cellContent(document, { center: [2, 6] })[0]).toHaveTextContent(/^26$/)
     const many = cellContent(document, { center: [1, 2, 3, 4, 5] })
     expect(many[0]).toHaveAttribute('data-center', 'many')
   })
 
   it('draws corner notes in nine slots, striking the eliminated ones', () => {
     const [notes] = cellContent(document, { corner: [1, 9], struck: [9] })
-    const slots = [...(notes as HTMLElement).children]
+    const slots = [...(notes as HTMLElement).querySelectorAll(':scope > span')]
     expect(slots).toHaveLength(9)
-    expect(slots.map((slot) => slot.textContent).join('')).toBe('19')
+    expect(notes).toHaveTextContent(/^19$/)
     expect(slots[8]).toHaveAttribute('data-struck', '')
     expect(slots[0]).not.toHaveAttribute('data-struck')
     expect(cellContent(document, {})).toEqual([])
@@ -134,6 +148,10 @@ describe('stateAttributes', () => {
       'aria-label': 'R1C1, 5, given',
       'aria-readonly': 'true',
       'data-peer': undefined,
+      'data-flash': undefined,
+    })
+    expect(Object.fromEntries(stateAttributes(0, { value: 5, flashing: true }))).toMatchObject({
+      'data-flash': '',
     })
   })
 })

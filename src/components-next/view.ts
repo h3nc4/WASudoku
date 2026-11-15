@@ -57,6 +57,8 @@ export interface CellView {
   readonly target?: boolean
   /** Solver output, in the mono voice. */
   readonly solved?: boolean
+  /** A peer holding the digit a note was refused for, pulsed red for a moment. */
+  readonly flashing?: boolean
 }
 
 export type GameMode = 'selecting' | 'playing' | 'customInput' | 'visualizing'
@@ -163,8 +165,13 @@ export function cellAttributes(index: number, cell: CellView, focusable: boolean
     'data-placed': flag(cell.placed),
     'data-cause': flag(cell.cause),
     'data-target': flag(cell.target),
+    'data-flash': flag(cell.flashing),
   }
 }
+
+/** A digit drawn in red over the cell-wide X, for a mistake or a refused note's peer. */
+export const isCrossed = (cell: CellView): boolean =>
+  cell.value !== undefined && (cell.invalid === true || cell.flashing === true)
 
 /** More than this many center notes drop a size, so they still fit on one line. */
 export const CENTER_NOTES_FIT = 4
@@ -191,7 +198,7 @@ export function boardRows(cells: readonly CellView[]) {
       return {
         attributes: cellAttributes(index, cell, index === stop),
         value: cell.value,
-        wrong: cell.invalid === true && !empty,
+        wrong: isCrossed(cell),
         center: center && { digits: center, size: centerSize(center) },
         corner: empty && !center && cell.corner?.length ? cornerSlots(cell) : undefined,
       }

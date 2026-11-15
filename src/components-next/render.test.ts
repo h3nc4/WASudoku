@@ -185,6 +185,9 @@ describe('preview states', () => {
     expect(cell(doc, 6)).toHaveAttribute('aria-label', 'R1C7, empty, candidates 1, 8, 9')
     expect(cell(doc, 33)).toHaveAttribute('aria-label', 'R4C7, empty, center notes 4, 5, 9')
     expect(cell(doc, 56)?.querySelector('.n')?.getAttribute('data-center')).toBe('many')
+    // The face's text runs the notes together, as today's app draws them.
+    expect(cell(doc, 6)?.textContent.trim()).toBe('189')
+    expect(cell(doc, 33)?.textContent.trim()).toBe('459')
     for (const glyphs of doc.querySelectorAll('.c > .n, .c > .d')) {
       expect(glyphs).toHaveAttribute('aria-hidden', 'true')
     }

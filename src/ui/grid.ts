@@ -45,6 +45,9 @@ import {
 export const GRID_SIZE = 9
 export const GRID_CELLS = GRID_SIZE * GRID_SIZE
 
+/** Keyframe sets the conflict pulse alternates between. */
+const PULSE_KEYFRAMES = 2
+
 export interface GridKey {
   readonly key: string
   readonly ctrl: boolean
@@ -169,6 +172,12 @@ export function bindGrid(grid: HTMLElement, options: GridOptions): GridHandle {
 
 const CELL = '[role="gridcell"]'
 
+/** Each clash swaps between two identical keyframes, so a repeat clash restarts the pulse. */
+export const pulseKeyframes = (pulse: number | null): 'a' | 'b' | undefined => {
+  if (pulse === null) return undefined
+  return pulse % PULSE_KEYFRAMES === 0 ? 'b' : 'a'
+}
+
 /** A field that takes typing keeps its paste. */
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement ||
@@ -224,8 +233,9 @@ export function bindBoard(doc: Document, store: Store): () => void {
   const view = store.select(selectGrid, shallowEqual<GridView>)
   disposer.add(
     watch(() => {
-      const { paused, solving, readOnly } = view()
+      const { paused, solving, readOnly, pulse } = view()
       setFlag(board, 'data-paused', paused)
+      setAttr(board, 'data-pulse', pulseKeyframes(pulse))
       setAttr(board, 'aria-busy', solving ? 'true' : undefined)
       setAttr(board, 'aria-readonly', readOnly ? 'true' : undefined)
       setHidden(overlay, !paused)

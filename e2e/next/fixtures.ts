@@ -45,6 +45,10 @@ export const digitOf = (page: Page, index: number): Locator => cell(page, index)
 
 export const notesOf = (page: Page, index: number): Locator => cell(page, index).locator('.n')
 
+/** The cell by today's face test id, whose text is its digit or its notes run together. */
+export const faceOf = (page: Page, index: number): Locator =>
+  page.getByTestId('cell-background').and(cell(page, index))
+
 export const padKey = (page: Page, digit: number): Locator =>
   page.getByRole('button', { name: new RegExp(`^Enter number ${digit}\\b`) })
 

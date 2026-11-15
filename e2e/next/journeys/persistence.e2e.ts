@@ -23,9 +23,9 @@ import {
   difficulty,
   digitOf,
   expect,
+  faceOf,
   legacyGame,
   mistakes,
-  notesOf,
   PUZZLE,
   readTimer,
   savedGame,
@@ -55,12 +55,12 @@ test('reload mid-game restores board, notes and timer', async ({ page, open }) =
   await cell(page, R1C4).click()
   await page.keyboard.press('2')
   await page.keyboard.press('6')
-  await expect(notesOf(page, R1C4)).toHaveText('2 6')
+  await expect(faceOf(page, R1C4)).toHaveText('26')
   const before = await readTimer(page)
 
   await page.reload()
   await expect(digitOf(page, R1C3)).toHaveText('4')
-  await expect(notesOf(page, R1C4)).toHaveText('2 6')
+  await expect(faceOf(page, R1C4)).toHaveText('26')
   await expect(mistakes(page)).toHaveText('1/3')
   expect(await readTimer(page)).toBeGreaterThanOrEqual(before)
   await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
@@ -88,7 +88,7 @@ test('save in the legacy Set-tagged format migrates on load', async ({ page, ope
   await open({ game: legacyGame() })
   await expect(difficulty(page)).toHaveText('Medium')
   await expect(digitOf(page, R1C3)).toHaveText('4')
-  await expect(notesOf(page, R1C4)).toHaveText('2 6')
+  await expect(faceOf(page, R1C4)).toHaveText('26')
 
   const saved = await storedGame(page)
   expect(JSON.parse(saved ?? '{}')).toMatchObject({ version: 2, difficulty: 'medium' })

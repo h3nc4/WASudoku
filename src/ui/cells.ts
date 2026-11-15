@@ -22,6 +22,7 @@ import {
   type CellView,
   centerSize,
   cornerSlots,
+  isCrossed,
 } from '../components-next/view'
 import { type CellView as GameCell, digitsOf } from '../core/game/selectors'
 
@@ -49,6 +50,7 @@ export function drawnCell(cell: GameCell | undefined, walkthrough: boolean): Cel
     cause: cell.cause,
     target: cell.hintTarget,
     solved,
+    flashing: cell.flashing,
   }
 }
 
@@ -62,6 +64,7 @@ const FLAGS = [
   'cause',
   'target',
   'solved',
+  'flashing',
 ] as const
 const LISTS = ['corner', 'center', 'struck'] as const
 
@@ -78,10 +81,13 @@ export function contentKey(cell: CellView): string {
   const empty = cell.value === undefined
   const center = empty ? listKey(cell.center) : ''
   const corner = empty && center === '' ? listKey(cell.corner) : ''
-  const wrong = cell.invalid === true && !empty
-  return [cell.value ?? '', wrong, center, corner, corner === '' ? '' : listKey(cell.struck)].join(
-    '|',
-  )
+  return [
+    cell.value ?? '',
+    isCrossed(cell),
+    center,
+    corner,
+    corner === '' ? '' : listKey(cell.struck),
+  ].join('|')
 }
 
 function span(doc: Document, className: string | null, text: string): HTMLSpanElement {
@@ -111,21 +117,24 @@ export function cellContent(doc: Document, cell: CellView): Node[] {
     const digit = span(doc, 'd', String(cell.value))
     digit.setAttribute('aria-hidden', 'true')
     digit.dataset['testid'] = CELL_TESTID.digit
-    return cell.invalid === true ? [cross(doc), digit] : [digit]
+    return isCrossed(cell) ? [cross(doc), digit] : [digit]
   }
+  // A hidden break before each note splits the digits for name checks, as the label spells them.
+  // It adds no text, so the face reads as today's app does.
   const notes = span(doc, 'n', '')
   notes.setAttribute('aria-hidden', 'true')
   const center = cell.center ?? []
   if (center.length > 0) {
     notes.dataset['center'] = centerSize(center)
-    for (const digit of center) notes.append(' ', span(doc, null, String(digit)))
+    for (const digit of center)
+      notes.append(doc.createElement('br'), span(doc, null, String(digit)))
     return [notes]
   }
   if ((cell.corner ?? []).length === 0) return []
   for (const slot of cornerSlots(cell)) {
     const mark = span(doc, null, slot.digit === undefined ? '' : String(slot.digit))
     if (slot.struck !== undefined) mark.dataset['struck'] = ''
-    notes.append(' ', mark)
+    notes.append(doc.createElement('br'), mark)
   }
   return [notes]
 }

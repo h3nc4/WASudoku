@@ -21,13 +21,14 @@ import {
   digitOf,
   expect,
   expectAccessible,
+  faceOf,
   mistakes,
-  notesOf,
   savedGame,
   test,
 } from '../fixtures'
 
-// R1C3 takes 1, 2 or 4 and its answer is 4. R1C4 takes 2 or 6.
+// R1C1 is a given 5. R1C3 takes 1, 2 or 4 and its answer is 4. R1C4 takes 2 or 6.
+const R1C1 = 0
 const R1C3 = 2
 const R1C4 = 3
 
@@ -62,15 +63,18 @@ test('corner and center notes, a conflict and the mistakes counter', async ({ pa
   await page.getByRole('radio', { name: 'Corner' }).click()
   await cell(page, R1C3).click()
   for (const key of ['1', '2', '4']) await page.keyboard.press(key)
-  await expect(notesOf(page, R1C3)).toHaveText('1 2 4')
-  // Row 1 already has a 5, and the note is refused.
+  await expect(faceOf(page, R1C3)).toHaveText('124')
+  // Row 1 already has a 5, and the note is refused while R1C1's 5 pulses crossed and red.
   await page.keyboard.press('5')
-  await expect(notesOf(page, R1C3)).toHaveText('1 2 4')
+  await expect(faceOf(page, R1C3)).toHaveText('124')
+  await expect(faceOf(page, R1C1).getByTestId('cell-error-mark')).toBeVisible()
+  await expect(cell(page, R1C1)).not.toHaveAttribute('aria-invalid', 'true')
+  await expect(faceOf(page, R1C1).getByTestId('cell-error-mark')).toHaveCount(0)
 
   await page.getByRole('radio', { name: 'Center' }).click()
   await cell(page, R1C4).click()
   for (const key of ['2', '6']) await page.keyboard.press(key)
-  await expect(notesOf(page, R1C4)).toHaveText('2 6')
+  await expect(faceOf(page, R1C4)).toHaveText('26')
   await expectAccessible(page, 'board with notes')
 
   await page.getByRole('radio', { name: 'Pen' }).click()

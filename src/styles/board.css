@@ -229,6 +229,39 @@
     transition-duration: 0ms;
   }
 
+  /* The peer that refused a note turns red at once, without the wavy line a mistake gets. */
+  .c[data-flash] > .d {
+    color: var(--error);
+    transition-duration: 0ms;
+  }
+
+  /* Full, faint, full, gone over FLASH_MS, filling the cell above the X and below the digit. */
+  .c[data-flash] > .d::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background-color: color-mix(in srgb, var(--error) 22%, transparent);
+    box-shadow: inset 0 0 0 2px var(--error);
+    animation: conflict-pulse-a 600ms var(--ease-out);
+  }
+
+  /* A new animation name restarts the pulse, so every other clash swaps to identical keyframes. */
+  .board[data-pulse='b'] .c[data-flash] > .d::after {
+    animation-name: conflict-pulse-b;
+  }
+
+  /* Reduced motion gets a still outline instead, held as long. */
+  @media (prefers-reduced-motion: reduce) {
+    .c[data-flash] > .d::after {
+      opacity: 1;
+      background-color: transparent;
+      animation-name: none;
+    }
+  }
+
   /* A cell-wide X in the error colour. A wrong digit reads by shape as well as hue. */
   .c > .x {
     position: absolute;
@@ -274,6 +307,10 @@
     font-weight: 500;
     line-height: 1;
     color: var(--note);
+  }
+
+  .c > .n > br {
+    display: none;
   }
 
   .c > .n > span {
@@ -335,5 +372,27 @@
 @keyframes pause-overlay-in {
   from {
     opacity: 0;
+  }
+}
+
+@keyframes conflict-pulse-a {
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes conflict-pulse-b {
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 0.15;
   }
 }
