@@ -19,7 +19,7 @@
 /// <reference types="vitest" />
 import { devices } from '@playwright/test'
 import { playwright } from '@vitest/browser-playwright'
-import { defineConfig, mergeConfig } from 'vitest/config'
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config'
 
 import viteConfig from './vite.config'
 
@@ -45,6 +45,8 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      // These read the built wasm from disk, which a page cannot do.
+      exclude: [...configDefaults.exclude, 'src/**/*.wasm.test.ts'],
       browser: {
         enabled: true,
         provider: playwright({}),
