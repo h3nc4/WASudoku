@@ -201,6 +201,22 @@ describe('bindMenu', () => {
     expect(invoker).toHaveFocus()
   })
 
+  it('keeps focus in place on a press that opens it or lands on an enabled item', () => {
+    const { menu, invoker, items, show } = mount()
+    bindMenu(menu, { anchored: true })
+    const down = (target: Element) => {
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      target.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(down(invoker)).toBe(true)
+    show()
+    expect(down(invoker)).toBe(false)
+    expect(down(items[0])).toBe(true)
+    expect(down(items[1])).toBe(false)
+    expect(down(menu)).toBe(false)
+  })
+
   it('closes once an enabled item is chosen, with focus back on its button', () => {
     const { menu, invoker, items, show, hide } = mount()
     bindMenu(menu, { anchored: true })

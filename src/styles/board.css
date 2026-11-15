@@ -162,7 +162,8 @@
     background-image: none;
   }
 
-  .c:focus-visible {
+  /* Any focus rings a cell, as it does the text field each cell is in today's app. */
+  .c:focus {
     --ring-width: 2px;
   }
 

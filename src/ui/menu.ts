@@ -210,6 +210,24 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
     { signal },
   )
 
+  // A press that opens the menu or picks an item leaves focus in place, as in today's app, so the
+  // ring a key left carries through the script focus of the item and back to the button.
+  invoker.addEventListener(
+    'mousedown',
+    (event) => {
+      if (!open) event.preventDefault()
+    },
+    { signal },
+  )
+
+  menu.addEventListener(
+    'mousedown',
+    (event) => {
+      if (event.target instanceof Element && event.target.closest(ITEM)) event.preventDefault()
+    },
+    { signal },
+  )
+
   invoker.addEventListener(
     'keydown',
     (event) => {

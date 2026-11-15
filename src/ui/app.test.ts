@@ -66,6 +66,11 @@ describe('mountApp', () => {
     const elsewhere = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
     byId('theme-button').dispatchEvent(elsewhere)
     expect(elsewhere.defaultPrevented).toBe(false)
+    for (const id of ['start-button', 'exit-button']) {
+      const taking = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      byId(id).dispatchEvent(taking)
+      expect(taking.defaultPrevented).toBe(false)
+    }
   })
 
   it('offers an undo of a cleared board from its toast', () => {

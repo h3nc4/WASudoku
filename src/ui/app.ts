@@ -25,7 +25,7 @@ import type { Store } from '../runtime/store'
 import { startFromQuery } from './boot'
 import { bindControls } from './controls'
 import { bindDialogs } from './dialogs'
-import { all, Disposer, required } from './dom'
+import { all, closestTo, Disposer, required } from './dom'
 import { bindBoard } from './grid'
 import { bindAnnouncer, bindHint } from './hint'
 import { bindLayout } from './layout'
@@ -42,6 +42,8 @@ export const SERVICE_WORKER_URL = '/sw.js'
 
 /** Controls pressed with a pointer leave focus on the cell, so the selection they act on stays. */
 const KEEP_FOCUS = ['#number-pad', '#control-row', '#action-row', '#input-mode', '#hint-slot']
+/** Buttons that take focus on a press as in today's app, and drop it to the page as they hide. */
+const TAKES_FOCUS = '#start-button, #exit-button'
 
 export interface AppPorts {
   readonly toaster: Toaster
@@ -70,7 +72,7 @@ export function mountApp(doc: Document, store: Store, ports: AppPorts): () => vo
   disposer.add(bindThemeToggle(required(doc, '#theme-button', HTMLElement)))
   for (const area of KEEP_FOCUS.flatMap((selector) => all(doc, selector, HTMLElement))) {
     disposer.on(area, 'mousedown', (event) => {
-      event.preventDefault()
+      if (!closestTo(event, TAKES_FOCUS)) event.preventDefault()
     })
   }
   // After the bindings, so a shortcut over a game in progress opens the abandon dialog.
