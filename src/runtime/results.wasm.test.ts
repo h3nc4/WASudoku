@@ -48,6 +48,8 @@ const STALLS_LOGIC =
 const CONFLICTING = '55' + '.'.repeat(79)
 const SOLVABLE = [PUZZLE, NEARLY_EMPTY, W_WING, STALLS_LOGIC]
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme'] as const
+// The legacy export generates unseeded, and expert has taken over 6 s on a loaded machine
+const GENERATE_TIMEOUT_MS = 30_000
 const SEEDS = [1, 2, 3]
 
 interface LegacySolve {
@@ -160,5 +162,6 @@ describe('wire results mapped onto core steps, against the real wasm', () => {
         )
       }
     },
+    GENERATE_TIMEOUT_MS,
   )
 })
