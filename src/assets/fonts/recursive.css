@@ -1,0 +1,59 @@
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* scripts/font-subset.sh writes both files, with the casual axis pinned to 0 in the main one. */
+@font-face {
+  font-family: 'Recursive Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 800;
+  src: url('./recursive-main.woff2') format('woff2-variations');
+}
+
+/* The casual voice draws only pencil digits, so its file holds nothing else. */
+@font-face {
+  font-family: 'Recursive Casual';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 450 700;
+  src: url('./recursive-casual-digits.woff2') format('woff2-variations');
+  unicode-range: U+0020, U+0030-0039;
+}
+
+/* Arial scaled to Recursive's width and metrics, so text keeps its place while the font loads. */
+@font-face {
+  font-family: 'Recursive Fallback';
+  font-weight: 400;
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+  size-adjust: 107.62%;
+  ascent-override: 88.28%;
+  descent-override: 23.23%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Recursive Fallback';
+  font-weight: 700;
+  src:
+    local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'),
+    local('LiberationSans-Bold');
+  size-adjust: 102.58%;
+  ascent-override: 92.61%;
+  descent-override: 24.37%;
+  line-gap-override: 0%;
+}

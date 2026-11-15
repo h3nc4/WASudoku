@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import '@fontsource-variable/recursive/full.css'
+import './assets/fonts/recursive.css'
 import './index.css'
 
 import { ThemeProvider } from 'next-themes'

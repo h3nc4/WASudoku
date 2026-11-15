@@ -208,6 +208,14 @@ The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One re
 
 To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
 
+### Font
+
+The interface uses Recursive, cut down from the `@fontsource-variable/recursive` package to two files in `src/assets/fonts`. `recursive-main.woff2` contains the sans and mono voices at weights 400 to 800, and `recursive-casual-digits.woff2` contains only the digits that pencil marks and player entries draw in the casual voice. Both files are checked in. A normal build doesn't run Python.
+
+`scripts/font-subset.sh` rebuilds them in a pinned Python image and needs only Docker. It takes printable ASCII plus any other character it finds in `index.html` and in the source under `src`, leaving out tests. A character Recursive lacks, such as the copyleft sign in the footer, is reported and left to a fallback font.
+
+Run `scripts/font-subset.sh` and commit both files after a change that brings a new character into UI text, a new weight or voice, or a new version of the source package, its Python image or `scripts/font-requirements.txt`. CI runs `scripts/font-subset.sh --check`, which fails when a fresh build differs from the checked-in files by even one byte.
+
 ## License
 
 <!-- vale off -->

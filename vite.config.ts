@@ -129,6 +129,8 @@ export default defineConfig({
     },
   },
   build: {
+    // The casual digits load only once a pencil digit shows, so inlining them would delay every first paint.
+    assetsInlineLimit: (file) => (file.endsWith('.woff2') ? false : undefined),
     rolldownOptions: {
       input: {
         index: path.resolve(__dirname, 'index.html'),

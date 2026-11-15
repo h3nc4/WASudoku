@@ -22,7 +22,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: 'Recursive Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Recursive Variable', 'Recursive Fallback', ui-sans-serif, system-ui, sans-serif;
+  --font-pencil: 'Recursive Casual', var(--font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -182,7 +183,7 @@
   }
 }
 
-/* Recursive axes give givens, player digits and instrument text their own hand from one font file. */
+/* Recursive axes give givens, player digits and instrument text their own hand, and the casual digits have a file of their own. */
 /* A voice's weight is only a default, so a font-* class sets the Tailwind weight variable and wins. */
 @utility voice-ink {
   font-variation-settings:
@@ -192,6 +193,7 @@
 }
 
 @utility voice-pencil {
+  font-family: var(--font-pencil);
   font-variation-settings: 'CASL' 1;
   font-weight: var(--tw-font-weight, 450);
 }

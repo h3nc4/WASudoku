@@ -149,6 +149,15 @@ jobs:
           " || status=1
           exit "${status:-0}"
 
+  font:
+    name: Check the font subset
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run actions/checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Rebuild the font subset and compare it with the checked-in files
+        run: ./scripts/font-subset.sh --check
+
   browser-tests:
     name: Browser and End-to-end Test (${{ matrix.engine }})
     needs: [ci-image, checks]
