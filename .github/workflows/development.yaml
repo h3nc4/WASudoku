@@ -28,9 +28,8 @@ jobs:
     name: Resolve the CI image
     runs-on: ubuntu-latest
     outputs:
-      ref: ${{ steps.ci_image.outputs.ref }}
-      image: ${{ steps.share.outputs.image || steps.ci_image.outputs.ref }}
-      shared: ${{ steps.share.outputs.image != '' }}
+      image: ${{ steps.share.outputs.image }}
+      artifact: ${{ steps.share.outputs.artifact }}
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -39,37 +38,13 @@ jobs:
       - name: Name the CI image
         id: ci_image
         run: echo "ref=$(./scripts/ci-image.sh)" >>"${GITHUB_OUTPUT}"
-      - name: Run h3nc4/dev-image-action
-        id: resolve
-        uses: h3nc4/dev-image-action@1e296b26a16b3e20db153e32b963d953a41ef1a1 # v2
+      - name: Run h3nc4/dev-image-action/share
+        id: share
+        uses: h3nc4/dev-image-action/share@24e5d67fa210ea49d6ef24c07d7f8f536fe1bb7b # v3
         with:
           image: ${{ steps.ci_image.outputs.ref }}
           dockerfile: docker/ci.Dockerfile
           image-inputs: ${{ env.CI_IMAGE_INPUTS }}
-      - name: Push the candidate into a local registry
-        id: share
-        if: steps.resolve.outputs.image != steps.ci_image.outputs.ref
-        run: |
-          docker run -d --name ci-registry -p 127.0.0.1:5000:5000 \
-            -v "${RUNNER_TEMP}/registry:/var/lib/registry" \
-            registry:3@sha256:82f6ff4a7f982960c8aa51617fea3aabc485df6e55cce80d22deb1de36f1bc3c
-          for _ in $(seq 1 30); do
-            if curl -fsS http://localhost:5000/v2/ >/dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          local_image="localhost:5000/${{ steps.ci_image.outputs.ref }}"
-          docker tag "${DEV_IMAGE:?}" "${local_image}"
-          docker push -q "${local_image}"
-          echo "image=${local_image}" >>"${GITHUB_OUTPUT}"
-      - name: Run actions/upload-artifact
-        if: steps.share.outputs.image != ''
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: ci-image
-          path: ${{ runner.temp }}/registry
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 1
 
   checks:
     name: Lint, test and build
@@ -78,11 +53,13 @@ jobs:
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Use the CI image
-        uses: ./.github/actions/ci-image
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@24e5d67fa210ea49d6ef24c07d7f8f536fe1bb7b # v3
         with:
           image: ${{ needs.ci-image.outputs.image }}
-          shared: ${{ needs.ci-image.outputs.shared }}
+          artifact: ${{ needs.ci-image.outputs.artifact }}
+          dockerfile: docker/ci.Dockerfile
+          base-sha: ''
           docker-args: ${{ env.DEV_DOCKER_ARGS }}
       - name: Cache the npm downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -189,11 +166,13 @@ jobs:
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Use the CI image
-        uses: ./.github/actions/ci-image
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@24e5d67fa210ea49d6ef24c07d7f8f536fe1bb7b # v3
         with:
           image: ${{ needs.ci-image.outputs.image }}
-          shared: ${{ needs.ci-image.outputs.shared }}
+          artifact: ${{ needs.ci-image.outputs.artifact }}
+          dockerfile: docker/ci.Dockerfile
+          base-sha: ''
           docker-args: -v ${HOME:?}/ci-cache/npm:/cache/npm -e npm_config_cache=/cache/npm -e CI -e HOME=/root --user 0:0 --shm-size=1gb
       - name: Cache the npm downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -287,13 +266,15 @@ jobs:
             echo "IMAGE=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'):latest"
             echo "CI_IMAGE_TAG=$(./scripts/devcontainer-image.sh -t)"
           } >>"$GITHUB_OUTPUT"
-      - name: Use the CI image
-        uses: ./.github/actions/ci-image
+      - name: Run h3nc4/dev-image-action
+        uses: h3nc4/dev-image-action@24e5d67fa210ea49d6ef24c07d7f8f536fe1bb7b # v3
         with:
           image: ${{ needs.ci-image.outputs.image }}
-          shared: ${{ needs.ci-image.outputs.shared }}
+          artifact: ${{ needs.ci-image.outputs.artifact }}
+          dockerfile: docker/ci.Dockerfile
+          base-sha: ''
       - name: Name the resolved image as the Dockerfile expects
-        run: docker tag "${DEV_IMAGE:?}" "${{ needs.ci-image.outputs.ref }}"
+        run: docker tag "${DEV_IMAGE:?}" "${{ needs.ci-image.outputs.image }}"
       - name: Run docker/setup-buildx-action
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
         with:
@@ -345,18 +326,12 @@ jobs:
   ci-image-cleanup:
     name: Delete the shared CI image
     needs: [ci-image, checks, browser-tests, build-test-container]
-    if: always() && needs.ci-image.outputs.shared == 'true'
+    if: always() && needs.ci-image.outputs.artifact != ''
     runs-on: ubuntu-latest
     permissions:
       actions: write
     steps:
-      - name: Delete the ci-image artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ids="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
-            --jq '.artifacts[] | select(.name == "ci-image") | .id')"
-          for id in ${ids}; do
-            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" ||
-              echo "::warning::could not delete artifact ${id}, it expires after a day"
-          done
+      - name: Run h3nc4/dev-image-action/cleanup
+        uses: h3nc4/dev-image-action/cleanup@24e5d67fa210ea49d6ef24c07d7f8f536fe1bb7b # v3
+        with:
+          artifact: ${{ needs.ci-image.outputs.artifact }}
