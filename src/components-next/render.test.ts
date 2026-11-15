@@ -107,7 +107,9 @@ describe('the first visit', async () => {
       expect(items.length).toBeGreaterThan(0)
       for (const item of items) expect(item).toHaveAttribute('tabindex', '-1')
     }
-    expect(doc.querySelectorAll('#new-menu [role="menuitem"]')).toHaveLength(5)
+    // The custom entry is there for script to show, hidden and disabled on the selection screen.
+    expect(doc.querySelectorAll('#new-menu [role="menuitem"]:not([hidden])')).toHaveLength(5)
+    expect(doc.querySelector('#new-menu [data-action="custom"]')).toBeDisabled()
   })
 
   it('offers the input mode as one native radio group', () => {
@@ -124,6 +126,24 @@ describe('the first visit', async () => {
     const keys = pad?.querySelectorAll('button') ?? []
     expect(keys).toHaveLength(9)
     expect(keys[0]).toHaveAttribute('aria-label', 'Enter number 1, 9 left')
+  })
+
+  it('renders the parts of every mode for script to show, the absent ones hidden', () => {
+    for (const id of [
+      'game-status',
+      'steps-panel',
+      'scroll-hint',
+      'hint-button',
+      'exit-button',
+      'start-button',
+    ]) {
+      expect(doc.getElementById(id), id).toHaveAttribute('hidden')
+    }
+    expect(doc.getElementById('selection-screen')).not.toHaveAttribute('hidden')
+    expect(doc.querySelector('#steps-panel section')).not.toHaveAttribute('style')
+    expect(doc.getElementById('hint-slot')).toHaveAttribute('aria-hidden', 'true')
+    expect(doc.querySelector('[role="status"]')?.id).toBe('announcer')
+    expect(doc.querySelector('script[type="module"]')).not.toBeNull()
   })
 
   it('keeps a polite toast region in a manual popover', () => {
@@ -158,8 +178,8 @@ describe('preview states', () => {
     const doc = await preview('notes')
     expect(cell(doc, 0)).toHaveAttribute('aria-label', 'R1C1, 5, given')
     expect(cell(doc, 0)).toHaveAttribute('aria-readonly', 'true')
-    expect(cell(doc, 6)).toHaveAttribute('aria-label', 'R1C7, empty, candidates 1, 8 and 9')
-    expect(cell(doc, 33)).toHaveAttribute('aria-label', 'R4C7, empty, center notes 4, 5 and 9')
+    expect(cell(doc, 6)).toHaveAttribute('aria-label', 'R1C7, empty, candidates 1, 8, 9')
+    expect(cell(doc, 33)).toHaveAttribute('aria-label', 'R4C7, empty, center notes 4, 5, 9')
     expect(cell(doc, 56)?.querySelector('.n')?.getAttribute('data-center')).toBe('many')
     for (const glyphs of doc.querySelectorAll('.c > .n, .c > .d')) {
       expect(glyphs).toHaveAttribute('aria-hidden', 'true')
@@ -200,7 +220,8 @@ describe('preview states', () => {
     expect(doc.getElementById('win-summary')?.textContent).toBe(
       'Easy puzzle finished in 12:34 with 1 mistake.',
     )
-    expect(doc.getElementById('pause-button')).toBeNull()
+    expect(doc.getElementById('pause-button')).toHaveAttribute('hidden')
+    expect(doc.querySelector('[data-status="solved"]')).not.toHaveAttribute('hidden')
     expect(doc.querySelectorAll('#win-dialog button[type="submit"][data-difficulty]')).toHaveLength(
       5,
     )

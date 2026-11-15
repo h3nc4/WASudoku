@@ -37,6 +37,12 @@ const reactVersion = createRequire(import.meta.url)('react/package.json').versio
 const LAYERS = ['core', 'solver', 'runtime', 'ui', 'sw']
 const NUMERIC_LAYERS = ['core', 'solver', 'runtime']
 const SOURCE = '**/*.ts'
+// The pure modules Astro renders the first paint with. The ui patches the page with the same output.
+const MARKUP_MODULES = [
+  'components-next/view.ts',
+  'components-next/controls.ts',
+  'components-next/icons.ts',
+]
 const TESTS = '**/*.test.ts'
 const sourcesOf = (layers) => layers.map((layer) => `src/${layer}/${SOURCE}`)
 const testsOf = (layers) => layers.map((layer) => `src/${layer}/${TESTS}`)
@@ -153,7 +159,7 @@ export const layerZones = (root) => [
     ...zone(
       root,
       'ui',
-      ['runtime', 'core/game/selectors.ts', 'core/text', 'test'],
+      ['runtime', 'core/game/selectors.ts', 'core/text', ...MARKUP_MODULES, 'test'],
       'The ui tests import only what the ui does, plus src/test.',
     ),
     files: testsOf(['ui']),
@@ -171,9 +177,15 @@ export const layerZones = (root) => [
             {
               target: './src/ui',
               from: './src',
-              except: ['./ui', './runtime', './core/game/selectors.ts', './core/text'],
+              except: [
+                './ui',
+                './runtime',
+                './core/game/selectors.ts',
+                './core/text',
+                ...MARKUP_MODULES.map((path) => `./${path}`),
+              ],
               message:
-                'The ui imports only runtime, core/game/selectors and core/text, never solver.',
+                'The ui imports only runtime, core/game/selectors, core/text and the markup helpers, never solver.',
             },
             {
               target: './src/ui',

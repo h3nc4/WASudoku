@@ -18,17 +18,20 @@
  */
 import Button from './Button.astro'
 import Icon from './Icon.astro'
-import { isMistakeLimit, mistakesText, type StatusView } from './view'
+import { isMistakeLimit, mistakesText, type StatusView, statusBar } from './view'
 
 interface Props {
-  status: StatusView
+  status?: StatusView | undefined
 }
 
-const { status } = Astro.props
+/** Shown in play and after a win. Without a status it renders hidden, ready for script to fill. */
+const bar = statusBar(Astro.props.status)
+const status = bar.view
 ---
 
 <div
   id="game-status"
+  hidden={bar.hidden}
   class="voice-mono text-muted-foreground bg-paper flex min-h-10 w-full items-center justify-between rounded-md px-3 text-sm tabular-nums"
 >
   <div class="flex items-center gap-3">
@@ -43,21 +46,18 @@ const { status } = Astro.props
     </span>
   </div>
   <div class="flex items-center gap-2">
-    {status.solved && <span class="text-ink font-bold">Solved</span>}
+    <span class="text-ink font-bold" data-status="solved" hidden={!status.solved}>Solved</span>
     <span class="text-foreground" data-status="time">{status.time}</span>
-    {
-      !status.solved && (
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          class="-mr-3"
-          id="pause-button"
-          aria-label="Pause game"
-          title="Pause game"
-        >
-          <Icon name="pause" />
-        </Button>
-      )
-    }
+    <Button
+      variant="ghost"
+      size="icon-lg"
+      class="-mr-3"
+      id="pause-button"
+      aria-label="Pause game"
+      title="Pause game"
+      hidden={status.solved === true}
+    >
+      <Icon name="pause" />
+    </Button>
   </div>
 </div>

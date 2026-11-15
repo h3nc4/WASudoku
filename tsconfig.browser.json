@@ -3,7 +3,8 @@
   "include": [
     "src/ui/**/*.browser.test.ts",
     "src/test/built-page.ts",
-    "src/test/built-page.setup.ts"
+    "src/test/built-page.setup.ts",
+    "src/test/provided.d.ts"
   ],
   "exclude": [],
   "compilerOptions": {

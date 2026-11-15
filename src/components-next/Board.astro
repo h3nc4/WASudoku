@@ -28,6 +28,7 @@ const rows = boardRows(Astro.props.cells)
 ---
 
 {/* One tab stop for the grid. Arrow keys move inside it, and each cell's label states its contents. */}
+{/* A space parts each note glyph, so the visible digits read as words inside the cell's name. */}
 <div class="relative">
   <div role="grid" id="board" class="board" aria-label="Sudoku board">
     {
@@ -47,16 +48,15 @@ const rows = boardRows(Astro.props.cells)
               )}
               {cell.corner && (
                 <span class="n" aria-hidden="true">
-                  {cell.corner.map((slot) => (
-                    <span data-struck={slot.struck}>{slot.digit}</span>
-                  ))}
+                  {cell.corner.map((slot) => [
+                    ' ',
+                    <span data-struck={slot.struck}>{slot.digit}</span>,
+                  ])}
                 </span>
               )}
               {cell.center && (
                 <span class="n" data-center={cell.center.size} aria-hidden="true">
-                  {cell.center.digits.map((digit) => (
-                    <span>{digit}</span>
-                  ))}
+                  {cell.center.digits.map((digit) => [' ', <span>{digit}</span>])}
                 </span>
               )}
             </div>

@@ -4,7 +4,8 @@
   "exclude": [
     "src/pages",
     "src/layouts",
-    "src/components-next",
+    "src/components-next/**/*.test.ts",
+    "src/components-next/astro.d.ts",
     "src/preview",
     "src/ui/**/*.browser.test.ts",
     "src/test/built-page.ts",

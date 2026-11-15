@@ -17,7 +17,16 @@
  */
 
 import type { IconName } from './icons'
-import type { AppView, InputMode, PadKey, StepTone, WalkthroughView } from './view'
+import {
+  type AppView,
+  BLANK_WALKTHROUGH,
+  type InputMode,
+  isSolution,
+  type PadKey,
+  solvedInText,
+  type StepTone,
+  type WalkthroughView,
+} from './view'
 
 export type Variant = 'primary' | 'destructive' | 'paper' | 'ghost'
 
@@ -95,6 +104,32 @@ export function actionButtons(view: AppView): readonly ActionButton[] {
   }
 }
 
+/** Every action button in page order, each hidden outside the modes that show it, so script can switch modes. */
+export function actionSlots(
+  view: AppView,
+): readonly (ActionButton & { readonly hidden: boolean })[] {
+  const shown = actionButtons(view)
+  const every = [
+    ...actionButtons({ ...view, mode: 'playing' }).slice(0, 2),
+    ...actionButtons({ ...view, mode: 'visualizing' }).slice(0, 1),
+    ...actionButtons({ ...view, mode: 'customInput' }),
+  ]
+  return every.map((slot) => {
+    const own = shown.find((action) => action.id === slot.id)
+    return { ...(own ?? slot), hidden: own === undefined }
+  })
+}
+
+/** The board column and the steps panel, side by side in a walkthrough and centred otherwise. */
+export const LAYOUT_CLASSES = {
+  walkthrough:
+    'grid auto-rows-fr grid-cols-[minmax(0,1fr)] justify-items-center md:grid-cols-[16rem_28rem] md:justify-center',
+  play: 'flex flex-col items-center md:flex-row md:items-start md:justify-center',
+} as const
+
+/** Dims the board behind the selection screen. */
+export const SELECTING_CLASSES = ['pointer-events-none', 'opacity-35'] as const
+
 /** Start Puzzle is the primary action while a custom board is entered, so New Puzzle steps back. */
 export const newPuzzleVariant = (view: AppView): Variant =>
   view.mode === 'customInput' ? 'paper' : 'primary'
@@ -127,3 +162,22 @@ export const rowClass = (tone: StepTone | 'reached'): string => `${TRACE_ROW} ${
 /** The trace's first column fits the widest position, as many characters as the step count. */
 export const traceStyle = (walkthrough: WalkthroughView): string =>
   `--trace-tag: ${String(String(walkthrough.steps.length).length)}ch`
+
+/** The steps panel's first paint. Without a walkthrough it renders hidden and blank, never solved. */
+export function stepsPanel(walkthrough: WalkthroughView | undefined) {
+  if (walkthrough === undefined) {
+    return {
+      view: BLANK_WALKTHROUGH,
+      hidden: true,
+      style: undefined,
+      solvedIn: { text: '', hidden: true },
+    }
+  }
+  const solved = isSolution(walkthrough)
+  return {
+    view: walkthrough,
+    hidden: false,
+    style: traceStyle(walkthrough),
+    solvedIn: { text: solved ? solvedInText(walkthrough.steps.length) : '', hidden: !solved },
+  }
+}

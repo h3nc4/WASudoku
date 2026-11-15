@@ -17,7 +17,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 import Button from './Button.astro'
-import { actionButtons, actionClass, newPuzzleVariant } from './controls'
+import { actionClass, actionSlots, newPuzzleVariant } from './controls'
 import Icon from './Icon.astro'
 import NewPuzzleMenu from './NewPuzzleMenu.astro'
 import type { AppView } from './view'
@@ -29,20 +29,21 @@ interface Props {
 const { view } = Astro.props
 ---
 
-<div class="grid w-full grid-cols-2 gap-2">
+<div class="grid w-full grid-cols-2 gap-2" id="action-row">
   <NewPuzzleMenu variant={newPuzzleVariant(view)} custom={view.mode !== 'selecting'} />
   {
-    actionButtons(view).map((action) => (
+    actionSlots(view).map((action) => (
       <Button
         variant={action.variant}
         size="lg"
         id={action.id}
         title={action.title}
         disabled={action.disabled}
+        hidden={action.hidden}
         class={actionClass(action)}
       >
         <Icon name={action.icon} class="mr-2 size-4" />
-        {action.label}
+        <span data-label>{action.label}</span>
       </Button>
     ))
   }

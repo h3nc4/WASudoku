@@ -72,7 +72,7 @@ const merged = mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      globalSetup: ['src/test/built-page.setup.ts'],
+      // The built page comes from vite.config.ts's global setup, which this merges in.
       browser: {
         enabled: true,
         commands: { axe },

@@ -21,14 +21,19 @@ import { describe, expect, it } from 'vitest'
 import {
   actionButtons,
   actionClass,
+  actionSlots,
+  LAYOUT_CLASSES,
   newPuzzleVariant,
   padTones,
   rowClass,
+  stepsPanel,
   traceStyle,
 } from './controls'
 import { iconHref } from './icons'
 import { INITIAL_VIEW } from './initial'
 import {
+  BLANK_STATUS,
+  BLANK_WALKTHROUGH,
   boardRows,
   cellLabel,
   type CellView,
@@ -39,7 +44,9 @@ import {
   isSolution,
   mistakesText,
   padKeys,
+  padLabel,
   solvedInText,
+  statusBar,
   stepTag,
   stepTone,
   tabStop,
@@ -55,9 +62,9 @@ describe('cellLabel', () => {
   })
 
   it('tells notes apart from a placed digit', () => {
-    expect(cellLabel(10, { corner: [3, 7] })).toBe('R2C2, empty, candidates 3 and 7')
+    expect(cellLabel(10, { corner: [3, 7] })).toBe('R2C2, empty, candidates 3, 7')
     expect(cellLabel(10, { corner: [7] })).toBe('R2C2, empty, candidates 7')
-    expect(cellLabel(80, { center: [1, 4, 9] })).toBe('R9C9, empty, center notes 1, 4 and 9')
+    expect(cellLabel(80, { center: [1, 4, 9] })).toBe('R9C9, empty, center notes 1, 4, 9')
     expect(cellLabel(80, { value: 7 })).toBe('R9C9, 7')
   })
 
@@ -131,6 +138,13 @@ describe('centerSize', () => {
   })
 })
 
+describe('padLabel', () => {
+  it('says what a digit has left, and nothing once it is spent', () => {
+    expect(padLabel(3, 2)).toBe('Enter number 3, 2 left')
+    expect(padLabel(3, 0)).toBe('Enter number 3')
+  })
+})
+
 describe('padKeys', () => {
   it('counts what is left and spends a complete digit', () => {
     const cells = empty().map((_, i): CellView => (i < 9 ? { value: 1 } : {}))
@@ -172,6 +186,13 @@ describe('status', () => {
     expect(isMistakeLimit(2)).toBe(false)
     expect(isMistakeLimit(3)).toBe(true)
   })
+
+  it('paints a blank, hidden bar without a status, its clock from the formatter', () => {
+    expect(statusBar(undefined)).toEqual({ view: BLANK_STATUS, hidden: true })
+    expect(BLANK_STATUS.time).toBe('00:00')
+    const status = { difficulty: 'Easy', mistakes: 1, time: '12:34' }
+    expect(statusBar(status)).toEqual({ view: status, hidden: false })
+  })
 })
 
 describe('walkthrough', () => {
@@ -204,6 +225,27 @@ describe('walkthrough', () => {
     expect(solvedInText(47)).toBe('Solved in 47 steps')
   })
 
+  // The blank sits at position 0 of 0 steps, which isSolution reads as solved.
+  it('paints a hidden blank panel that never says solved', () => {
+    expect(isSolution(BLANK_WALKTHROUGH)).toBe(true)
+    expect(stepsPanel(undefined)).toEqual({
+      view: BLANK_WALKTHROUGH,
+      hidden: true,
+      style: undefined,
+      solvedIn: { text: '', hidden: true },
+    })
+  })
+
+  it('paints a given walkthrough, saying solved only at the solution', () => {
+    expect(stepsPanel(walk(12))).toEqual({
+      view: walk(12),
+      hidden: false,
+      style: '--trace-tag: 2ch',
+      solvedIn: { text: 'Solved in 12 steps', hidden: false },
+    })
+    expect(stepsPanel(walk(3)).solvedIn).toEqual({ text: '', hidden: true })
+  })
+
   it('classes a row by its tone', () => {
     expect(rowClass('reached')).toContain('text-solver font-semibold')
   })
@@ -226,6 +268,24 @@ describe('actionButtons', () => {
     expect(playingClear && actionClass(playingClear)).toBe('w-full')
     expect(clear && actionClass(clear)).toBe('w-full col-span-2')
     expect(solve && actionClass(solve)).toBe('flex-1')
+  })
+
+  it('renders every button in one order, hiding those the mode lacks', () => {
+    const slots = actionSlots({ ...INITIAL_VIEW, mode: 'customInput' })
+    expect(slots.map((slot) => slot.id)).toEqual([
+      'hint-button',
+      'solve-button',
+      'exit-button',
+      'start-button',
+      'clear-button',
+    ])
+    expect(slots.filter((slot) => !slot.hidden).map((slot) => slot.id)).toEqual([
+      'start-button',
+      'clear-button',
+    ])
+    const playing = actionSlots({ ...INITIAL_VIEW, mode: 'playing' })
+    expect(playing.at(-1)?.wide).toBe(false)
+    expect(LAYOUT_CLASSES.walkthrough).toContain('grid')
   })
 
   it('steps New Puzzle back while a custom board is entered', () => {

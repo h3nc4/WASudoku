@@ -16,6 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { formatTime } from '../core/text/format'
+
 /** What the markup draws, as plain data. Astro renders it at build and the UI modules patch it later. */
 
 export type Digit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
@@ -109,12 +111,8 @@ export const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme'] as c
 export const cellName = (index: number): string =>
   `R${Math.floor(index / BOARD_SIZE) + 1}C${(index % BOARD_SIZE) + 1}`
 
-/** A list read as speech: "1", "1 and 2", "1, 2 and 3". */
-const spoken = (digits: readonly Digit[]): string => {
-  const head = digits.slice(0, -1)
-  const last = digits.at(-1)
-  return head.length === 0 ? String(last) : `${head.join(', ')} and ${String(last)}`
-}
+// "1, 2, 3", which keeps the visible digits in order within the name, as WCAG 2.5.3 asks.
+const spoken = (digits: readonly Digit[]): string => digits.join(', ')
 
 /** What a screen reader hears for a cell. A note never reads as a placed digit. */
 export function cellLabel(index: number, cell: CellView): string {
@@ -200,19 +198,21 @@ export interface PadKey {
   readonly label: string
 }
 
+export const padLabel = (digit: Digit, remaining: number): string =>
+  remaining <= 0
+    ? `Enter number ${String(digit)}`
+    : `Enter number ${String(digit)}, ${String(remaining)} left`
+
 /** One key per digit, with the count left to place. A spent digit is struck and disabled. */
 export function padKeys(cells: readonly CellView[], readOnly: boolean): readonly PadKey[] {
   return DIGITS.map((digit) => {
     const placed = cells.filter((cell) => cell.value === digit).length
     const remaining = BOARD_SIZE - placed
-    const complete = remaining <= 0
     return {
       digit,
       remaining,
-      disabled: complete || readOnly,
-      label: complete
-        ? `Enter number ${String(digit)}`
-        : `Enter number ${String(digit)}, ${String(remaining)} left`,
+      disabled: remaining <= 0 || readOnly,
+      label: padLabel(digit, remaining),
     }
   })
 }
@@ -268,3 +268,15 @@ export const isSolution = (walkthrough: WalkthroughView): boolean =>
 
 export const solvedInText = (count: number): string =>
   `Solved in ${String(count)} ${count === 1 ? 'step' : 'steps'}`
+
+/** The walkthrough a page without one renders, hidden until script fills it on a solve. */
+export const BLANK_WALKTHROUGH: WalkthroughView = { steps: [], current: 0, explanation: '' }
+
+/** The status a page without one renders, hidden until a game starts. */
+export const BLANK_STATUS: StatusView = { difficulty: '', mistakes: 0, time: formatTime(0) }
+
+/** The status bar's first paint, hidden and blank without a status. */
+export const statusBar = (status: StatusView | undefined) => ({
+  view: status ?? BLANK_STATUS,
+  hidden: status === undefined,
+})

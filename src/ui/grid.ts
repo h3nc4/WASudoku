@@ -16,6 +16,28 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import {
+  type GridView,
+  selectCells,
+  selectGrid,
+  selectMode,
+  selectSelection,
+  toCellIndex,
+} from '../core/game/selectors'
+import { watch } from '../runtime/signals'
+import type { Store } from '../runtime/store'
+import { cellContent, contentKey, drawnCell, sameDrawn, stateAttributes } from './cells'
+import {
+  all,
+  closestTo,
+  Disposer,
+  required,
+  setAttr,
+  setFlag,
+  setHidden,
+  shallowEqual,
+} from './dom'
+
 // Roving tabindex for the role=grid board, with one cell in the tab order and Home and End keys.
 // The arrows belong to the core keymap, because they move the game's selection.
 
@@ -143,4 +165,93 @@ export function bindGrid(grid: HTMLElement, options: GridOptions): GridHandle {
       controller.abort()
     },
   }
+}
+
+const CELL = '[role="gridcell"]'
+
+/** A field that takes typing keeps its paste. */
+const isTyping = (target: EventTarget | null): boolean =>
+  target instanceof HTMLInputElement ||
+  target instanceof HTMLTextAreaElement ||
+  (target instanceof HTMLElement && target.isContentEditable)
+
+/** Draws the store's board into the 81 cells, writing only the cells and attributes that changed. */
+export function bindBoard(doc: Document, store: Store): () => void {
+  const board = required(doc, '#board', HTMLElement)
+  const overlay = required(doc, '#pause-overlay', HTMLElement)
+  const cells = all(board, CELL, HTMLElement)
+  const disposer = new Disposer()
+  const select = (index: number | null) => {
+    store.dispatch({ type: 'select', index: index === null ? null : toCellIndex(index) })
+  }
+  const grid = bindGrid(board, {
+    onSelect: select,
+    onLeave: () => {
+      select(null)
+    },
+  })
+  disposer.add(grid.dispose)
+
+  for (const [index, element] of cells.entries()) {
+    const view = store.select(
+      (state) => drawnCell(selectCells(state)[index], selectMode(state) === 'walkthrough'),
+      sameDrawn,
+    )
+    let drawn: string | null = null
+    disposer.add(
+      watch(() => {
+        const cell = view()
+        for (const [name, value] of stateAttributes(index, cell)) setAttr(element, name, value)
+        const key = contentKey(cell)
+        if (key === drawn) return
+        drawn = key
+        element.replaceChildren(...cellContent(doc, cell))
+      }),
+    )
+  }
+
+  const selection = store.select(selectSelection)
+  disposer.add(
+    watch(() => {
+      const index = selection()
+      if (index === null) return
+      // A move by arrow key keeps focus with the selection, and a selection made elsewhere only moves the tab stop.
+      if (board.contains(doc.activeElement)) grid.focus(index)
+      else grid.setActive(index)
+    }),
+  )
+
+  const view = store.select(selectGrid, shallowEqual<GridView>)
+  disposer.add(
+    watch(() => {
+      const { paused, solving, readOnly } = view()
+      setFlag(board, 'data-paused', paused)
+      setAttr(board, 'aria-busy', solving ? 'true' : undefined)
+      setAttr(board, 'aria-readonly', readOnly ? 'true' : undefined)
+      setHidden(overlay, !paused)
+    }),
+  )
+
+  disposer.on(board, 'click', (event) => {
+    const cell = closestTo(event, CELL)
+    const index = cells.findIndex((candidate) => candidate === cell)
+    const at = toCellIndex(index)
+    if (at !== null) store.dispatch({ type: 'tap', index: at })
+  })
+  disposer.on(required(doc, '#resume-button', HTMLElement), 'click', () => {
+    store.dispatch({ type: 'resume' })
+  })
+  // Reading the event's own data avoids the clipboard permission prompt.
+  doc.addEventListener(
+    'paste',
+    (event) => {
+      const text = event.clipboardData?.getData('text/plain') ?? ''
+      if (isTyping(event.target) || doc.querySelector('dialog[open]') !== null || text === '')
+        return
+      event.preventDefault()
+      store.dispatch({ type: 'paste', text })
+    },
+    { signal: disposer.signal },
+  )
+  return disposer.dispose
 }

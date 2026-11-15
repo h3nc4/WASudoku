@@ -27,13 +27,6 @@ import type { TestProject } from 'vitest/node'
 
 const OUT_DIR = resolve('node_modules/.tmp/ui-browser-page')
 
-declare module 'vitest' {
-  interface ProvidedContext {
-    /** The built index.html, its stylesheet inlined. */
-    builtPage: string
-  }
-}
-
 export default function setup(project: TestProject) {
   const astro = resolve('node_modules/astro/bin/astro.mjs')
   execFileSync(process.execPath, [astro, 'build', '--outDir', OUT_DIR, '--silent'], {

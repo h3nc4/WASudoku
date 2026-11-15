@@ -42,6 +42,7 @@ import {
   selectOffer,
   selectPad,
   selectSeconds,
+  selectSelection,
   selectStatus,
   selectWalkthrough,
   selectWin,
@@ -97,6 +98,8 @@ describe('selectors', () => {
       expect(selectInputMode(INITIAL_STATE)).toBe('normal')
       expect(selectBoard(INITIAL_STATE).cells.every((code) => code === 0)).toBe(true)
       expect(selectMode(start())).toBe('playing')
+      expect(selectSelection(INITIAL_STATE)).toBeNull()
+      expect(selectSelection(run(start(), [{ type: 'select', index: at(4) }]))).toBe(4)
     })
 
     it('makes the grid read-only outside play and entry, while paused and while solving', () => {

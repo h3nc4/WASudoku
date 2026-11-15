@@ -161,6 +161,8 @@ export default defineConfig({
     // Browser tests start real workers, which jsdom lacks, and the Astro sources test under node.
     exclude: [...configDefaults.exclude, 'src/**/*.browser.test.ts', ...ASTRO_SOURCES],
     setupFiles: 'src/test/setup.ts',
+    // The ui tests mount the page Astro builds, as the browser tests do.
+    globalSetup: ['src/test/built-page.setup.ts'],
     css: false,
     coverage: {
       provider: 'v8',

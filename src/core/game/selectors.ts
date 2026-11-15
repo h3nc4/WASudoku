@@ -60,9 +60,13 @@ import {
 import type { Hint, Step } from './steps'
 import { currentStep, walkBoard, walkCandidates } from './walkthrough'
 
+// The ui imports the core only through this module. These parse what it reads off the page.
+export { type CellIndex, type Digit, digitsOf, type Mask, toDigit } from '../digits'
+export { toCellIndex } from '../geometry'
+export { DIFFICULTIES, type Difficulty, isDifficulty } from '../pool'
 export type { MessageId, Tone } from './effects'
 export type { SolveBlock } from './guards'
-export type { InputMode, Mode, State } from './state'
+export { INPUT_MODES, type InputMode, type Mode, type State } from './state'
 export type { CauseCell, CellDigit, Hint, Step, Technique } from './steps'
 
 /** Mistakes the status bar counts against, a limit it shows without enforcing. */
@@ -70,6 +74,7 @@ export const MISTAKE_LIMIT = 3
 
 export const selectMode = (state: State): Mode => state.game.mode
 export const selectInputMode = (state: State): InputMode => state.input.mode
+export const selectSelection = (state: State): CellIndex | null => state.input.selected
 
 /** The board the player edits, or an empty one on the selection screen. The walkthrough draws its own. */
 export const selectBoard = (state: State): Board => boardOf(state.game) ?? EMPTY_BOARD

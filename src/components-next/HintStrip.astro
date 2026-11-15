@@ -1,0 +1,48 @@
+---
+/*
+ * Copyright (C) 2025-2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import Button from './Button.astro'
+import Icon from './Icon.astro'
+---
+
+{/* Opens below the board while a hint shows. Script fills it and toggles data-open. */}
+<div class="hint-slot" id="hint-slot" aria-hidden="true" inert>
+  <div class="min-h-0 overflow-hidden">
+    <div class="pb-(--column-gap)">
+      <div
+        class="bg-paper border-grid-thin border-l-solver flex items-start gap-2 rounded-md border border-l-2 py-2 pr-1 pl-3"
+      >
+        <div class="min-w-0 flex-1 py-0.5">
+          <p
+            class="voice-mono text-solver grid grid-cols-[auto_auto_1fr] gap-x-[1.5ch] text-xs font-semibold tabular-nums [&>span:first-child]:uppercase"
+          >
+            <span>Hint</span><span data-hint="where"></span><span data-hint="label"></span>
+          </p>
+          <p class="text-foreground mt-1 text-sm" data-hint="text"></p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="text-muted-foreground size-7"
+          id="dismiss-hint"
+          aria-label="Dismiss hint"><Icon name="x" /></Button
+        >
+      </div>
+    </div>
+  </div>
+</div>

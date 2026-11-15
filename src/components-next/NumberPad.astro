@@ -48,17 +48,17 @@ const keys = padKeys(Astro.props.cells, Astro.props.readOnly)
             data-struck={key.remaining > 0 ? undefined : ''}
           >
             {key.digit}
+          </span>{' '}
+          <span
+            class:list={[
+              'voice-mono text-2xs leading-none tabular-nums md:text-xs',
+              padTones(key, false).count,
+            ]}
+            hidden={key.remaining <= 0}
+            data-count
+          >
+            {key.remaining}
           </span>
-          {key.remaining > 0 && (
-            <span
-              class:list={[
-                'voice-mono text-2xs leading-none tabular-nums md:text-xs',
-                padTones(key, false).count,
-              ]}
-            >
-              {key.remaining}
-            </span>
-          )}
         </div>
       </Button>
     ))
