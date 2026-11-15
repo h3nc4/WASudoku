@@ -180,6 +180,38 @@ fn test_generate_with_seed_is_reproducible() {
     }
 }
 
+// Generated before unit branching reached the counting search, which has to leave every count unchanged.
+const SEED_1_PUZZLES: [(Difficulty, &str); 5] = [
+    (
+        Difficulty::Easy,
+        ".4685...9.5...9.4.2.9..6.53......79.7.......8.98......61.4..9.7.8.7...6.9...8152.",
+    ),
+    (
+        Difficulty::Medium,
+        "..87.291.7.2.1.....1...8.3..86.......93...82.......56..6.5...7.....4.2.6.218.63..",
+    ),
+    (
+        Difficulty::Hard,
+        "81..7......453...65....6.7..6.4....73.......24....3.8..8.1....37...954......2..51",
+    ),
+    (
+        Difficulty::Expert,
+        "..185.9......4.631..2..1.5...6.....5.95.6.17.7.....3...6.3..2..583.2......4.865..",
+    ),
+    (
+        Difficulty::Extreme,
+        ".....3....8..5.2..754.9.....62..1..8.7.....3.3..8..92.....3.415..9.4..6....6.....",
+    ),
+];
+
+#[test]
+fn test_seeded_puzzles_are_unchanged() {
+    for (difficulty, expected) in SEED_1_PUZZLES {
+        let (puzzle, _) = generate::generate_with_seed(difficulty, 1);
+        assert_eq!(puzzle.to_string(), expected, "{difficulty:?}");
+    }
+}
+
 #[test]
 fn test_seeded_puzzles_are_unique() {
     for difficulty in ALL_DIFFICULTIES {

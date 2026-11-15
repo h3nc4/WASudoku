@@ -26,7 +26,7 @@ mod utils;
 use board::Board;
 use generate::Difficulty;
 use serde::{Deserialize, Serialize};
-use types::SolveResult;
+use types::{SolveResult, SolvingStep};
 use wasm_bindgen::prelude::*;
 
 /// A generated puzzle together with the solution it was carved from.
@@ -74,17 +74,33 @@ pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
         .parse::<Board>()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    let (steps, mut board_after_logic) = logical_solver::solve_with_steps(&initial_board);
-
-    // If logic was not sufficient, fall back to the backtracking algorithm.
-    if board_after_logic.cells.contains(&0) && !solver::solve(&mut board_after_logic) {
-        return Err(JsValue::from_str("No solution found for the given puzzle."));
-    }
-
+    let (steps, solution) = solve_board(&initial_board)
+        .ok_or_else(|| JsValue::from_str("No solution found for the given puzzle."))?;
     to_js(&SolveResult {
         steps,
-        solution: Some(board_after_logic.to_string()),
+        solution: Some(solution.to_string()),
     })
+}
+
+/// The logical steps and the solution behind `solve_sudoku`, or `None` if the board has no solution.
+pub fn solve_board(board: &Board) -> Option<(Vec<SolvingStep>, Board)> {
+    // Counting proves a board without a solution fast, where the ordered search can take seconds.
+    let (count, counted) = solver::count_with_solution(board);
+    if count == 0 {
+        return None;
+    }
+    let (steps, mut board_after_logic) = logical_solver::solve_with_steps(board);
+
+    // If logic was not sufficient, take the counted solution when it is the only one.
+    // With several, the ordered search keeps picking the one it always picked.
+    if board_after_logic.cells.contains(&0) {
+        if count == 1 {
+            board_after_logic = counted?;
+        } else if !solver::solve(&mut board_after_logic) {
+            return None;
+        }
+    }
+    Some((steps, board_after_logic))
 }
 
 // Mirrors `DIFFICULTIES` in src/context/sudoku.types.ts, so tsc rejects a name missing here.

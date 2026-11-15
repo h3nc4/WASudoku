@@ -75,14 +75,20 @@ pub fn solve_randomized(board: &mut Board, numbers: &[u8; 9]) -> bool {
     }
 }
 
+/// Count the solutions of `board` up to two, with the first one found.
+/// On a board with several solutions that first one is not the one `solve` returns.
+pub fn count_with_solution(board: &Board) -> (u8, Option<Board>) {
+    Search::run(board, &ASCENDING, 2, Mode::Counting)
+}
+
 /// Count the number of solutions for a given board. Stops counting if more than 1 solution is found.
 pub fn count_solutions(board: &Board) -> u8 {
-    Search::run(board, &ASCENDING, 2, Mode::Counting).0
+    count_with_solution(board).0
 }
 
 /// Return the solution of `board` when it has exactly one, from the same single search as `count_solutions`.
 pub fn unique_solution(board: &Board) -> Option<Board> {
-    match Search::run(board, &ASCENDING, 2, Mode::Counting) {
+    match count_with_solution(board) {
         (1, solution) => solution,
         _ => None,
     }
@@ -256,7 +262,8 @@ impl Grid {
     }
 
     /// The first empty cell with the fewest candidates, or `None` if the grid is full.
-    fn branch_cell(&self) -> Option<usize> {
+    /// Counting mode takes a digit with fewer cells left in a unit instead, if there is one.
+    fn branch(&self, mode: Mode) -> Option<Branch> {
         if self.empty == 0 {
             return None;
         }
@@ -268,12 +275,45 @@ impl Grid {
             }
             // After propagation no empty cell has one candidate, so two cannot be beaten.
             if count == 2 {
-                return Some(i);
+                return Some(Branch::Cell(i));
             }
             best = Some((i, count));
         }
-        best.map(|(i, _)| i)
+        best.map(|(cell, fewest)| match mode {
+            Mode::Ordered => Branch::Cell(cell),
+            Mode::Counting => self.unit_branch(fewest).unwrap_or(Branch::Cell(cell)),
+        })
     }
+
+    /// The first digit with the fewest cells left in a unit, if that is fewer than `fewest`.
+    fn unit_branch(&self, fewest: u32) -> Option<Branch> {
+        let mut best: Option<(usize, u16, u32)> = None;
+        for (u, unit) in UNITS.iter().enumerate() {
+            let mut missing = ALL_DIGITS & !self.placed[u];
+            while missing != 0 {
+                let digit_bit = missing.isolate_lowest_one();
+                missing &= !digit_bit;
+                let count = unit
+                    .iter()
+                    .filter(|&&c| self.candidates[c as usize] & digit_bit != 0)
+                    .count() as u32;
+                // Counting mode places hidden singles, so two cannot be beaten either.
+                if count == 2 {
+                    return Some(Branch::Unit(u, digit_bit));
+                }
+                if count < best.map_or(fewest, |(_, _, n)| n) {
+                    best = Some((u, digit_bit, count));
+                }
+            }
+        }
+        best.map(|(u, digit_bit, _)| Branch::Unit(u, digit_bit))
+    }
+}
+
+/// The guess the search tries next: each candidate of a cell, or each cell left for a digit in a unit.
+enum Branch {
+    Cell(usize),
+    Unit(usize, u16),
 }
 
 /// Depth-first search that copies the grid at each guess instead of undoing it.
@@ -302,27 +342,42 @@ impl<'a> Search<'a> {
     }
 
     fn descend(&mut self, grid: &Grid) {
-        let Some(i) = grid.branch_cell() else {
-            self.found += 1;
-            if self.first.is_none() {
-                self.first = Some(Board { cells: grid.cells });
+        match grid.branch(self.mode) {
+            None => {
+                self.found += 1;
+                if self.first.is_none() {
+                    self.first = Some(Board { cells: grid.cells });
+                }
             }
-            return;
-        };
-        let candidates = grid.candidates[i];
-        for &digit in self.order {
-            if candidates & bit(digit) == 0 {
-                continue;
+            Some(Branch::Cell(i)) => {
+                let candidates = grid.candidates[i];
+                for &digit in self.order {
+                    if candidates & bit(digit) != 0 && self.guess(grid, i, digit) {
+                        return;
+                    }
+                }
             }
-            let mut next = *grid;
-            let mut singles = Singles::new();
-            if next.place(i, digit, &mut singles) && next.propagate(self.mode, &mut singles) {
-                self.descend(&next);
-                if self.found >= self.limit {
-                    return;
+            Some(Branch::Unit(u, digit_bit)) => {
+                for &cell in &UNITS[u] {
+                    let cell = cell as usize;
+                    if grid.candidates[cell] & digit_bit != 0
+                        && self.guess(grid, cell, digit_of(digit_bit))
+                    {
+                        return;
+                    }
                 }
             }
         }
+    }
+
+    /// Search below `digit` placed in cell `i`, returning whether the limit is reached.
+    fn guess(&mut self, grid: &Grid, i: usize, digit: u8) -> bool {
+        let mut next = *grid;
+        let mut singles = Singles::new();
+        if next.place(i, digit, &mut singles) && next.propagate(self.mode, &mut singles) {
+            self.descend(&next);
+        }
+        self.found >= self.limit
     }
 }
 

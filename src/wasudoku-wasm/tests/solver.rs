@@ -19,11 +19,12 @@
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{RngExt, SeedableRng};
+use std::time::{Duration, Instant};
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver;
 use wasudoku_wasm::solver::{count_solutions, solve, solve_randomized, unique_solution};
-use wasudoku_wasm::validate_puzzle;
+use wasudoku_wasm::{solve_board, validate_puzzle};
 
 #[test]
 fn test_solve_easy_puzzle() {
@@ -235,6 +236,96 @@ fn test_validate_puzzle_by_count() {
     assert_eq!(validate_puzzle(TWO_SOLUTIONS).unwrap(), None);
     assert_eq!(validate_puzzle(&".".repeat(81)).unwrap(), None);
     assert_eq!(validate_puzzle(NO_SOLUTION).unwrap(), None);
+}
+
+// Each took 0.1 to 6 s to reject before the counting search branched on units, and takes about 1 ms since.
+// The budget leaves room for a loaded machine and coverage instrumentation.
+const UNSOLVABLE_BUDGET: Duration = Duration::from_millis(250);
+const SLOW_UNSOLVABLE: [&str; 6] = [
+    // Norvig's "impossible" puzzle, from norvig.com/sudoku.html.
+    ".....5.8....6.1.43..........1.5........1.6...3.......553.....61........4.........",
+    // The slowest of 3,000 seeded random boards with 17 to 26 clues and no conflict.
+    ".8.6.....6.98.5...5.........9.1.....8...9...6........99.......8..2..........8.2..",
+    "...2......4...3...3.....8..........4..6.........58..1.1.....2...52..........51..7",
+    "......5..........331....4.....3....99.....7......7...6495.3.........7...........7",
+    "3.......44.......6.....4..5.4..9..8...5....2...8.....7.5.14.......3.......3..9...",
+    "..53............6.......8..84..1....59......2....8........5....3...7..8.......73.",
+];
+
+/// Run `f` and fail if it takes longer than `UNSOLVABLE_BUDGET`.
+fn within_budget<T>(puzzle: &str, f: impl FnOnce() -> T) -> T {
+    let start = Instant::now();
+    let result = f();
+    let elapsed = start.elapsed();
+    assert!(elapsed < UNSOLVABLE_BUDGET, "{puzzle} took {elapsed:?}");
+    result
+}
+
+#[test]
+fn test_slow_unsolvable_boards_are_rejected_in_budget() {
+    for puzzle in SLOW_UNSOLVABLE {
+        let board: Board = puzzle.parse().unwrap();
+        assert!(within_budget(puzzle, || solve_board(&board)).is_none());
+        assert_eq!(
+            within_budget(puzzle, || validate_puzzle(puzzle).unwrap()),
+            None
+        );
+        assert_eq!(within_budget(puzzle, || count_solutions(&board)), 0);
+    }
+}
+
+// The first solution the app returned for each before counting came first, with logic or the ordered search.
+const FIRST_SOLUTIONS: [(&str, &str); 6] = [
+    (
+        TWO_SOLUTIONS,
+        "438796215659132478271458693845219367713564829926873154194325786362987541587641932",
+    ),
+    (
+        ".................................................................................",
+        "123456789456789123789123456231674895875912364694538217317265948542897631968341572",
+    ),
+    (
+        ".................1.....2.3......3.2...1.4...........6..3......4.7..8...962...7...",
+        "316879542852634791749152836487963125261745983593218467938521674174386259625497318",
+    ),
+    (
+        ".................1.......3......3.2...4....5...6.1.....3......6.7..8...952.7.....",
+        "153469782847235961962178435715893624394627158286514397438951276671382549529746813",
+    ),
+    (
+        ".91....2.6..1..3.....9...7..4......7..93....8.37..8..9...6...1.8............2.4..",
+        "791834526682157394354962871548296137169375248237418659423689715815743962976521483",
+    ),
+    (
+        "..1.96............2.....89..2...1...9........1.7...........86.2.....21.7...7..4..",
+        "351896274798254316246137895625371948934685721187429563479518632863942157512763489",
+    ),
+];
+
+#[test]
+fn test_solve_board_keeps_first_of_several_solutions() {
+    for (puzzle, expected) in FIRST_SOLUTIONS {
+        let board: Board = puzzle.parse().unwrap();
+        assert_eq!(count_solutions(&board), 2, "{puzzle}");
+        let (_, solution) = solve_board(&board).unwrap();
+        assert_eq!(solution.to_string(), expected, "{puzzle}");
+    }
+}
+
+// An Extreme puzzle on which the logical solver takes steps and then stalls.
+const STALLS_LOGIC: &str =
+    ".....3....8..5.2..754.9.....62..1..8.7.....3.3..8..92.....3.415..9.4..6....6.....";
+const STALLS_LOGIC_SOLUTION: &str =
+    "296183754183754296754296183962371548578429631341865927627938415819547362435612879";
+
+#[test]
+fn test_solve_board_finishes_with_the_unique_solution() {
+    let board: Board = STALLS_LOGIC.parse().unwrap();
+    let (_, after_logic) = logical_solver::solve_with_steps(&board);
+    assert!(after_logic.cells.contains(&0), "logic alone solves it");
+    let (steps, solution) = solve_board(&board).unwrap();
+    assert!(!steps.is_empty());
+    assert_eq!(solution.to_string(), STALLS_LOGIC_SOLUTION);
 }
 
 #[test]
