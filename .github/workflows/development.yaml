@@ -247,7 +247,7 @@ jobs:
             status=0
             npm run test:browser -- ${{ matrix.projects }} || status=\$?
             npm run test:e2e -- ${{ matrix.projects }} || status=\$?
-            npm run test:e2e:next -- --project ${{ matrix.engine }} || status=\$?
+            npm run test:e2e:next -- ${{ matrix.projects }} || status=\$?
             exit \${status}
           "
       - name: Run actions/upload-artifact

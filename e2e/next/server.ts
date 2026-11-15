@@ -37,6 +37,11 @@ const TYPES: Readonly<Record<string, string>> = {
 }
 const NOT_FOUND = 404
 
+export interface ServeOptions {
+  /** Called with the path of each response once it is sent. */
+  readonly onResponse?: (pathname: string) => void
+}
+
 export interface StaticSite {
   readonly url: string
   close(): Promise<void>
@@ -53,9 +58,10 @@ function fileFor(root: string, pathname: string) {
 
 // Serves a build as the edge does, `_headers` on every response and 404.html for a missing path.
 // Each request reads the disk afresh, so a test can deploy into the directory.
-export async function serveSite(root: string): Promise<StaticSite> {
+export async function serveSite(root: string, options: ServeOptions = {}): Promise<StaticSite> {
   const server: Server = createServer((req, res) => {
     const { pathname } = new URL(req.url ?? '/', 'http://site')
+    res.on('finish', () => options.onResponse?.(pathname))
     const rules = parseHeaders(readFileSync(path.join(root, '_headers'), 'utf8'))
     const found = path.basename(pathname).startsWith('_') ? undefined : fileFor(root, pathname)
     const file = found ?? path.join(root, '404.html')

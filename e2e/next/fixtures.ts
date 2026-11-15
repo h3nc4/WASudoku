@@ -52,6 +52,22 @@ export const mistakes = (page: Page): Locator => page.locator('[data-status="mis
 
 export const timer = (page: Page): Locator => page.locator('[data-status="time"]')
 
+export const board = (page: Page): Locator => page.getByRole('grid')
+
+export const difficulty = (page: Page): Locator => page.locator('[data-status="difficulty"]')
+
+/** The hint strip, open while it has the data-open flag. */
+export const hintStrip = (page: Page): Locator => page.locator('#hint-slot[data-open]')
+
+/** Headless pages are never hidden, so the visibility change is staged. */
+export async function hideDocument(page: Page) {
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+}
+
 /** The 81 digits on the board, a dot for an empty cell. */
 export const readBoard = (page: Page): Promise<string> =>
   page.evaluate(() =>
@@ -137,4 +153,13 @@ export const cellName = (index: number): string =>
   `R${Math.floor(index / ROW) + 1}C${(index % ROW) + 1}`
 
 export { expect }
-export { PUZZLE, savedGame, SOLUTION, solvedExcept, STORAGE_KEYS } from '../saves'
+export {
+  AMBIGUOUS,
+  legacyGame,
+  PUZZLE,
+  savedGame,
+  selectionScreenSave,
+  SOLUTION,
+  solvedExcept,
+  STORAGE_KEYS,
+} from '../saves'
