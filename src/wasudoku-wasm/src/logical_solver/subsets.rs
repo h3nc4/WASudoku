@@ -16,7 +16,8 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{ALL_UNITS, LogicalBoard, mask_to_vec};
+use super::{LogicalBoard, mask_to_vec};
+use crate::geometry::{SIZE, UNITS};
 use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 // --- Naked Subsets ---
@@ -35,8 +36,8 @@ pub fn find_naked_subset(
     size: usize,
     technique: Technique,
 ) -> Option<SolvingStep> {
-    for unit in ALL_UNITS.iter() {
-        let unit_slice = *unit;
+    for unit in UNITS.iter() {
+        let unit_slice: &[usize] = unit;
         let potential_indices = filter_naked_subset_candidates(board, unit_slice, size);
         if potential_indices.len() < size {
             continue;
@@ -124,8 +125,8 @@ pub fn find_hidden_subset(
     size: usize,
     technique: Technique,
 ) -> Option<SolvingStep> {
-    for unit in ALL_UNITS.iter() {
-        let unit_slice = *unit;
+    for unit in UNITS.iter() {
+        let unit_slice: &[usize] = unit;
         let pos_masks = get_candidate_positions_in_unit(board, unit_slice);
         let candidates = filter_hidden_subset_candidates(&pos_masks, size);
         if candidates.len() < size {
@@ -150,10 +151,10 @@ pub fn find_hidden_subset(
 }
 
 /// Creates a map of where each candidate appears in a unit.
-/// Returns `[u16; 10]` where index `n` (1-9) is a bitmask of positions (0-8) in the unit.
+/// Returns `[u16; SIZE + 1]` where index `n` (1-9) is a bitmask of positions (0-8) in the unit.
 #[inline]
-fn get_candidate_positions_in_unit(board: &LogicalBoard, unit: &[usize]) -> [u16; 10] {
-    let mut positions = [0u16; 10];
+fn get_candidate_positions_in_unit(board: &LogicalBoard, unit: &[usize]) -> [u16; SIZE + 1] {
+    let mut positions = [0u16; SIZE + 1];
     for (pos, &idx) in unit.iter().enumerate() {
         if board.cells[idx] == 0 {
             let mut c = board.candidates[idx];
@@ -169,8 +170,8 @@ fn get_candidate_positions_in_unit(board: &LogicalBoard, unit: &[usize]) -> [u16
 }
 
 #[inline]
-fn filter_hidden_subset_candidates(pos_masks: &[u16; 10], size: usize) -> Vec<usize> {
-    (1..=9)
+fn filter_hidden_subset_candidates(pos_masks: &[u16; SIZE + 1], size: usize) -> Vec<usize> {
+    (1..=SIZE)
         .filter(|&n| {
             let c = pos_masks[n].count_ones() as usize;
             c >= 2 && c <= size

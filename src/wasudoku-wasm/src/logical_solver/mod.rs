@@ -28,69 +28,8 @@ pub mod uniqueness;
 pub mod wings;
 
 use crate::board::Board;
+use crate::geometry::{ALL_DIGITS, CELLS, MAX_DIGIT, PEER_MASKS, PEERS, SIZE, col_of, row_of};
 use crate::types::{Elimination, SolvingStep, Technique};
-
-/// Bitmask representing all candidates (1-9) for a cell.
-pub(crate) const ALL_CANDIDATES: u16 = 0b111111111;
-
-// Pre-calculate and cache indices for all rows, columns, boxes, and peer cells.
-lazy_static::lazy_static! {
-    pub(crate) static ref ROW_UNITS: [[usize; 9]; 9] = {
-        let mut units = [[0; 9]; 9];
-        for (i, row) in units.iter_mut().enumerate() {
-            for (j, cell) in row.iter_mut().enumerate() {
-                *cell = i * 9 + j;
-            }
-        }
-        units
-    };
-    pub(crate) static ref COL_UNITS: [[usize; 9]; 9] = {
-        let mut units = [[0; 9]; 9];
-        for (i, row) in units.iter_mut().enumerate() {
-            for (j, cell) in row.iter_mut().enumerate() {
-                *cell = j * 9 + i;
-            }
-        }
-        units
-    };
-    pub(crate) static ref BOX_UNITS: [[usize; 9]; 9] = {
-        let mut units = [[0; 9]; 9];
-        for (i, unit) in units.iter_mut().enumerate() {
-            let start_row = (i / 3) * 3;
-            let start_col = (i % 3) * 3;
-            for (j, cell) in unit.iter_mut().enumerate() {
-                *cell = (start_row + j / 3) * 9 + (start_col + j % 3);
-            }
-        }
-        units
-    };
-    /// A collection of all 27 units (9 rows, 9 columns, 9 boxes).
-    pub(crate) static ref ALL_UNITS: Vec<&'static [usize]> = {
-        let mut units = Vec::with_capacity(27);
-        units.extend(ROW_UNITS.iter().map(|u| &u[..]));
-        units.extend(COL_UNITS.iter().map(|u| &u[..]));
-        units.extend(BOX_UNITS.iter().map(|u| &u[..]));
-        units
-    };
-    /// An 81-bit mask of the 20 peers of each cell, bit `i` standing for cell `i`.
-    pub(crate) static ref PEER_MASKS: [u128; 81] = {
-        let mut masks = [0u128; 81];
-        for (i, mask) in masks.iter_mut().enumerate() {
-            let (row, col) = (i / 9, i % 9);
-            let (start_row, start_col) = ((row / 3) * 3, (col / 3) * 3);
-            for k in 0..9 {
-                *mask |= 1 << (row * 9 + k);
-                *mask |= 1 << (k * 9 + col);
-                *mask |= 1 << ((start_row + k / 3) * 9 + (start_col + k % 3));
-            }
-            *mask &= !(1 << i);
-        }
-        masks
-    };
-    /// A map from a cell index to its 20 peers in ascending order.
-    pub(crate) static ref PEER_MAP: [Vec<usize>; 81] =
-        PEER_MASKS.map(|mask| mask_indices(mask).collect());
-}
 
 /// Represents the logical difficulty of a solving technique.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -161,7 +100,7 @@ impl DifficultyStats {
 /// Convert a bitmask of candidates into a `Vec` of numbers.
 #[inline]
 pub(crate) fn mask_to_vec(mask: u16) -> Vec<u8> {
-    (1..=9)
+    (1..=MAX_DIGIT)
         .filter(|&num| (mask >> (num - 1)) & 1 == 1)
         .collect()
 }
@@ -206,10 +145,10 @@ pub(crate) fn common_peer_eliminations(
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LogicalBoard {
     /// The definitive numbers on the board (0 for empty).
-    pub cells: [u8; 81],
+    pub cells: [u8; CELLS],
     /// A bitmask for each cell representing possible candidates (1-9).
     /// A `0` indicates the cell is filled.
-    pub candidates: [u16; 81],
+    pub candidates: [u16; CELLS],
 }
 
 impl LogicalBoard {
@@ -217,18 +156,18 @@ impl LogicalBoard {
     pub fn from_board(board: &Board) -> Self {
         let mut logical_board = LogicalBoard {
             cells: board.cells,
-            candidates: [0; 81],
+            candidates: [0; CELLS],
         };
 
         // Initialize candidates for all empty cells.
-        for i in 0..81 {
+        for i in 0..CELLS {
             if logical_board.cells[i] == 0 {
-                logical_board.candidates[i] = ALL_CANDIDATES;
+                logical_board.candidates[i] = ALL_DIGITS;
             }
         }
 
         // Propagate constraints from existing numbers.
-        for i in 0..81 {
+        for i in 0..CELLS {
             if logical_board.cells[i] != 0 {
                 logical_board.eliminate_from_peers(i, logical_board.cells[i]);
             }
@@ -250,22 +189,22 @@ impl LogicalBoard {
     /// Removes a value from the candidate masks of all peers of the given index.
     fn eliminate_from_peers(&mut self, index: usize, value: u8) {
         let elimination_mask = !(1 << (value - 1));
-        for &peer_index in &PEER_MAP[index] {
-            self.candidates[peer_index] &= elimination_mask;
+        for &peer_index in &PEERS[index] {
+            self.candidates[usize::from(peer_index)] &= elimination_mask;
         }
     }
 
     /// Pre-calculates fish masks for all numbers at once in a single board pass.
     /// Returns ([num][row_idx] -> mask, [num][col_idx] -> mask).
     /// This is used by Fish, Skyscraper, and Two-String Kite.
-    pub(crate) fn get_all_fish_masks(&self) -> ([[u16; 9]; 10], [[u16; 9]; 10]) {
-        let mut row_masks = [[0u16; 9]; 10];
-        let mut col_masks = [[0u16; 9]; 10];
+    pub(crate) fn get_all_fish_masks(&self) -> ([[u16; SIZE]; SIZE + 1], [[u16; SIZE]; SIZE + 1]) {
+        let mut row_masks = [[0u16; SIZE]; SIZE + 1];
+        let mut col_masks = [[0u16; SIZE]; SIZE + 1];
 
-        for i in 0..81 {
+        for i in 0..CELLS {
             if self.cells[i] == 0 {
-                let r = i / 9;
-                let c = i % 9;
+                let r = row_of(i);
+                let c = col_of(i);
                 let mut val = self.candidates[i];
                 while val > 0 {
                     let trailing = val.trailing_zeros();
@@ -312,6 +251,12 @@ const FINDERS: [(Finder, TechniqueLevel); 15] = [
     ),
     (wings::find_w_wing, TechniqueLevel::Master),
 ];
+
+/// The first step `solve_with_steps` would take, without taking any further one.
+pub fn next_step(board: &Board) -> Option<SolvingStep> {
+    let board = LogicalBoard::from_board(board);
+    FINDERS.iter().find_map(|(finder, _)| finder(&board))
+}
 
 /// Solve the board by repeatedly applying logical techniques and return the steps.
 pub fn solve_with_steps(initial_board: &Board) -> (Vec<SolvingStep>, Board) {

@@ -17,12 +17,13 @@
 */
 
 use super::LogicalBoard;
+use crate::geometry::{SIZE, cell};
 use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 struct FishSearchContext<'a> {
     num: u8,
     valid_indices: &'a [usize],
-    masks: &'a [u16; 9],
+    masks: &'a [u16; SIZE],
     size: usize,
     is_row_base: bool,
     tech_name: Technique,
@@ -39,7 +40,7 @@ pub fn find_fish_techniques(board: &LogicalBoard) -> Option<SolvingStep> {
         (4, Technique::Jellyfish),
     ];
 
-    for num in 1..=9 {
+    for num in 1..=SIZE {
         for &(size, name) in &FISH_CONFIGS {
             if let Some(step) = check_fish(board, num, &row_masks[num], size, true, name) {
                 return Some(step);
@@ -56,7 +57,7 @@ pub fn find_fish_techniques(board: &LogicalBoard) -> Option<SolvingStep> {
 fn check_fish(
     board: &LogicalBoard,
     num: usize,
-    masks: &[u16; 9],
+    masks: &[u16; SIZE],
     size: usize,
     is_row_base: bool,
     tech_name: Technique,
@@ -137,7 +138,9 @@ fn construct_fish_step(
     tech_name: Technique,
 ) -> Option<SolvingStep> {
     let cand_bit = 1 << (num - 1);
-    let cover_indices: Vec<usize> = (0..9).filter(|&x| (union_mask & (1 << x)) != 0).collect();
+    let cover_indices: Vec<usize> = (0..SIZE)
+        .filter(|&x| (union_mask & (1 << x)) != 0)
+        .collect();
 
     let cause_cells = collect_fish_causes(
         board,
@@ -182,9 +185,9 @@ fn collect_fish_causes(
     for &base_idx in base_indices {
         for &cover_idx in cover_indices {
             let cell_idx = if is_row_base {
-                base_idx * 9 + cover_idx
+                cell(base_idx, cover_idx)
             } else {
-                cover_idx * 9 + base_idx
+                cell(cover_idx, base_idx)
             };
 
             if board.cells[cell_idx] == 0 && (board.candidates[cell_idx] & cand_bit) != 0 {
@@ -210,16 +213,16 @@ fn collect_fish_eliminations(
 ) -> Vec<Elimination> {
     let mut eliminations = Vec::new();
     for &cover_idx in cover_indices {
-        for orthogonal_idx in 0..9 {
+        for orthogonal_idx in 0..SIZE {
             // Skip if this row/col is part of the base set
             if base_indices.contains(&orthogonal_idx) {
                 continue;
             }
 
             let cell_idx = if is_row_base {
-                orthogonal_idx * 9 + cover_idx // iterate rows in this col
+                cell(orthogonal_idx, cover_idx) // iterate rows in this col
             } else {
-                cover_idx * 9 + orthogonal_idx // iterate cols in this row
+                cell(cover_idx, orthogonal_idx) // iterate cols in this row
             };
 
             if board.cells[cell_idx] == 0 && (board.candidates[cell_idx] & cand_bit) != 0 {

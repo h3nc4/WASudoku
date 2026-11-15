@@ -17,7 +17,8 @@
 */
 
 use crate::board::Board;
-use crate::logical_solver::{self, PEER_MASKS, TechniqueLevel, mask_indices};
+use crate::geometry::{ALL_CELLS, CELLS, PEER_MASKS, SIZE};
+use crate::logical_solver::{self, TechniqueLevel, mask_indices};
 use crate::solver;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -32,6 +33,22 @@ pub enum Difficulty {
     Hard,
     Expert,
     Extreme,
+}
+
+impl Difficulty {
+    /// Every difficulty, in the order of their wire codes.
+    pub const ALL: [Difficulty; 5] = [
+        Self::Easy,
+        Self::Medium,
+        Self::Hard,
+        Self::Expert,
+        Self::Extreme,
+    ];
+
+    /// The difficulty a wire code stands for, the reverse of `self as u8`.
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.get(usize::from(code)).copied()
+    }
 }
 
 /// Parse the lower-case name the frontend sends, such as `"easy"`.
@@ -54,10 +71,13 @@ impl FromStr for Difficulty {
     }
 }
 
+/// The index of the last cell, which mirrors the first through the centre.
+const LAST_CELL: usize = CELLS - 1;
+
 /// Generate a complete, solved Sudoku board.
 fn generate_full_solution<R: Rng + ?Sized>(rng: &mut R) -> Board {
-    let mut board = Board { cells: [0; 81] };
-    let mut numbers: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let mut board = Board { cells: [0; CELLS] };
+    let mut numbers: [u8; SIZE] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     numbers.shuffle(rng);
     solver::solve_randomized(&mut board, &numbers);
     board
@@ -66,13 +86,13 @@ fn generate_full_solution<R: Rng + ?Sized>(rng: &mut R) -> Board {
 /// Every set of cells whose two digits can swap places and leave a valid grid.
 /// A puzzle with no clue in one of them has a second solution, so no search is needed.
 fn two_digit_unavoidable_sets(solution: &Board) -> Vec<u128> {
-    let mut digit_cells = [0u128; 10];
+    let mut digit_cells = [0u128; SIZE + 1];
     for (i, &digit) in solution.cells.iter().enumerate() {
         digit_cells[digit as usize] |= 1 << i;
     }
     let mut sets = Vec::new();
-    for x in 1..=9 {
-        for y in x + 1..=9 {
+    for x in 1..=SIZE {
+        for y in x + 1..=SIZE {
             let pair = digit_cells[x] | digit_cells[y];
             let mut rest = pair;
             // Each connected group of peers among the cells of x and y swaps on its own
@@ -107,14 +127,12 @@ fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Board {
     let mut puzzle = *solution;
-    let mut current_clues = 81;
+    let mut current_clues = CELLS;
     let unavoidable = two_digit_unavoidable_sets(solution);
-    let mut clue_mask: u128 = (1 << 81) - 1;
+    let mut clue_mask = ALL_CELLS;
 
-    // Create a list of indices to try removing.
-    // We only need 0..41 because we process pairs (i, 80-i).
-    // 40 is the center cell (80/2), processed alone.
-    let mut indices: Vec<usize> = (0..41).collect();
+    // Each index stands for itself and its mirror through the centre, which is its own mirror.
+    let mut indices: Vec<usize> = (0..=LAST_CELL / 2).collect();
     indices.shuffle(rng);
 
     for &index in &indices {
@@ -123,7 +141,7 @@ fn create_minimal_puzzle_symmetric<R: Rng + ?Sized>(
             break;
         }
 
-        let sym_index = 80 - index;
+        let sym_index = LAST_CELL - index;
 
         let val1 = puzzle.cells[index];
         let val2 = puzzle.cells[sym_index];
@@ -193,6 +211,7 @@ fn matches_difficulty(puzzle: &Board, difficulty: Difficulty) -> bool {
 }
 
 /// Generates a puzzle of a specific difficulty, returned as `(puzzle, solution)`.
+#[cfg(feature = "legacy")]
 pub fn generate(difficulty: Difficulty) -> (Board, Board) {
     generate_with_rng(difficulty, &mut rand::rng())
 }

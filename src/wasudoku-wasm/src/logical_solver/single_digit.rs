@@ -17,6 +17,7 @@
 */
 
 use super::{LogicalBoard, common_peer_eliminations, mask_to_vec};
+use crate::geometry::{SIZE, box_of, cell};
 use crate::types::{CauseCell, SolvingStep, Technique};
 
 // --- Skyscraper ---
@@ -24,7 +25,7 @@ use crate::types::{CauseCell, SolvingStep, Technique};
 pub fn find_skyscraper(board: &LogicalBoard) -> Option<SolvingStep> {
     let (row_masks, col_masks) = board.get_all_fish_masks();
 
-    for num in 1..=9 {
+    for num in 1..=SIZE {
         // Check Rows base
         if let Some(step) = check_skyscraper(board, num, &row_masks[num], true) {
             return Some(step);
@@ -41,7 +42,7 @@ pub fn find_skyscraper(board: &LogicalBoard) -> Option<SolvingStep> {
 fn check_skyscraper(
     board: &LogicalBoard,
     num: usize,
-    masks: &[u16; 9],
+    masks: &[u16; SIZE],
     is_row_base: bool,
 ) -> Option<SolvingStep> {
     // Find indices of rows/cols with exactly 2 candidates
@@ -76,7 +77,7 @@ fn check_skyscraper(
 fn check_skyscraper_pair(
     board: &LogicalBoard,
     num: usize,
-    masks: &[u16; 9],
+    masks: &[u16; SIZE],
     is_row_base: bool,
     r1: usize,
     r2: usize,
@@ -95,27 +96,27 @@ fn check_skyscraper_pair(
     let c2_idx = (m2 & !common).trailing_zeros() as usize;
 
     let roof_cell_1 = if is_row_base {
-        r1 * 9 + c1_idx
+        cell(r1, c1_idx)
     } else {
-        c1_idx * 9 + r1
+        cell(c1_idx, r1)
     };
     let roof_cell_2 = if is_row_base {
-        r2 * 9 + c2_idx
+        cell(r2, c2_idx)
     } else {
-        c2_idx * 9 + r2
+        cell(c2_idx, r2)
     };
 
     // Also store the base cells for highlighting
     let base_col = common.trailing_zeros() as usize;
     let base_cell_1 = if is_row_base {
-        r1 * 9 + base_col
+        cell(r1, base_col)
     } else {
-        base_col * 9 + r1
+        cell(base_col, r1)
     };
     let base_cell_2 = if is_row_base {
-        r2 * 9 + base_col
+        cell(r2, base_col)
     } else {
-        base_col * 9 + r2
+        cell(base_col, r2)
     };
 
     // Eliminate num from intersection of roof cells
@@ -154,7 +155,7 @@ fn check_skyscraper_pair(
 pub fn find_two_string_kite(board: &LogicalBoard) -> Option<SolvingStep> {
     let (row_masks, col_masks) = board.get_all_fish_masks();
 
-    for num in 1..=9 {
+    for num in 1..=SIZE {
         if let Some(step) = check_two_string_kite_for_num(board, num, &row_masks, &col_masks) {
             return Some(step);
         }
@@ -165,8 +166,8 @@ pub fn find_two_string_kite(board: &LogicalBoard) -> Option<SolvingStep> {
 fn check_two_string_kite_for_num(
     board: &LogicalBoard,
     num: usize,
-    row_masks: &[[u16; 9]; 10],
-    col_masks: &[[u16; 9]; 10],
+    row_masks: &[[u16; SIZE]; SIZE + 1],
+    col_masks: &[[u16; SIZE]; SIZE + 1],
 ) -> Option<SolvingStep> {
     let rows_2: Vec<usize> = row_masks[num]
         .iter()
@@ -204,11 +205,11 @@ fn check_kite_intersection(
     let r_cols = mask_to_vec(r_mask);
     let c_rows = mask_to_vec(c_mask);
 
-    let cell_r1 = r * 9 + (r_cols[0] as usize - 1);
-    let cell_r2 = r * 9 + (r_cols[1] as usize - 1);
+    let cell_r1 = cell(r, r_cols[0] as usize - 1);
+    let cell_r2 = cell(r, r_cols[1] as usize - 1);
 
-    let cell_c1 = (c_rows[0] as usize - 1) * 9 + c;
-    let cell_c2 = (c_rows[1] as usize - 1) * 9 + c;
+    let cell_c1 = cell(c_rows[0] as usize - 1, c);
+    let cell_c2 = cell(c_rows[1] as usize - 1, c);
 
     find_kite_connection(board, num, [cell_r1, cell_r2], [cell_c1, cell_c2])
 }
@@ -241,10 +242,7 @@ fn check_kite_pair(
         return None;
     }
 
-    // Helper to get box index
-    let get_box = |idx: usize| (idx / 9 / 3) * 3 + (idx % 9 / 3);
-
-    if get_box(rc) == get_box(cc) {
+    if box_of(rc) == box_of(cc) {
         let other_rc = if rc == row_cells[0] {
             row_cells[1]
         } else {

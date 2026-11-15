@@ -16,14 +16,15 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{ALL_UNITS, LogicalBoard, PEER_MAP, are_peers, common_peer_eliminations, mask_to_vec};
+use super::{LogicalBoard, are_peers, common_peer_eliminations, mask_to_vec};
+use crate::geometry::{CELLS, PEERS, UNITS};
 use crate::types::{CauseCell, SolvingStep, Technique};
 
 // --- XY-Wing ---
 
 pub fn find_xy_wing(board: &LogicalBoard) -> Option<SolvingStep> {
     // Collect bi-value cells
-    let bivalue_cells: Vec<usize> = (0..81)
+    let bivalue_cells: Vec<usize> = (0..CELLS)
         .filter(|&i| board.cells[i] == 0 && board.candidates[i].count_ones() == 2)
         .collect();
 
@@ -45,9 +46,9 @@ fn find_xy_wing_for_pivot(board: &LogicalBoard, pivot_idx: usize) -> Option<Solv
     let b = pivot_cands[1];
 
     // Find peers of pivot that are also bi-value
-    let peer_bivalues: Vec<usize> = PEER_MAP[pivot_idx]
+    let peer_bivalues: Vec<usize> = PEERS[pivot_idx]
         .iter()
-        .cloned()
+        .map(|&peer| usize::from(peer))
         .filter(|&idx| {
             board.cells[idx] == 0
                 && board.candidates[idx].count_ones() == 2
@@ -130,7 +131,7 @@ fn check_xy_wing_pincers(
 
 pub fn find_xyz_wing(board: &LogicalBoard) -> Option<SolvingStep> {
     // Pivot must have 3 candidates
-    let trivalue_cells: Vec<usize> = (0..81)
+    let trivalue_cells: Vec<usize> = (0..CELLS)
         .filter(|&i| board.cells[i] == 0 && board.candidates[i].count_ones() == 3)
         .collect();
 
@@ -146,9 +147,9 @@ fn find_xyz_wing_for_pivot(board: &LogicalBoard, pivot_idx: usize) -> Option<Sol
     let pivot_mask = board.candidates[pivot_idx];
 
     // Find potential pincers: bivalue cells that are subsets of the pivot
-    let potential_pincers: Vec<usize> = PEER_MAP[pivot_idx]
+    let potential_pincers: Vec<usize> = PEERS[pivot_idx]
         .iter()
-        .cloned()
+        .map(|&peer| usize::from(peer))
         .filter(|&idx| {
             board.cells[idx] == 0
                 && board.candidates[idx].count_ones() == 2
@@ -238,7 +239,7 @@ pub fn find_w_wing(board: &LogicalBoard) -> Option<SolvingStep> {
 
 #[inline]
 fn get_bivalue_cells(board: &LogicalBoard) -> Vec<(usize, u16)> {
-    (0..81)
+    (0..CELLS)
         .filter(|&i| board.cells[i] == 0 && board.candidates[i].count_ones() == 2)
         .map(|i| (i, board.candidates[i]))
         .collect()
@@ -283,7 +284,7 @@ fn check_w_wing_link(
     // A strong link is a unit where `link_val` appears exactly twice.
     let link_mask = 1 << (link_val - 1);
 
-    for unit in ALL_UNITS.iter() {
+    for unit in UNITS.iter() {
         let positions: Vec<usize> = unit
             .iter()
             .filter(|&&idx| board.cells[idx] == 0 && (board.candidates[idx] & link_mask) != 0)

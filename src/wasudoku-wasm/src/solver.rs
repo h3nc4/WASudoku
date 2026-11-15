@@ -17,38 +17,11 @@
 */
 
 use crate::board::Board;
+use crate::geometry::{
+    ALL_DIGITS, CELLS, MAX_DIGIT, PEERS, SIZE, UNIT_COUNT, UNITS, box_of, col_of, row_of,
+};
 
-const ALL_DIGITS: u16 = 0x1FF;
-const ASCENDING: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-lazy_static::lazy_static! {
-    /// The cells of the 9 rows, then the 9 columns, then the 9 boxes.
-    static ref UNITS: [[u8; 9]; 27] = {
-        let mut units = [[0; 9]; 27];
-        for i in 0..81 {
-            let (row, col, bx) = position(i);
-            units[row][col] = i as u8;
-            units[9 + col][row] = i as u8;
-            units[18 + bx][(row % 3) * 3 + col % 3] = i as u8;
-        }
-        units
-    };
-    /// The 20 cells sharing a row, column or box with each cell.
-    static ref PEERS: [[u8; 20]; 81] = {
-        let mut peers = [[0; 20]; 81];
-        for (i, cell_peers) in peers.iter_mut().enumerate() {
-            let (row, col, bx) = position(i);
-            let shares_unit = |j: usize| {
-                let (r, c, b) = position(j);
-                j != i && (r == row || c == col || b == bx)
-            };
-            for (slot, j) in cell_peers.iter_mut().zip((0..81).filter(|&j| shares_unit(j))) {
-                *slot = j as u8;
-            }
-        }
-        peers
-    };
-}
+const ASCENDING: [u8; SIZE] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /// Solve the Sudoku puzzle using a backtracking algorithm with an MRV heuristic.
 ///
@@ -65,20 +38,40 @@ pub fn solve(board: &mut Board) -> bool {
 
 /// Solve a Sudoku puzzle using backtracking, trying digits in the order given.
 /// Used with a shuffled order to generate distinct solved boards.
-pub fn solve_randomized(board: &mut Board, numbers: &[u8; 9]) -> bool {
-    match Search::run(board, numbers, 1, Mode::Ordered) {
-        (_, Some(solution)) => {
+pub fn solve_randomized(board: &mut Board, numbers: &[u8; SIZE]) -> bool {
+    match Search::run(board, numbers, 1, Mode::Ordered, UNLIMITED) {
+        Ok((_, Some(solution))) => {
             *board = solution;
             true
         }
-        (_, None) => false,
+        _ => false,
     }
 }
 
 /// Count the solutions of `board` up to two, with the first one found.
 /// On a board with several solutions that first one is not the one `solve` returns.
 pub fn count_with_solution(board: &Board) -> (u8, Option<Board>) {
-    Search::run(board, &ASCENDING, 2, Mode::Counting)
+    count_within(board, UNLIMITED).unwrap_or((0, None))
+}
+
+/// The guesses a search may make before it gives up.
+pub type Budget = u32;
+
+/// A budget above the guesses of the slowest known board, about 7.4 million.
+const UNLIMITED: Budget = Budget::MAX;
+
+/// The search ran out of its budget before it could answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SearchLimit;
+
+/// `count_with_solution`, giving up after `budget` guesses.
+pub fn count_within(board: &Board, budget: Budget) -> Result<(u8, Option<Board>), SearchLimit> {
+    Search::run(board, &ASCENDING, 2, Mode::Counting, budget)
+}
+
+/// The solution `solve` finds, or `None` without one, giving up after `budget` guesses.
+pub fn solve_within(board: &Board, budget: Budget) -> Result<Option<Board>, SearchLimit> {
+    Search::run(board, &ASCENDING, 1, Mode::Ordered, budget).map(|(_, first)| first)
 }
 
 /// Count the number of solutions for a given board. Stops counting if more than 1 solution is found.
@@ -107,22 +100,22 @@ enum Mode {
 /// A filled cell has an empty candidate mask, and an empty cell with an empty mask is a contradiction.
 #[derive(Clone, Copy)]
 struct Grid {
-    cells: [u8; 81],
-    candidates: [u16; 81],
-    placed: [u16; 27],
+    cells: [u8; CELLS],
+    candidates: [u16; CELLS],
+    placed: [u16; UNIT_COUNT],
     empty: u8,
 }
 
 /// Cells left with one candidate that still have to be placed.
 struct Singles {
-    cells: [u8; 81],
+    cells: [u8; CELLS],
     len: usize,
 }
 
 impl Singles {
     fn new() -> Singles {
         Singles {
-            cells: [0; 81],
+            cells: [0; CELLS],
             len: 0,
         }
     }
@@ -143,18 +136,18 @@ impl Grid {
     fn new(board: &Board, mode: Mode) -> Option<Grid> {
         let mut grid = Grid {
             cells: board.cells,
-            candidates: [0; 81],
-            placed: [0; 27],
+            candidates: [0; CELLS],
+            placed: [0; UNIT_COUNT],
             empty: 0,
         };
         for (i, &digit) in board.cells.iter().enumerate() {
-            if digit > 9 || grid.seen(i) & bit(digit) != 0 {
+            if digit > MAX_DIGIT || grid.seen(i) & bit(digit) != 0 {
                 return None;
             }
             grid.mark(i, bit(digit));
         }
         let mut singles = Singles::new();
-        for i in (0..81).filter(|&i| board.cells[i] == 0) {
+        for i in (0..CELLS).filter(|&i| board.cells[i] == 0) {
             let mask = !grid.seen(i) & ALL_DIGITS;
             if mask == 0 {
                 return None;
@@ -171,14 +164,14 @@ impl Grid {
     /// The digits already placed in the row, column and box of cell `i`.
     fn seen(&self, i: usize) -> u16 {
         let (row, col, bx) = position(i);
-        self.placed[row] | self.placed[9 + col] | self.placed[18 + bx]
+        self.placed[row] | self.placed[SIZE + col] | self.placed[2 * SIZE + bx]
     }
 
     fn mark(&mut self, i: usize, digit_bit: u16) {
         let (row, col, bx) = position(i);
         self.placed[row] |= digit_bit;
-        self.placed[9 + col] |= digit_bit;
-        self.placed[18 + bx] |= digit_bit;
+        self.placed[SIZE + col] |= digit_bit;
+        self.placed[2 * SIZE + bx] |= digit_bit;
     }
 
     /// Place `digit` in cell `i` and remove it from the peers, queueing those left with one candidate.
@@ -236,7 +229,7 @@ impl Grid {
             loop {
                 let (mut once, mut twice) = (0u16, 0u16);
                 for &cell in unit {
-                    let mask = self.candidates[cell as usize];
+                    let mask = self.candidates[cell];
                     twice |= once & mask;
                     once |= mask;
                 }
@@ -250,7 +243,7 @@ impl Grid {
                 let digit_bit = hidden.isolate_lowest_one();
                 let cell = unit
                     .iter()
-                    .map(|&c| c as usize)
+                    .copied()
                     .find(|&c| self.candidates[c] & digit_bit != 0)?;
                 if !self.place(cell, digit_of(digit_bit), singles) {
                     return None;
@@ -295,7 +288,7 @@ impl Grid {
                 missing &= !digit_bit;
                 let count = unit
                     .iter()
-                    .filter(|&&c| self.candidates[c as usize] & digit_bit != 0)
+                    .filter(|&&c| self.candidates[c] & digit_bit != 0)
                     .count() as u32;
                 // Counting mode places hidden singles, so two cannot be beaten either.
                 if count == 2 {
@@ -318,27 +311,40 @@ enum Branch {
 
 /// Depth-first search that copies the grid at each guess instead of undoing it.
 struct Search<'a> {
-    order: &'a [u8; 9],
+    order: &'a [u8; SIZE],
     limit: u8,
     mode: Mode,
     found: u8,
     first: Option<Board>,
+    budget: Budget,
+    exhausted: bool,
 }
 
 impl<'a> Search<'a> {
     /// Search until `limit` solutions are found, a board with conflicts having none.
-    fn run(board: &Board, order: &'a [u8; 9], limit: u8, mode: Mode) -> (u8, Option<Board>) {
+    fn run(
+        board: &Board,
+        order: &'a [u8; SIZE],
+        limit: u8,
+        mode: Mode,
+        budget: Budget,
+    ) -> Result<(u8, Option<Board>), SearchLimit> {
         let mut search = Search {
             order,
             limit,
             mode,
             found: 0,
             first: None,
+            budget,
+            exhausted: false,
         };
         if let Some(grid) = Grid::new(board, mode) {
             search.descend(&grid);
         }
-        (search.found, search.first)
+        if search.exhausted {
+            return Err(SearchLimit);
+        }
+        Ok((search.found, search.first))
     }
 
     fn descend(&mut self, grid: &Grid) {
@@ -359,7 +365,6 @@ impl<'a> Search<'a> {
             }
             Some(Branch::Unit(u, digit_bit)) => {
                 for &cell in &UNITS[u] {
-                    let cell = cell as usize;
                     if grid.candidates[cell] & digit_bit != 0
                         && self.guess(grid, cell, digit_of(digit_bit))
                     {
@@ -370,8 +375,13 @@ impl<'a> Search<'a> {
         }
     }
 
-    /// Search below `digit` placed in cell `i`, returning whether the limit is reached.
+    /// Search below `digit` placed in cell `i`, returning whether the limit or the budget is reached.
     fn guess(&mut self, grid: &Grid, i: usize, digit: u8) -> bool {
+        if self.budget == 0 {
+            self.exhausted = true;
+            return true;
+        }
+        self.budget -= 1;
         let mut next = *grid;
         let mut singles = Singles::new();
         if next.place(i, digit, &mut singles) && next.propagate(self.mode, &mut singles) {
@@ -382,8 +392,7 @@ impl<'a> Search<'a> {
 }
 
 fn position(i: usize) -> (usize, usize, usize) {
-    let (row, col) = (i / 9, i % 9);
-    (row, col, (row / 3) * 3 + col / 3)
+    (row_of(i), col_of(i), box_of(i))
 }
 
 /// The candidate bit of `digit`, with `0` mapping to no bit.

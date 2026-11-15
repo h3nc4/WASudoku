@@ -9,15 +9,16 @@ license = "AGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["console_error_panic_hook"]
+default = ["legacy", "console_error_panic_hook"]
+# The string and serde exports the app calls until cutover, which deletes this feature and its dependencies.
+legacy = ["dep:wasm-bindgen", "dep:serde", "dep:serde-wasm-bindgen", "dep:getrandom", "rand/thread_rng"]
 
 [dependencies]
-wasm-bindgen = { version = "0.2.104", features = ["serde-serialize"] }
-serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.6"
-lazy_static = "1.5"
-rand = { version = "0.10", features = ["std_rng"] }
-getrandom = { version = "0.4", features = ["wasm_js"] }
+wasm-bindgen = { version = "0.2.104", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+rand = { version = "0.10", default-features = false, features = ["std", "std_rng"] }
+getrandom = { version = "0.4", features = ["wasm_js"], optional = true }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

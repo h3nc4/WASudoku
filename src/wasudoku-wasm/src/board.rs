@@ -16,6 +16,7 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::geometry::{BOX, CELLS, SIZE, box_of, cell, col_of, row_of};
 use std::fmt;
 use std::str::FromStr;
 
@@ -23,9 +24,9 @@ use std::str::FromStr;
 ///
 /// Stores the board as a flat array of 81 `u8` cells, where `0` represents
 /// an empty cell and `1` through `9` represent filled cells.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Board {
-    pub cells: [u8; 81],
+    pub cells: [u8; CELLS],
 }
 
 impl Board {
@@ -34,23 +35,23 @@ impl Board {
     /// A move is valid if the number does not already exist in the cell's
     /// row, column, or 3x3 box.
     pub fn is_valid_move(&self, row: usize, col: usize, num: u8) -> bool {
-        for x in 0..9 {
-            if self.cells[row * 9 + x] == num {
+        for x in 0..SIZE {
+            if self.cells[cell(row, x)] == num {
                 return false;
             }
         }
 
-        for x in 0..9 {
-            if self.cells[x * 9 + col] == num {
+        for x in 0..SIZE {
+            if self.cells[cell(x, col)] == num {
                 return false;
             }
         }
 
-        let start_row = row - row % 3;
-        let start_col = col - col % 3;
-        for i in 0..3 {
-            for j in 0..3 {
-                if self.cells[(start_row + i) * 9 + (start_col + j)] == num {
+        let start_row = row - row % BOX;
+        let start_col = col - col % BOX;
+        for i in 0..BOX {
+            for j in 0..BOX {
+                if self.cells[cell(start_row + i, start_col + j)] == num {
                     return false;
                 }
             }
@@ -74,17 +75,17 @@ impl FromStr for Board {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != 81 {
+        if s.len() != CELLS {
             return Err(format!(
                 "Invalid board string length: expected 81, got {}",
                 s.len()
             ));
         }
 
-        let mut cells = [0; 81];
-        let mut rows = [0u16; 9];
-        let mut cols = [0u16; 9];
-        let mut boxes = [0u16; 9];
+        let mut cells = [0; CELLS];
+        let mut rows = [0u16; SIZE];
+        let mut cols = [0u16; SIZE];
+        let mut boxes = [0u16; SIZE];
 
         for (i, char) in s.chars().enumerate() {
             let digit = match char {
@@ -100,9 +101,9 @@ impl FromStr for Board {
             cells[i] = digit;
 
             if digit != 0 {
-                let row = i / 9;
-                let col = i % 9;
-                let box_index = (row / 3) * 3 + (col / 3);
+                let row = row_of(i);
+                let col = col_of(i);
+                let box_index = box_of(i);
                 let mask = 1 << (digit - 1);
 
                 if (rows[row] & mask) != 0
@@ -126,7 +127,7 @@ impl FromStr for Board {
 /// Format the board as an 81-character string, using `.` for empty cells.
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut s = String::with_capacity(81);
+        let mut s = String::with_capacity(CELLS);
         for &cell in self.cells.iter() {
             if cell == 0 {
                 s.push('.');

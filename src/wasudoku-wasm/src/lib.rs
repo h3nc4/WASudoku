@@ -16,71 +16,23 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+pub mod abi;
+pub mod api;
 pub mod board;
 pub mod generate;
+pub mod geometry;
 pub mod logical_solver;
 pub mod solver;
 pub mod types;
+#[cfg(feature = "legacy")]
 mod utils;
+pub mod wire;
 
 use board::Board;
-use generate::Difficulty;
-use serde::{Deserialize, Serialize};
-use types::{SolveResult, SolvingStep};
-use wasm_bindgen::prelude::*;
+use types::SolvingStep;
 
-/// A generated puzzle together with the solution it was carved from.
-#[derive(Serialize, Deserialize)]
-pub struct GeneratedPuzzle {
-    /// The 81-character puzzle, with `.` for empty cells.
-    pub puzzle: String,
-    /// The 81-character solved board.
-    pub solution: String,
-}
-
-/// Set the panic hook to forward Rust panics to the browser console.
-#[wasm_bindgen(start)]
-pub fn start() {
-    utils::set_panic_hook();
-}
-
-fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
-    serde_wasm_bindgen::to_value(value).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Solve a Sudoku puzzle and return the logical steps and solution.
-///
-/// This function employs a hybrid strategy. It first applies logical solving
-/// techniques to generate human-readable steps. If logic alone cannot solve
-/// the puzzle, it falls back to a high-speed backtracking algorithm to find
-/// the final solution.
-///
-/// ### Arguments
-///
-/// * `board_str` - An 81-character string representing the Sudoku board,
-///   with `.` or `0` for empty cells.
-///
-/// ### Returns
-///
-/// * A `JsValue` containing the serialized `SolveResult`, which includes
-///   the logical steps and an optional final solution string.
-///
-/// ### Errors
-///
-/// * A `JsValue` error if the input is invalid or the puzzle is unsolvable.
-#[wasm_bindgen]
-pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
-    let initial_board: Board = board_str
-        .parse::<Board>()
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-
-    let (steps, solution) = solve_board(&initial_board)
-        .ok_or_else(|| JsValue::from_str("No solution found for the given puzzle."))?;
-    to_js(&SolveResult {
-        steps,
-        solution: Some(solution.to_string()),
-    })
-}
+#[cfg(feature = "legacy")]
+pub use legacy::{GeneratedPuzzle, generate_sudoku, solve_sudoku, start, validate_puzzle};
 
 /// The logical steps and the solution behind `solve_sudoku`, or `None` if the board has no solution.
 pub fn solve_board(board: &Board) -> Option<(Vec<SolvingStep>, Board)> {
@@ -103,59 +55,80 @@ pub fn solve_board(board: &Board) -> Option<(Vec<SolvingStep>, Board)> {
     Some((steps, board_after_logic))
 }
 
-// Mirrors `DIFFICULTIES` in src/context/sudoku.types.ts, so tsc rejects a name missing here.
-#[wasm_bindgen(typescript_custom_section)]
-const DIFFICULTY_TS: &str =
-    r#"export type Difficulty = "easy" | "medium" | "hard" | "expert" | "extreme";"#;
+/// The exports the app calls until cutover, which deletes this module.
+#[cfg(feature = "legacy")]
+mod legacy {
+    use super::{solve_board, solver, utils};
+    use crate::board::Board;
+    use crate::generate::{self, Difficulty};
+    use crate::types::SolveResult;
+    use serde::{Deserialize, Serialize};
+    use wasm_bindgen::prelude::*;
 
-/// Generate a new Sudoku puzzle with a unique solution.
-///
-/// ### Arguments
-///
-/// * `difficulty_str` - A string representing the desired difficulty:
-///   "easy", "medium", "hard", "expert", or "extreme".
-///
-/// ### Returns
-///
-/// * A `JsValue` containing the serialized `GeneratedPuzzle`.
-///
-/// ### Errors
-///
-/// * A `JsValue` error if the difficulty string is invalid.
-#[wasm_bindgen]
-pub fn generate_sudoku(
-    #[wasm_bindgen(unchecked_param_type = "Difficulty")] difficulty_str: &str,
-) -> Result<JsValue, JsValue> {
-    let difficulty = difficulty_str
-        .parse::<Difficulty>()
-        .map_err(|e| JsValue::from_str(&e))?;
+    /// A generated puzzle together with the solution it was carved from.
+    #[derive(Serialize, Deserialize)]
+    pub struct GeneratedPuzzle {
+        /// The 81-character puzzle, with `.` for empty cells.
+        pub puzzle: String,
+        /// The 81-character solved board.
+        pub solution: String,
+    }
 
-    let (puzzle, solution) = generate::generate(difficulty);
-    to_js(&GeneratedPuzzle {
-        puzzle: puzzle.to_string(),
-        solution: solution.to_string(),
-    })
-}
+    /// Set the panic hook to forward Rust panics to the browser console.
+    #[wasm_bindgen(start)]
+    pub fn start() {
+        utils::set_panic_hook();
+    }
 
-/// Validate a Sudoku puzzle and return its solution when it is unique.
-///
-/// ### Arguments
-///
-/// * `board_str` - An 81-character string representing the Sudoku board.
-///
-/// ### Returns
-///
-/// * The 81-character solution if the puzzle has exactly one, `None` otherwise.
-///
-/// ### Errors
-///
-/// * A `JsValue` error if the input string is invalid.
-#[wasm_bindgen]
-pub fn validate_puzzle(board_str: &str) -> Result<Option<String>, JsValue> {
-    let board: Board = board_str
-        .parse::<Board>()
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
+        serde_wasm_bindgen::to_value(value).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
 
-    // Backtracking alone, since the logical solver's steps are not needed here.
-    Ok(solver::unique_solution(&board).map(|solution| solution.to_string()))
+    /// The steps and solution of an 81-character board, logic first and the search after.
+    /// Errors with a message for a malformed or unsolvable board.
+    #[wasm_bindgen]
+    pub fn solve_sudoku(board_str: &str) -> Result<JsValue, JsValue> {
+        let initial_board: Board = board_str
+            .parse::<Board>()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        let (steps, solution) = solve_board(&initial_board)
+            .ok_or_else(|| JsValue::from_str("No solution found for the given puzzle."))?;
+        to_js(&SolveResult {
+            steps,
+            solution: Some(solution.to_string()),
+        })
+    }
+
+    // Mirrors `DIFFICULTIES` in src/context/sudoku.types.ts, so tsc rejects a name missing here.
+    #[wasm_bindgen(typescript_custom_section)]
+    const DIFFICULTY_TS: &str =
+        r#"export type Difficulty = "easy" | "medium" | "hard" | "expert" | "extreme";"#;
+
+    /// A puzzle with a unique solution at a difficulty named in lower case.
+    #[wasm_bindgen]
+    pub fn generate_sudoku(
+        #[wasm_bindgen(unchecked_param_type = "Difficulty")] difficulty_str: &str,
+    ) -> Result<JsValue, JsValue> {
+        let difficulty = difficulty_str
+            .parse::<Difficulty>()
+            .map_err(|e| JsValue::from_str(&e))?;
+
+        let (puzzle, solution) = generate::generate(difficulty);
+        to_js(&GeneratedPuzzle {
+            puzzle: puzzle.to_string(),
+            solution: solution.to_string(),
+        })
+    }
+
+    /// The solution of an 81-character board when it has exactly one.
+    #[wasm_bindgen]
+    pub fn validate_puzzle(board_str: &str) -> Result<Option<String>, JsValue> {
+        let board: Board = board_str
+            .parse::<Board>()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        // Backtracking alone, since the logical solver's steps are not needed here.
+        Ok(solver::unique_solution(&board).map(|solution| solution.to_string()))
+    }
 }

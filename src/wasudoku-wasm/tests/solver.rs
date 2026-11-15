@@ -23,7 +23,10 @@ use std::time::{Duration, Instant};
 use wasudoku_wasm::board::Board;
 use wasudoku_wasm::generate::{self, Difficulty};
 use wasudoku_wasm::logical_solver;
-use wasudoku_wasm::solver::{count_solutions, solve, solve_randomized, unique_solution};
+use wasudoku_wasm::solver::{
+    SearchLimit, count_solutions, count_within, solve, solve_randomized, solve_within,
+    unique_solution,
+};
 use wasudoku_wasm::{solve_board, validate_puzzle};
 
 #[test]
@@ -548,4 +551,34 @@ fn time_per_call<T>(mut f: impl FnMut() -> T) -> f64 {
         calls += 1;
     }
     start.elapsed().as_secs_f64() * 1000.0 / calls as f64
+}
+
+#[test]
+fn test_budgeted_search_matches_the_unbounded_one() {
+    for (puzzle, _) in FIRST_SOLUTIONS {
+        let board: Board = puzzle.parse().unwrap();
+        let (count, _) = count_within(&board, u32::MAX).unwrap();
+        assert_eq!(count, count_solutions(&board));
+        let mut solved = board;
+        assert!(solve(&mut solved));
+        assert_eq!(
+            solve_within(&board, u32::MAX).unwrap(),
+            Some(solved),
+            "{puzzle}"
+        );
+    }
+    let mut unsolvable: Board = SLOW_UNSOLVABLE[0].parse().unwrap();
+    assert_eq!(count_within(&unsolvable, u32::MAX).unwrap().0, 0);
+    unsolvable.cells[0] = 10;
+    assert_eq!(solve_within(&unsolvable, 0).unwrap(), None);
+}
+
+#[test]
+fn test_budgeted_search_gives_up_instead_of_running_on() {
+    let board: Board = TWO_SOLUTIONS.parse().unwrap();
+    assert_eq!(count_within(&board, 0), Err(SearchLimit));
+    assert_eq!(solve_within(&board, 1), Err(SearchLimit));
+    // A solved board needs no guess, so no budget is too small for it.
+    let solved: Board = FIRST_SOLUTIONS[0].1.parse().unwrap();
+    assert_eq!(count_within(&solved, 0), Ok((1, Some(solved))));
 }

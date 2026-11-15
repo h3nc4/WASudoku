@@ -17,14 +17,15 @@
 */
 
 use super::{LogicalBoard, mask_to_vec};
+use crate::geometry::{SIZE, box_of, cell};
 use crate::types::{CauseCell, Elimination, SolvingStep, Technique};
 
 /// Searches for Unique Rectangle Type 1.
 pub fn find_unique_rectangle_type_1(board: &LogicalBoard) -> Option<SolvingStep> {
-    for r1 in 0..9 {
-        for r2 in (r1 + 1)..9 {
-            for c1 in 0..9 {
-                for c2 in (c1 + 1)..9 {
+    for r1 in 0..SIZE {
+        for r2 in (r1 + 1)..SIZE {
+            for c1 in 0..SIZE {
+                for c2 in (c1 + 1)..SIZE {
                     if let Some(step) = check_ur_for_coords(board, r1, r2, c1, c2) {
                         return Some(step);
                     }
@@ -43,10 +44,10 @@ fn check_ur_for_coords(
     c1: usize,
     c2: usize,
 ) -> Option<SolvingStep> {
-    let idx_tl = r1 * 9 + c1;
-    let idx_tr = r1 * 9 + c2;
-    let idx_bl = r2 * 9 + c1;
-    let idx_br = r2 * 9 + c2;
+    let idx_tl = cell(r1, c1);
+    let idx_tr = cell(r1, c2);
+    let idx_bl = cell(r2, c1);
+    let idx_br = cell(r2, c2);
 
     let indices = [idx_tl, idx_tr, idx_bl, idx_br];
 
@@ -64,10 +65,10 @@ fn check_ur_for_coords(
 
 #[inline]
 fn is_valid_ur_geometry(indices: &[usize; 4]) -> bool {
-    let b_tl = get_box_index(indices[0]);
-    let b_tr = get_box_index(indices[1]);
-    let b_bl = get_box_index(indices[2]);
-    let b_br = get_box_index(indices[3]);
+    let b_tl = box_of(indices[0]);
+    let b_tr = box_of(indices[1]);
+    let b_bl = box_of(indices[2]);
+    let b_br = box_of(indices[3]);
 
     // Case 1: Vertical sharing (Floor/Ceiling in different boxes)
     if b_tl == b_bl && b_tr == b_br && b_tl != b_tr {
@@ -79,11 +80,6 @@ fn is_valid_ur_geometry(indices: &[usize; 4]) -> bool {
     }
 
     false
-}
-
-#[inline]
-fn get_box_index(idx: usize) -> usize {
-    (idx / 27) * 3 + (idx % 9) / 3
 }
 
 fn solve_ur_type_1(board: &LogicalBoard, indices: &[usize; 4]) -> Option<SolvingStep> {

@@ -16,12 +16,13 @@
 * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{ALL_UNITS, LogicalBoard, PEER_MAP, mask_to_vec};
+use super::{LogicalBoard, mask_to_vec};
+use crate::geometry::{CELLS, MAX_DIGIT, PEERS, UNITS};
 use crate::types::{Elimination, Placement, SolvingStep, Technique};
 
 /// Searches for a cell with exactly one candidate.
 pub fn find_naked_single(board: &LogicalBoard) -> Option<SolvingStep> {
-    for i in 0..81 {
+    for i in 0..CELLS {
         if board.cells[i] == 0 && board.candidates[i].count_ones() == 1 {
             let value = (board.candidates[i].trailing_zeros() + 1) as u8;
             let eliminations = collect_peer_eliminations(board, i, value);
@@ -39,8 +40,7 @@ pub fn find_naked_single(board: &LogicalBoard) -> Option<SolvingStep> {
 
 /// Searches for a candidate that appears only once in a specific group (row/col/box).
 pub fn find_hidden_single(board: &LogicalBoard) -> Option<SolvingStep> {
-    let all_units: &[&[usize]] = &ALL_UNITS;
-    for unit in all_units.iter() {
+    for unit in UNITS.iter() {
         if let Some(step) = find_hidden_single_in_group(board, unit) {
             return Some(step);
         }
@@ -49,7 +49,7 @@ pub fn find_hidden_single(board: &LogicalBoard) -> Option<SolvingStep> {
 }
 
 fn find_hidden_single_in_group(board: &LogicalBoard, group: &[usize]) -> Option<SolvingStep> {
-    for num in 1..=9 {
+    for num in 1..=MAX_DIGIT {
         if let Some(target_idx) = find_unique_position_in_group(board, group, num) {
             let mask = 1 << (num - 1);
             let mut eliminations = collect_peer_eliminations(board, target_idx, num);
@@ -82,12 +82,13 @@ fn find_hidden_single_in_group(board: &LogicalBoard, group: &[usize]) -> Option<
 /// Helper to collect eliminations for Naked/Hidden Singles from peers.
 #[inline]
 fn collect_peer_eliminations(board: &LogicalBoard, index: usize, value: u8) -> Vec<Elimination> {
-    PEER_MAP[index]
+    PEERS[index]
         .iter()
-        .filter(|&&peer_idx| {
+        .map(|&peer| usize::from(peer))
+        .filter(|&peer_idx| {
             board.cells[peer_idx] == 0 && (board.candidates[peer_idx] & (1 << (value - 1))) != 0
         })
-        .map(|&peer_idx| Elimination {
+        .map(|peer_idx| Elimination {
             index: peer_idx,
             value,
         })
@@ -121,7 +122,7 @@ pub(crate) fn place_singles(board: &mut LogicalBoard) -> usize {
     loop {
         let before = placed;
         placed += place_naked_singles(board);
-        for unit in ALL_UNITS.iter() {
+        for unit in UNITS.iter() {
             placed += place_hidden_singles(board, unit);
         }
         if placed == before {
@@ -133,7 +134,7 @@ pub(crate) fn place_singles(board: &mut LogicalBoard) -> usize {
 /// Place one pass of naked singles in cell order, returning how many were placed.
 fn place_naked_singles(board: &mut LogicalBoard) -> usize {
     let mut placed = 0;
-    for i in 0..81 {
+    for i in 0..CELLS {
         let candidates = board.candidates[i];
         if candidates.count_ones() == 1 && board.set_cell(i, candidates.trailing_zeros() as u8 + 1)
         {
