@@ -58,7 +58,7 @@ describe('bindControls', () => {
     expect(button('hint-button').disabled).toBe(false)
     expect(button('solve-button').disabled).toBe(false)
     expect(button('solve-button')).toHaveAttribute('title', SOLVE_TITLES.ready)
-    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.playing)
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.pristine)
     expect(button('new-button')).toBeEnabled()
   })
 
@@ -80,6 +80,26 @@ describe('bindControls', () => {
     start(harness())
     expect(button('solve-button')).toHaveAttribute('title', SOLVE_TITLES.empty)
     expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.other)
+  })
+
+  it('names why Clear Board is off on an untouched game and an empty typed-in board', () => {
+    const test = start(harness())
+    test.store.dispatch({ type: 'enterCustom' })
+    expect(button('clear-button').disabled).toBe(true)
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.empty)
+    test.store.dispatch({ type: 'select', index: 0 as never })
+    test.store.dispatch({ type: 'digit', digit: 5 })
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.other)
+    dispose()
+    const game = start()
+    expect(button('clear-button').disabled).toBe(true)
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.pristine)
+    game.store.dispatch({ type: 'select', index: 2 as never })
+    game.store.dispatch({ type: 'digit', digit: 4 })
+    expect(button('clear-button').disabled).toBe(false)
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.playing)
+    game.store.dispatch({ type: 'clear' })
+    expect(button('clear-button')).toHaveAttribute('title', CLEAR_TITLES.pristine)
   })
 
   it('starts a typed-in puzzle once it has digits', () => {

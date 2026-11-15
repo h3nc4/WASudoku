@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { isBoardEmpty, isBoardFull, isGiven, valueAt } from '../board'
+import { boardsEqual, isBoardEmpty, isBoardFull, isGiven, valueAt } from '../board'
 import type { CellIndex } from '../digits'
 import { conflicts, isWrong } from '../rules'
 import { boardOf, type EditableGame, type Game, type State } from './state'
@@ -81,6 +81,15 @@ export function solveBlock(state: State): SolveBlock | null {
   if (isBoardFull(board)) return 'full'
   if (isBoardEmpty(board)) return 'empty'
   return game.play.solveFailed ? 'failed' : null
+}
+
+/** Why Clear Board has nothing to clear, as the old app named it, or null otherwise. */
+export type ClearBlock = 'pristine' | 'empty'
+
+export function clearBlock({ game }: State): ClearBlock | null {
+  if (game.mode === 'entering') return isBoardEmpty(game.history.present) ? 'empty' : null
+  if (game.mode !== 'playing') return null
+  return boardsEqual(game.play.history.present, game.play.puzzle) ? 'pristine' : null
 }
 
 export const canSolve = (state: State): boolean =>

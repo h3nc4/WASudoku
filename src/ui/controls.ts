@@ -47,6 +47,9 @@ const solveTitle = (mode: Mode, controls: Controls): string => {
 
 const played = (mode: Mode): boolean => mode === 'playing' || mode === 'won'
 
+const clearTitle = (mode: Mode, controls: Controls): string =>
+  CLEAR_TITLES[controls.clearBlock ?? (played(mode) ? 'playing' : 'other')]
+
 /** Enables the controls the state allows, and sends each press to the store. */
 export function bindControls(doc: Document, store: Store, ports: ControlPorts): () => void {
   const button = (id: string) => required(doc, `#${id}`, HTMLButtonElement)
@@ -87,7 +90,7 @@ export function bindControls(doc: Document, store: Store, ports: ControlPorts): 
       start.disabled = !current.validate
       setAttr(start, 'title', current.validate ? START_TITLES.ready : START_TITLES.empty)
       clear.disabled = !current.clear
-      setAttr(clear, 'title', played(shown) ? CLEAR_TITLES.playing : CLEAR_TITLES.other)
+      setAttr(clear, 'title', clearTitle(shown, current))
       newButton.toggleAttribute('disabled', !current.newPuzzle)
       fieldset.disabled = !current.inputMode
     }),

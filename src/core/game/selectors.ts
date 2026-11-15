@@ -42,6 +42,7 @@ import {
   canSolve,
   canUndoRedo,
   canValidate,
+  clearBlock,
   isBusy,
   isEditable,
   isGridReadOnly,
@@ -287,6 +288,7 @@ export interface Controls {
   readonly undo: boolean
   readonly redo: boolean
   readonly clear: boolean
+  readonly clearBlock: ReturnType<typeof clearBlock>
   readonly autoFill: boolean
   readonly erase: boolean
   readonly sticky: boolean
@@ -333,6 +335,7 @@ export function selectControls(state: State): Controls {
     undo: undoable && history.past.length > 0,
     redo: undoable && history.future.length > 0,
     clear: canClear(state),
+    clearBlock: clearBlock(state),
     autoFill: canAutoFill(state),
     erase: state.input.selected !== null && !readOnly,
     sticky: !readOnly,

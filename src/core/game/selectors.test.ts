@@ -305,6 +305,7 @@ describe('selectors', () => {
         undo: false,
         redo: false,
         clear: false,
+        clearBlock: 'pristine',
         autoFill: true,
         erase: false,
         sticky: true,
@@ -437,6 +438,7 @@ describe('selectors', () => {
       expect(selectControls(empty)).toMatchObject({
         validate: false,
         clear: false,
+        clearBlock: 'empty',
         confirmNewPuzzle: false,
         autoFill: false,
       })
@@ -444,6 +446,7 @@ describe('selectors', () => {
       expect(selectControls(typed)).toMatchObject({
         validate: true,
         clear: true,
+        clearBlock: null,
         confirmNewPuzzle: true,
       })
       expect(selectControls(run(typed, [{ type: 'validate' }]))).toMatchObject({
@@ -458,6 +461,7 @@ describe('selectors', () => {
       expect(selectControls(walk)).toMatchObject({
         inputMode: false,
         undo: false,
+        clearBlock: null,
         confirmNewPuzzle: false,
       })
       const progressed = run(start(), [

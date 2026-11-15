@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { SolveBlock } from '../game/guards'
+import type { ClearBlock, SolveBlock } from '../game/guards'
 import type { Difficulty } from '../pool'
 import { formatTime } from './format'
 import { EN } from './grammar'
@@ -57,10 +57,13 @@ export const OFFER_DESCRIPTIONS = {
   replaces: 'A puzzle was shared with WASudoku. Starting it replaces the current board.',
 } as const
 
-export const CLEAR_TITLES = {
+/** Why Clear Board is off, or what it clears in play and while a puzzle is typed in. */
+export const CLEAR_TITLES: Readonly<Record<ClearBlock | 'playing' | 'other', string>> = {
+  pristine: 'No progress to clear.',
+  empty: 'Board is already empty.',
   playing: 'Clear your progress and reset the puzzle.',
   other: 'Clear all numbers from the board.',
-} as const
+}
 
 /** Button labels, the busy ones shown while the request they started runs. */
 export const BUTTON_LABELS = {
