@@ -19,6 +19,7 @@
 import type { Browser, Page } from 'playwright'
 
 import { openSession, type Session } from './browser.ts'
+import { boardHasDigits } from './page-state.ts'
 import { report } from './report.ts'
 import { Driver, POOL } from './scenarios.ts'
 import type { Site } from './serve.ts'
@@ -73,11 +74,7 @@ async function observe(session: Session): Promise<Map<string, string>> {
     const welcome = page.getByRole('heading', { name: 'Welcome to WASudoku' })
     seen.set('offline reload shows the selection screen', String(await welcome.isVisible()))
     await d.click(d.button('Easy'))
-    const board = await page.evaluate(() =>
-      [...document.querySelectorAll('[aria-label^="Sudoku cell at row"]')].some(
-        (el) => el instanceof HTMLInputElement && el.value !== '',
-      ),
-    )
+    const board = await page.evaluate(boardHasDigits)
     seen.set('offline new game has givens', String(board))
     const outside = await page.evaluate(
       (path) =>

@@ -53,10 +53,15 @@ export function writeOut(name: string, data: string | Buffer) {
   writeFileSync(join(OUT, name.replaceAll(/[^\w.-]+/g, '-')), data)
 }
 
-/** The first line where two texts part, for a one-line FAIL detail. */
-export function firstDifference(a: string, b: string): string {
-  const [left, right] = [a.split('\n'), b.split('\n')]
-  const at = left.findIndex((line, i) => line !== right[i])
-  const i = at === -1 ? left.length : at
-  return `line ${i + 1}: ref ${JSON.stringify(left[i] ?? '')} candidate ${JSON.stringify(right[i] ?? '')}`
+/** Every line one text has more often than the other, - for the reference and + for the candidate. */
+export function differences(a: string, b: string): string {
+  const count = (text: string) => {
+    const map = new Map<string, number>()
+    for (const line of text.split('\n')) map.set(line, (map.get(line) ?? 0) + 1)
+    return map
+  }
+  const [left, right] = [count(a), count(b)]
+  const only = (sign: string, mine: Map<string, number>, theirs: Map<string, number>) =>
+    [...mine].flatMap(([line, n]) => ((theirs.get(line) ?? 0) < n ? [`${sign} ${line}`] : []))
+  return [...only('-', left, right), ...only('+', right, left)].join(' | ')
 }

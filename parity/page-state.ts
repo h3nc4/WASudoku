@@ -27,14 +27,22 @@ export function readPageState(): string {
   const isShown = (el: Element) => el.getClientRects().length > 0 && !el.closest('[inert]')
 
   add('url', location.pathname + location.search + location.hash)
+  // The reference sets the theme as a class on the root, the candidate as data-theme.
+  const root = document.documentElement
+  const themes = new Set([...root.classList, root.dataset['theme'] ?? ''])
   add(
     'theme',
-    [...document.documentElement.classList].sort((a, b) => a.localeCompare(b)),
+    ['dark', 'light'].filter((theme) => themes.has(theme)),
   )
 
-  const cells = [...document.querySelectorAll('[aria-label^="Sudoku cell at row"]')]
+  // Reference cells are named inputs, candidate cells are gridcells with a drawn digit.
+  const cells = [
+    ...document.querySelectorAll('[aria-label^="Sudoku cell at row"], [role="gridcell"]'),
+  ]
   const valueOf = (el: Element) =>
-    el instanceof HTMLInputElement ? el.value : clean(el.textContent)
+    el instanceof HTMLInputElement
+      ? el.value
+      : clean(el.querySelector('[data-testid="cell-digit"]')?.textContent)
   add('board', cells.map((el) => valueOf(el) || '.').join(''))
   add(
     'invalid',
@@ -52,25 +60,29 @@ export function readPageState(): string {
   const grid = document.querySelector('[role="grid"]')
   add('grid', grid ? { hidden: grid.getAttribute('aria-hidden'), shown: isShown(grid) } : null)
 
+  // A focused cell reads as R1C3 on both builds, whatever the rest of its name says.
+  const cellName = (name: string) =>
+    name.replace(/^Sudoku cell at row (\d), column (\d)$/, 'R$1C$2').replace(/^(R\dC\d),.*$/, '$1')
   const active = document.activeElement
   add(
     'focus',
     active && active !== document.body
-      ? clean(active.getAttribute('aria-label') ?? active.textContent).slice(0, 80)
+      ? cellName(clean(active.getAttribute('aria-label') ?? active.textContent)).slice(0, 80)
       : null,
   )
 
+  // The candidate's input modes are native radios, named and shown by their label.
   const controls = document.querySelectorAll(
-    'button, [role="button"], [role="radio"], [role="menuitem"], [role="switch"]',
+    'button, [role="button"], [role="radio"], input[type="radio"], [role="menuitem"], [role="switch"]',
   )
   for (const el of controls) {
-    if (!isShown(el)) continue
-    const name = clean(el.getAttribute('aria-label') ?? el.textContent)
-    const disabled =
-      (el instanceof HTMLButtonElement && el.disabled) ||
-      el.getAttribute('aria-disabled') === 'true'
-    const state = ['aria-pressed', 'aria-checked', 'aria-expanded']
-      .map((attr) => el.getAttribute(attr))
+    const native = el instanceof HTMLInputElement ? el : null
+    const label = native?.labels?.[0]
+    if (!isShown(label ?? el)) continue
+    const name = clean(el.getAttribute('aria-label') ?? (label ?? el).textContent)
+    const disabled = el.matches(':disabled') || el.getAttribute('aria-disabled') === 'true'
+    const checked = native ? String(native.checked) : el.getAttribute('aria-checked')
+    const state = [el.getAttribute('aria-pressed'), checked, el.getAttribute('aria-expanded')]
       .map((value) => value ?? '-')
       .join(' ')
     add(`control ${name}`, `${disabled ? 'disabled' : 'enabled'} ${state}`)
@@ -79,8 +91,9 @@ export function readPageState(): string {
   for (const el of document.querySelectorAll('h1, h2, h3, [role="heading"]')) {
     if (isShown(el)) add('heading', clean(el.textContent))
   }
-  for (const el of document.querySelectorAll('[role="dialog"], [role="alertdialog"]')) {
-    add('dialog', unorigin(clean(el.textContent)))
+  // The candidate keeps its native dialogs in the page while closed, so only a shown one counts.
+  for (const el of document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog')) {
+    if (isShown(el)) add('dialog', unorigin(clean(el.textContent)))
   }
   for (const el of document.querySelectorAll(
     '[role="status"], [role="alert"], [data-sonner-toast]',
@@ -101,6 +114,17 @@ export function readPageState(): string {
   const copied: unknown = Reflect.get(globalThis, '__parityClipboard')
   add('clipboard', Array.isArray(copied) ? copied.map((t) => unorigin(String(t))) : [])
   return lines.join('\n')
+}
+
+/** Whether any cell holds a digit, read in the page from either build's cells. */
+export function boardHasDigits(): boolean {
+  return [
+    ...document.querySelectorAll('[aria-label^="Sudoku cell at row"], [role="gridcell"]'),
+  ].some((el) =>
+    el instanceof HTMLInputElement
+      ? el.value !== ''
+      : (el.querySelector('[data-testid="cell-digit"]')?.textContent ?? '').trim() !== '',
+  )
 }
 
 /** Every localStorage entry, sorted by key, exactly as stored. */

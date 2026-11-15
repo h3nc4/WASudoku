@@ -21,7 +21,7 @@ import type { Browser } from 'playwright'
 import { savedGame, STORAGE_KEYS } from '../e2e/saves.ts'
 import { openSession, pageState, pageStorage, settle } from './browser.ts'
 import type { KeySource } from './keymap.ts'
-import { firstDifference, report } from './report.ts'
+import { differences, report } from './report.ts'
 import { Driver, POOL } from './scenarios.ts'
 import type { Site } from './serve.ts'
 
@@ -155,7 +155,7 @@ export async function checkKeys(
         at === -1 && ref.length === candidate.length,
         at === -1
           ? `${ref.length} states equal`
-          : `${(ref[at] ?? '').split('\n')[0] ?? ''}: ${firstDifference(ref[at] ?? '', candidate[at] ?? '')}`,
+          : `${(ref[at] ?? '').split('\n')[0] ?? ''}: ${differences(ref[at] ?? '', candidate[at] ?? '')}`,
       )
     }
   }

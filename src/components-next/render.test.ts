@@ -118,7 +118,7 @@ describe('the first visit', async () => {
 
   it('offers the input mode as one native radio group', () => {
     const group = doc.querySelector('fieldset#input-mode')
-    expect(group?.querySelector('legend')?.textContent).toBe('Input mode')
+    expect(group?.querySelector('legend')?.textContent).toBe('Input Mode')
     const radios = [...(group?.querySelectorAll('input[type="radio"]') ?? [])]
     expect(radios.map((r) => r.getAttribute('value'))).toEqual(['normal', 'candidate', 'center'])
     expect(radios.filter((r) => r.hasAttribute('checked'))).toHaveLength(1)

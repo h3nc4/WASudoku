@@ -22,7 +22,7 @@ import { accessibleTree, axeViolations, compareAxe, compareTrees } from './a11y.
 import { DRIVE, openSession, pageState, pageStorage, type Theme, WIDTHS } from './browser.ts'
 import { GENERATION_SEED, seedGeneration } from './determinism.ts'
 import { diffPercent } from './pixels.ts'
-import { firstDifference, note, report, writeOut } from './report.ts'
+import { differences, note, report, writeOut } from './report.ts'
 import { Driver, type Scenario, SCENARIOS } from './scenarios.ts'
 import type { Site } from './serve.ts'
 
@@ -136,14 +136,14 @@ function compareCapture(name: string, ref: Capture, candidate: Capture, options:
   report(
     `${name} state`,
     ref.state === candidate.state,
-    ref.state === candidate.state ? 'equal' : firstDifference(ref.state, candidate.state),
+    ref.state === candidate.state ? 'equal' : differences(ref.state, candidate.state),
   )
   report(
     `${name} storage`,
     ref.storage === candidate.storage,
     ref.storage === candidate.storage
       ? `equal, ${ref.storage.length} bytes`
-      : firstDifference(ref.storage, candidate.storage),
+      : differences(ref.storage, candidate.storage),
   )
   if (options.pixels) {
     const percents = ref.shots.map((shot, i) => {

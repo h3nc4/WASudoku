@@ -19,7 +19,7 @@
 import type { Browser } from 'playwright'
 
 import { openSession, pageState, pageStorage, storageEntries } from './browser.ts'
-import { firstDifference, report } from './report.ts'
+import { differences, report } from './report.ts'
 import { Driver, type Scenario, SCENARIOS } from './scenarios.ts'
 import type { Site } from './serve.ts'
 
@@ -69,7 +69,7 @@ export async function checkCrossLoad(
         byRef === byCandidate,
         byRef === byCandidate
           ? `both builds show and keep the same, ${save.length} keys`
-          : firstDifference(byRef, byCandidate),
+          : differences(byRef, byCandidate),
       )
     }
   }

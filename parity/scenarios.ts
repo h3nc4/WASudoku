@@ -64,11 +64,13 @@ export class Driver {
   capture = (label: string) => this.onCapture(label)
   settle = () => settle(this.session)
 
-  cell = (index: number): Locator =>
-    this.page.getByRole('textbox', {
-      name: `Sudoku cell at row ${Math.floor(index / ROW) + 1}, column ${(index % ROW) + 1}`,
-      exact: true,
-    })
+  /** A reference cell is a named textbox, a candidate cell a gridcell named such as R1C3, empty. */
+  cell = (index: number): Locator => {
+    const [row, column] = [Math.floor(index / ROW) + 1, (index % ROW) + 1]
+    return this.page
+      .getByRole('textbox', { name: `Sudoku cell at row ${row}, column ${column}`, exact: true })
+      .or(this.page.getByRole('gridcell', { name: new RegExp(`^R${row}C${column},`) }))
+  }
 
   button = (name: string, exact = true): Locator => this.page.getByRole('button', { name, exact })
   pad = (digit: number): Locator =>
