@@ -16,18 +16,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
-# Prints the brotli q11 size of each asset class in a build against its limit in the rewrite plan.
+# Prints the brotli q11 size of each asset class a first visit downloads, against one limit table.
 # Usage: budget.sh [--enforce] [dist-dir]. Without --enforce an overrun warns and exits 0.
 set -eu
 
-# Bytes on the wire, with a kilobyte of 1000 bytes as Vite reports it.
-LIMIT_HTML=6000
-LIMIT_CSS=10000
+# Bytes on the wire, 1000 to the kilobyte as Vite counts. Each limit is the dist-next size plus 10%
+# rounded up to 100 bytes, or a provisional one for a class dist-next does not hold yet.
+LIMIT_HTML=5600
+LIMIT_CSS=9000
 LIMIT_INITIAL_JS=25000
-LIMIT_FONTS=33000
+LIMIT_FONTS=32600
 LIMIT_WASM=30000
-LIMIT_ICONS=2000
-LIMIT_SW=1500
+LIMIT_ICONS=1500
+LIMIT_SW=800
 BYTES_PER_KB=1000
 BROTLI_QUALITY=11
 
@@ -47,8 +48,25 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
+# Splits the page into its markup and the text of its inline style elements.
+awk -v html="${work}/page.html" -v css="${work}/page.css" '
+  { s = s $0 "\n" }
+  END {
+    while (match(s, /<[sS][tT][yY][lL][eE]([[:space:]][^>]*)?>/)) {
+      rest = substr(s, RSTART + RLENGTH)
+      close_at = index(tolower(rest), "</style>")
+      if (close_at == 0) break
+      out = out substr(s, 1, RSTART + RLENGTH - 1)
+      sheet = sheet substr(rest, 1, close_at - 1)
+      s = substr(rest, close_at)
+    }
+    printf "%s", out s >html
+    printf "%s", sheet >css
+  }' "${page}"
+
 # One tag per line, so an attribute can be matched within the tag that holds it.
 tr '>' '\n' <"${page}" >"${work}/tags"
+grep -i '^[[:space:]]*<link[[:space:]]' "${work}/tags" >"${work}/links" || true
 
 # Turns the URLs on stdin into paths under ${dist}, dropping external ones and any query.
 to_paths() {
@@ -63,13 +81,29 @@ attr() {
     -e "t" -e "s/.*[[:space:]]$1=\([^[:space:]\"'][^[:space:]]*\).*/\1/p"
 }
 
+# The link tags whose rel holds one of the tokens in the alternation $1.
+rel() {
+  grep -iE "[[:space:]]rel=[\"']?([a-z-]+ )*($1)([\"' ]|\$)" "${work}/links" || true
+}
+
 {
   grep -i '^[[:space:]]*<script[[:space:]]' "${work}/tags" | attr src
-  grep -i '^[[:space:]]*<link[[:space:]]' "${work}/tags" | grep -iE "rel=[\"']?modulepreload" | attr href
+  rel modulepreload | attr href
 } | to_paths >"${work}/initial"
-grep -i '^[[:space:]]*<link[[:space:]]' "${work}/tags" |
-  grep -iE "rel=[\"']?([a-z-]+ )*(icon|apple-touch-icon|manifest)[\"' ]" | attr href |
-  to_paths >"${work}/icons"
+
+# A browser fetches the manifest and the icon without sizes, and the sized ones only to install.
+rel manifest | attr href | to_paths >"${work}/manifests"
+rel icon | grep -viE "[[:space:]]sizes=[\"']?[0-9]" | attr href | to_paths >"${work}/icons"
+cat "${work}/manifests" >>"${work}/icons"
+{
+  rel icon | grep -iE "[[:space:]]sizes=[\"']?[0-9]" | attr href
+  rel 'apple-touch-icon|apple-touch-icon-precomposed' | attr href
+  while IFS= read -r manifest; do
+    if [ -f "${manifest}" ]; then
+      grep -oE '"src"[[:space:]]*:[[:space:]]*"[^"]+"' "${manifest}" | sed -E 's/.*"([^"]+)"$/\1/'
+    fi
+  done <"${work}/manifests"
+} | to_paths >"${work}/install"
 
 find "${dist}" -type f | sort >"${work}/files"
 : >"${work}/workers"
@@ -82,7 +116,6 @@ done
 classify() {
   case "$1" in
   "${dist}/sw.js") echo sw ;;
-  "${page}") echo html ;;
   *.css) echo css ;;
   *.woff2 | *.woff | *.ttf | *.otf) echo fonts ;;
   *.wasm) echo wasm ;;
@@ -96,17 +129,32 @@ classify() {
     fi
     ;;
   *)
-    if grep -qxF -- "$1" "${work}/icons"; then echo icons; else echo other; fi
+    if grep -qxF -- "$1" "${work}/icons"; then
+      echo icons
+    elif grep -qxF -- "$1" "${work}/install"; then
+      echo install
+    else
+      echo other
+    fi
     ;;
   esac
 }
 
+# Appends a row for class $1 holding the brotli size of file $2, shown as name $3.
+record() {
+  size="$(brotli -q "${BROTLI_QUALITY}" -c -- "$2" | wc -c)"
+  printf '%s %s %s\n' "$1" "${size}" "$3" >>"${work}/sizes"
+}
+
 : >"${work}/sizes"
-while IFS= read -r file; do
-  size="$(brotli -q "${BROTLI_QUALITY}" -c -- "${file}" | wc -c)"
+record html "${work}/page.html" index.html
+if [ -s "${work}/page.css" ]; then
+  record css "${work}/page.css" index.html:style
+fi
+grep -vxF -- "${page}" "${work}/files" | while IFS= read -r file; do
   class="$(classify "${file}")"
-  printf '%s %s %s\n' "${class}" "${size}" "${file#"${dist}/"}" >>"${work}/sizes"
-done <"${work}/files"
+  record "${class}" "${file}" "${file#"${dist}/"}"
+done
 
 kb() {
   awk -v b="$1" -v k="${BYTES_PER_KB}" 'BEGIN { printf "%.1f KB", b / k }'
@@ -122,7 +170,8 @@ echo
 over=0
 printf '%-12s %10s %10s\n' class total limit
 for entry in html:"${LIMIT_HTML}" css:"${LIMIT_CSS}" initial_js:"${LIMIT_INITIAL_JS}" \
-  fonts:"${LIMIT_FONTS}" wasm:"${LIMIT_WASM}" icons:"${LIMIT_ICONS}" sw:"${LIMIT_SW}" other:; do
+  fonts:"${LIMIT_FONTS}" wasm:"${LIMIT_WASM}" icons:"${LIMIT_ICONS}" sw:"${LIMIT_SW}" install: \
+  other:; do
   class="${entry%%:*}"
   limit="${entry#*:}"
   total="$(awk -v c="${class}" '$1 == c { t += $2 } END { print t + 0 }' "${work}/sizes")"

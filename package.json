@@ -14,6 +14,7 @@
     "prebuild": "npm run wasm:build:prod",
     "build": "tsc -b && vite build",
     "build:next": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "budget:next:enforce": "sh scripts/budget.sh --enforce dist-next",
     "build:preview": "PREVIEW=1 ASTRO_TELEMETRY_DISABLED=1 astro build",
     "check:next": "ASTRO_TELEMETRY_DISABLED=1 astro check --tsconfig tsconfig.next.json --minimumFailingSeverity hint",
     "lint": "eslint --max-warnings 0 .",

@@ -182,21 +182,22 @@ npm run dev
 
 `npm run dev` compiles the Rust crate in `src/wasudoku-wasm` with wasm-pack first, then starts Vite on <http://localhost:5173>. After a change to the Rust code, `npm run wasm:build:dev` rebuilds the crate.
 
-| Command                 | Does                                                                     |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `npm run build`         | release build of the crate, a type check, then the site into `dist/`     |
-| `npm run preview`       | serves `dist/` locally                                                   |
-| `npm run test`          | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
-| `npm run test:browser`  | the Vitest suite in real browsers through Playwright                     |
-| `npm run test:e2e`      | Playwright end-to-end tests against the build in `dist/`                 |
-| `npm run build:next`    | the Astro interface into `dist-next/`, with its worker and headers       |
-| `npm run test:e2e:next` | Playwright tests of the worker and headers in `dist-next/`               |
-| `npm run parity`        | the parity harness, one build against another                            |
-| `npm run lint`          | ESLint                                                                   |
-| `npm run lint:wasm`     | Clippy, with warnings as errors                                          |
-| `npm run typecheck`     | `tsc -b`                                                                 |
-| `npm run format:check`  | Prettier over the whole repository                                       |
-| `npm run audit`         | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
+| Command                       | Does                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `npm run build`               | release build of the crate, a type check, then the site into `dist/`     |
+| `npm run preview`             | serves `dist/` locally                                                   |
+| `npm run test`                | Rust tests under cargo-llvm-cov, then the Vitest suite with coverage     |
+| `npm run test:browser`        | the Vitest suite in real browsers through Playwright                     |
+| `npm run test:e2e`            | Playwright end-to-end tests against the build in `dist/`                 |
+| `npm run build:next`          | the Astro interface into `dist-next/`, with its worker and headers       |
+| `npm run test:e2e:next`       | Playwright tests of the worker and headers in `dist-next/`               |
+| `npm run budget:next:enforce` | the byte budget on `dist-next/`, failing on any overrun                  |
+| `npm run parity`              | the parity harness, one build against another                            |
+| `npm run lint`                | ESLint                                                                   |
+| `npm run lint:wasm`           | Clippy, with warnings as errors                                          |
+| `npm run typecheck`           | `tsc -b`                                                                 |
+| `npm run format:check`        | Prettier over the whole repository                                       |
+| `npm run audit`               | `npm audit` at high severity, and `npm run audit:wasm` for `cargo audit` |
 
 ### Tests
 
@@ -222,6 +223,24 @@ The worker answers `/` from the cache of its own version, query included, and an
 Each shortcut opens `/?new=<difficulty>`, with `easy`, `medium`, `hard`, `expert` or `extreme`. The app is expected to start a new puzzle of that difficulty and drop the query with `history.replaceState`, so a reload does not start another. `launch_handler` sends a shortcut into a window already open, which reloads it there.
 
 `npm run test:e2e:next` runs `e2e/next` against `dist-next/` in Chromium, Firefox and WebKit, through a server that applies `_headers` as the edge does. It checks the headers on every path, a 404 included, that the app and its 404 page break none of the policy, that a style without a hash is reported, the worker install, a reload with the server stopped and the update flow. CI runs it in each browser job after `npm run test:e2e`, from the `dist-next/` the build job uploads.
+
+### Byte budget
+
+`scripts/budget.sh` brotli-compresses a build at quality 11 and sums the bytes a first visit downloads in each class, against one limit table. CI runs it on `dist/` and on `dist-next/` after the builds. An overrun prints a warning and the job still passes. Both builds are read against the same table, which shows how far `dist/` sits from the limits. `sh scripts/budget.test.sh` checks the class rules against a throwaway build.
+
+| Class        | Counts                                                                                | Limit   |
+| ------------ | ------------------------------------------------------------------------------------- | ------- |
+| `html`       | `index.html` without the text of its inline `<style>` elements                        | 5.6 KB  |
+| `css`        | every stylesheet, and the inline `<style>` text as `index.html:style`                 | 9.0 KB  |
+| `initial_js` | the scripts and module preloads that `index.html` references                          | 25.0 KB |
+| `fonts`      | every font file                                                                       | 32.6 KB |
+| `wasm`       | the wasm, the workers and any script that references a `.wasm` file                   | 30.0 KB |
+| `icons`      | the manifest and each `rel="icon"` link without `sizes`                               | 1.5 KB  |
+| `sw`         | `sw.js`                                                                               | 0.8 KB  |
+| `install`    | sized icons, `apple-touch-icon` and every `src` in the manifest, screenshots included | none    |
+| `other`      | everything else, such as lazy chunks, `404.html` and the link preview image           | none    |
+
+Each limit is the size of `dist-next/` plus 10%, rounded up to 100 bytes. `dist-next/` does not hold a script or wasm yet. Those two rows hold provisional limits until the first build that has them. `npm run budget:next:enforce` runs the same check on `dist-next/` with `--enforce`, which exits 1 on any overrun. CI does not call it yet. Once the Astro interface adds its scripts and worker and `dist-next/` is about to replace `dist/`, the limits are measured again and the build job runs `npm run budget:next:enforce` in place of the warning-only run.
 
 ### Parity harness
 
