@@ -45,22 +45,8 @@ function run(request: WorkerRequest): Responses[TaskType] {
   throw new Error(`Unknown or malformed request type: ${String(request.type)}`)
 }
 
-/**
- * Handles incoming messages, runs the solver, and posts the result back.
- * The worker is stateless regarding request context; it simply correlates
- * the response with the request ID.
- * @param event The message event from the main thread.
- */
+// Only its creator can message a dedicated worker, and the origin is empty in every engine.
 export async function handleMessage(event: MessageEvent<WorkerRequest>) {
-  // Enforce same-origin policy for security.
-  const isSameOrigin = self.location.origin === event.origin
-  const isFileOrTestOrigin = event.origin === 'null' || event.origin === ''
-
-  if (!isSameOrigin && !isFileOrTestOrigin) {
-    console.error(`Message from untrusted origin '${event.origin}' ignored.`)
-    return
-  }
-
   const { id } = event.data
   let response: WorkerResponse
 

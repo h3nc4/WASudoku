@@ -47,3 +47,28 @@ test('first visit generates a puzzle in the worker for the chosen difficulty', a
   await expect(cell(page, given)).toHaveValue(digits[given])
   await expectAccessible(page, 'generated puzzle')
 })
+
+// Room for one generate per difficulty, expert included, on a slow CI runner.
+const REFILL_TIMEOUT_MS = 20_000
+
+test('first visit generates in the foreground while the pool fills one puzzle per difficulty', async ({
+  page,
+  open,
+}) => {
+  await open({ pool: false })
+  await page.getByRole('button', { name: 'Medium', exact: true }).click()
+
+  await expect(page.getByText('Medium', { exact: true })).toBeVisible()
+  await expect(board(page)).toBeVisible()
+  expect([...(await readBoard(page))].some((d) => d !== '.')).toBe(true)
+
+  const stored = () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('wasudoku.state.pool')
+      const pool: Record<string, unknown[]> = raw ? JSON.parse(raw).puzzlePool : {}
+      return ['easy', 'medium', 'hard', 'expert', 'extreme'].map((d) => pool[d]?.length ?? 0)
+    })
+  await expect
+    .poll(async () => Math.min(...(await stored())), { timeout: REFILL_TIMEOUT_MS })
+    .toBeGreaterThan(0)
+})

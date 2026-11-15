@@ -857,66 +857,21 @@ describe('sudokuReducer', () => {
       expect(state.solver.solution?.[1]).toBe(0)
     })
 
-    it('should handle POOL_REFILL_SUCCESS', () => {
-      const puzzleString = '1'.repeat(81)
-      const solutionString = '2'.repeat(81)
-      const state = sudokuReducer(
-        {
-          ...initialState,
-          poolRequestCount: { ...initialState.poolRequestCount, easy: 1 },
-        },
-        {
-          type: 'POOL_REFILL_SUCCESS',
-          difficulty: 'easy',
-          puzzleString,
-          solutionString,
-        },
-      )
+    it('should add a round of refilled puzzles to the pool for each difficulty', () => {
+      const easy = { puzzleString: '1'.repeat(81), solutionString: '2'.repeat(81) }
+      const hard = { puzzleString: '3'.repeat(81), solutionString: '4'.repeat(81) }
+      const state = sudokuReducer(initialState, {
+        type: 'POOL_REFILL',
+        puzzles: [
+          { difficulty: 'easy', ...easy },
+          { difficulty: 'hard', ...hard },
+          { difficulty: 'easy', ...hard },
+        ],
+      })
 
-      expect(state.puzzlePool.easy).toHaveLength(1)
-      expect(state.poolRequestCount.easy).toBe(0)
-      // Ensure game state wasn't affected
-      expect(state.solver.gameMode).toBe('selecting')
-    })
-
-    it('should handle POOL_REFILL_SUCCESS gracefully when pending count is 0', () => {
-      const puzzleString = '1'.repeat(81)
-      const solutionString = '2'.repeat(81)
-      const state = sudokuReducer(
-        {
-          ...initialState,
-          poolRequestCount: { ...initialState.poolRequestCount, easy: 0 },
-        },
-        {
-          type: 'POOL_REFILL_SUCCESS',
-          difficulty: 'easy',
-          puzzleString,
-          solutionString,
-        },
-      )
-
-      expect(state.puzzlePool.easy).toHaveLength(1)
-      expect(state.poolRequestCount.easy).toBe(0) // Should stay 0, not -1
-    })
-
-    it('should handle STORE_SPARE_PUZZLE without touching the pending count', () => {
-      const state = sudokuReducer(
-        {
-          ...initialState,
-          poolRequestCount: { ...initialState.poolRequestCount, expert: 2 },
-        },
-        {
-          type: 'STORE_SPARE_PUZZLE',
-          difficulty: 'expert',
-          puzzleString: '1'.repeat(81),
-          solutionString: '2'.repeat(81),
-        },
-      )
-
-      expect(state.puzzlePool.expert).toEqual([
-        { puzzleString: '1'.repeat(81), solutionString: '2'.repeat(81) },
-      ])
-      expect(state.poolRequestCount.expert).toBe(2)
+      expect(state.puzzlePool.easy).toEqual([easy, hard])
+      expect(state.puzzlePool.hard).toEqual([hard])
+      expect(state.puzzlePool.medium).toBe(initialState.puzzlePool.medium)
       expect(state.solver.gameMode).toBe('selecting')
     })
 
@@ -925,54 +880,14 @@ describe('sudokuReducer', () => {
       const fullState: SudokuState = {
         ...initialState,
         puzzlePool: { ...initialState.puzzlePool, expert: full },
-        poolRequestCount: { ...initialState.poolRequestCount, expert: 1 },
       }
-      const puzzle = { difficulty: 'expert', puzzleString: 'new', solutionString: 'new' } as const
 
-      const spare = sudokuReducer(fullState, { type: 'STORE_SPARE_PUZZLE', ...puzzle })
-      expect(spare.puzzlePool.expert).toBe(full)
-
-      const refill = sudokuReducer(fullState, { type: 'POOL_REFILL_SUCCESS', ...puzzle })
-      expect(refill.puzzlePool.expert).toBe(full)
-      expect(refill.poolRequestCount.expert).toBe(0)
-    })
-
-    it('should handle POOL_REFILL_FAILURE by decrementing pending count', () => {
-      const state = sudokuReducer(
-        {
-          ...initialState,
-          poolRequestCount: { ...initialState.poolRequestCount, easy: 2 },
-        },
-        {
-          type: 'POOL_REFILL_FAILURE',
-          difficulty: 'easy',
-        },
-      )
-
-      expect(state.poolRequestCount.easy).toBe(1)
-    })
-
-    it('should handle POOL_REFILL_FAILURE gracefully when count is 0', () => {
-      const state = sudokuReducer(
-        {
-          ...initialState,
-          poolRequestCount: { ...initialState.poolRequestCount, easy: 0 },
-        },
-        {
-          type: 'POOL_REFILL_FAILURE',
-          difficulty: 'easy',
-        },
-      )
-
-      expect(state.poolRequestCount.easy).toBe(0)
-    })
-
-    it('should handle REQUEST_POOL_REFILL', () => {
-      const state = sudokuReducer(initialState, {
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'hard',
+      const state = sudokuReducer(fullState, {
+        type: 'POOL_REFILL',
+        puzzles: [{ difficulty: 'expert', puzzleString: 'new', solutionString: 'new' }],
       })
-      expect(state.poolRequestCount.hard).toBe(1)
+
+      expect(state.puzzlePool.expert).toBe(full)
     })
 
     it('should handle GENERATE_PUZZLE_FAILURE', () => {
@@ -1906,16 +1821,5 @@ describe('loadInitialState', () => {
     store(STORAGE_KEYS.METRICS, { timer: 12, mistakes: 0 })
 
     expect(loadInitialState().solver.gameMode).toBe('selecting')
-  })
-
-  it('should reset poolRequestCount to 0 on load even if persisted', () => {
-    store(STORAGE_KEYS.POOL, {
-      puzzlePool: { easy: [], medium: [], hard: [], extreme: [] },
-      poolRequestCount: { easy: 5, medium: 2, hard: 0, extreme: 0 },
-    })
-
-    const state = loadInitialState()
-    expect(state.poolRequestCount.easy).toBe(0)
-    expect(state.poolRequestCount.medium).toBe(0)
   })
 })

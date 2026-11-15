@@ -25,197 +25,136 @@ import type {
 } from '@/workers/protocol'
 import SolverWorker from '@/workers/sudoku.worker?worker' // eslint-disable-line import-x/default
 
-// Replaced 'enum' with 'const' object to satisfy 'erasableSyntaxOnly' TS config
-export const Priority = {
-  HIGH: 0, // User initiated (Solve, Generate Now)
-  LOW: 1, // Background (Refill Pool)
+/** The worker a task runs on, so a player's request never queues behind a background refill. */
+export const Lane = {
+  FOREGROUND: 'foreground',
+  BACKGROUND: 'background',
 } as const
 
-export type Priority = (typeof Priority)[keyof typeof Priority]
+export type Lane = (typeof Lane)[keyof typeof Lane]
 
 export type { TaskType } from '@/workers/protocol'
 
-interface Pending {
-  resolve: (value: Responses[TaskType]) => void
-  reject: (reason?: unknown) => void
-}
+/** Longest a task may run before its worker is replaced. Expert peaks near 2 s on a desktop. */
+export const TASK_TIMEOUT_MS = 30_000
 
-interface Task extends Pending {
+export const TIMEOUT_MESSAGE = 'The solver took too long and was restarted.'
+export const CRASH_MESSAGE = 'The solver stopped unexpectedly and was restarted.'
+
+interface Task {
   request: WorkerRequest
-  priority: Priority
-  // Receives the results of the copies that lost a race, set only on tasks that may race.
-  onSpare?: (value: Responses[TaskType]) => void
+  resolve: (value: Responses[TaskType]) => void
+  reject: (reason: Error) => void
 }
 
-interface WorkerWrapper {
-  id: number
-  instance: Worker
-  busy: boolean
+interface Running {
+  task: Task
+  timer: ReturnType<typeof setTimeout>
 }
 
-// Bounds on how many workers one raced task runs on, matching the pool's own clamp.
-const MIN_RACE_WIDTH = 2
-const MAX_RACE_WIDTH = 6
-
-/**
- * Manages a pool of Web Workers to execute heavy Sudoku computations concurrently.
- * Implements priority scheduling to ensure user-initiated actions are processed
- * immediately, while background tasks (like pool refilling) yield resources.
- */
-export class WorkerPool {
-  private workers: WorkerWrapper[] = []
+/** One worker running one task at a time from its own queue. */
+class WorkerLane {
+  private worker: Worker | null = null
+  private running: Running | null = null
   private queue: Task[] = []
-  private readonly pendingRequests = new Map<number, Pending>()
+
+  /** Starts the worker ahead of its first task, so that task skips the wasm compile. */
+  warm() {
+    this.worker ??= this.spawn()
+  }
+
+  run(task: Task) {
+    this.queue.push(task)
+    this.next()
+  }
+
+  /** Stops the worker and drops every task without settling it. */
+  dispose() {
+    this.worker?.terminate()
+    this.worker = null
+    if (this.running) clearTimeout(this.running.timer)
+    this.running = null
+    this.queue = []
+  }
+
+  private spawn(): Worker {
+    const worker = new SolverWorker()
+    const current = () => this.worker === worker
+    worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
+      if (current()) this.settle(event.data)
+    })
+    worker.addEventListener('error', (event) => {
+      event.preventDefault()
+      if (current()) this.fail(new Error(CRASH_MESSAGE))
+    })
+    worker.addEventListener('messageerror', () => {
+      if (current()) this.fail(new Error(CRASH_MESSAGE))
+    })
+    return worker
+  }
+
+  private next() {
+    if (this.running) return
+    const task = this.queue.shift()
+    if (!task) return
+    this.worker ??= this.spawn()
+    const timer = setTimeout(() => this.fail(new Error(TIMEOUT_MESSAGE)), TASK_TIMEOUT_MS)
+    this.running = { task, timer }
+    this.worker.postMessage(task.request)
+  }
+
+  private settle(response: WorkerResponse) {
+    const running = this.running
+    if (running?.task.request.id !== response.id) return
+    this.finish(running)
+    if (response.status === 'success') running.task.resolve(response.payload)
+    else running.task.reject(new Error(response.error))
+  }
+
+  // Wasm cannot be interrupted, so a stuck or crashed worker is replaced on the next task.
+  private fail(reason: Error) {
+    this.worker?.terminate()
+    this.worker = null
+    const running = this.running
+    if (!running) return
+    this.finish(running)
+    running.task.reject(reason)
+  }
+
+  private finish(running: Running) {
+    clearTimeout(running.timer)
+    this.running = null
+    this.next()
+  }
+}
+
+/** Runs the player's tasks and the pool refill on separate workers, each task under a timeout. */
+export class WorkerPool {
+  private readonly lanes: Record<Lane, WorkerLane> = {
+    foreground: new WorkerLane(),
+    background: new WorkerLane(),
+  }
   private idCounter = 0
-  private readonly maxWorkers: number
 
   constructor() {
-    // Clamp concurrency between 2 and 6.
-    // Min 2: Ensure we can solve and gen in background simultaneously.
-    // Max 6: Prevent consuming too many resources on high-core CPUs.
-    const concurrency = navigator.hardwareConcurrency || 4
-    this.maxWorkers = Math.max(2, Math.min(6, concurrency))
-
-    this.initialize()
+    this.lanes.foreground.warm()
   }
 
-  private initialize() {
-    for (let i = 0; i < this.maxWorkers; i++) {
-      const worker = new SolverWorker()
-      worker.addEventListener('message', this.handleMessage.bind(this))
-      this.workers.push({ id: i, instance: worker, busy: false })
-    }
-  }
-
-  /**
-   * Schedules a task to be run on the worker pool.
-   * @param type The operation type (solve, generate, validate).
-   * @param payload Data required for the operation.
-   * @param priority Execution priority.
-   * @param onSpare Races a HIGH task on every idle worker, resolving with the first success
-   * and handing each later success to this callback.
-   * @returns A Promise that resolves with the worker's result.
-   */
+  /** Queues a task on a lane and resolves with the worker's result. */
   public runTask<K extends TaskType>(
     type: K,
     payload: Requests[K],
-    priority: Priority = Priority.HIGH,
-    onSpare?: (value: Responses[K]) => void,
+    lane: Lane = Lane.FOREGROUND,
   ): Promise<Responses[K]> {
     return new Promise((resolve, reject) => {
       // WorkerRequest is a union, so TypeScript loses the tie between K and Responses[K] here.
       const request = { id: ++this.idCounter, type, ...payload } as WorkerRequest
-      const task: Task = {
-        request,
-        priority,
-        resolve: resolve as Pending['resolve'],
-        reject,
-        onSpare: onSpare as Task['onSpare'],
-      }
-
-      // Add to queue and sort by priority (High priority first)
-      this.queue.push(task)
-      this.queue.sort((a, b) => a.priority - b.priority)
-
-      this.schedule()
+      this.lanes[lane].run({ request, resolve: resolve as Task['resolve'], reject })
     })
-  }
-
-  private schedule() {
-    if (this.queue.length === 0) return
-
-    // Find free workers
-    const freeWorkers = this.workers.filter((w) => !w.busy)
-    if (freeWorkers.length === 0) return
-
-    const nextTask = this.queue[0]
-
-    // Reservation Logic:
-    // If the next task is LOW priority, only schedule it if we have > 1 worker free.
-    // This reserves at least 1 worker for immediate HIGH priority user interactions.
-    // Exception: If the pool only has 1 worker total, we can't reserve.
-    if (nextTask.priority === Priority.LOW && freeWorkers.length <= 1 && this.workers.length > 1) {
-      return
-    }
-
-    // Dequeue and assign
-    const task = this.queue.shift()!
-    const width = this.raceWidth(task, freeWorkers.length)
-    if (width < MIN_RACE_WIDTH) {
-      this.post(freeWorkers[0], task.request, task)
-    } else {
-      this.race(task, freeWorkers.slice(0, width))
-    }
-  }
-
-  // Two or more free workers mean the queue was empty, since a queued task would hold one,
-  // so a race only takes workers that no waiting task wanted.
-  private raceWidth(task: Task, freeCount: number): number {
-    if (!task.onSpare || task.priority !== Priority.HIGH) return 1
-    return Math.min(MAX_RACE_WIDTH, freeCount)
-  }
-
-  /** Runs copies of a task at once, resolving with the first success and rejecting only if all fail. */
-  private race(task: Task, workers: WorkerWrapper[]) {
-    let running = workers.length
-    let settled = false
-    const copy: Pending = {
-      resolve: (value) => {
-        running--
-        if (settled) {
-          task.onSpare?.(value)
-        } else {
-          settled = true
-          task.resolve(value)
-        }
-      },
-      reject: (reason) => {
-        running--
-        if (!settled && running === 0) task.reject(reason)
-      },
-    }
-    workers.forEach((worker, i) => {
-      // Each copy needs its own id, since a response is matched to its request by id alone.
-      const id = i === 0 ? task.request.id : ++this.idCounter
-      this.post(worker, { ...task.request, id }, copy)
-    })
-  }
-
-  private post(workerWrapper: WorkerWrapper, request: WorkerRequest, pending: Pending) {
-    this.pendingRequests.set(request.id, pending)
-    workerWrapper.busy = true
-    workerWrapper.instance.postMessage(request)
-  }
-
-  private handleMessage(event: MessageEvent<WorkerResponse>) {
-    const response = event.data
-
-    // Find the worker that sent this message and mark it free
-    const workerInstance = event.target as Worker
-    const workerWrapper = this.workers.find((w) => w.instance === workerInstance)
-
-    if (workerWrapper) {
-      workerWrapper.busy = false
-    }
-
-    const pending = this.pendingRequests.get(response.id)
-    if (pending) {
-      if (response.status === 'success') {
-        pending.resolve(response.payload)
-      } else {
-        pending.reject(new Error(response.error || 'Unknown worker error'))
-      }
-      this.pendingRequests.delete(response.id)
-    }
-
-    // Try to schedule next task
-    this.schedule()
   }
 
   public terminate() {
-    this.workers.forEach((w) => w.instance.terminate())
-    this.workers = []
-    this.pendingRequests.clear()
-    this.queue = []
+    this.lanes.foreground.dispose()
+    this.lanes.background.dispose()
   }
 }

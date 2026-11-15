@@ -24,56 +24,58 @@ import {
   generatePuzzleSuccess,
   hintFailure,
   hintSuccess,
-  poolRefillFailure,
-  poolRefillSuccess,
-  requestPoolRefill,
+  poolRefill,
   solveFailure,
   solveSuccess,
-  storeSparePuzzle,
   validatePuzzleFailure,
   validatePuzzleSuccess,
 } from '@/context/sudoku.actions'
 import type { SudokuAction } from '@/context/sudoku.actions.types'
-import { DIFFICULTIES, type SudokuState } from '@/context/sudoku.types'
+import { scheduleIdle } from '@/context/sudoku.persistence'
+import type { SudokuState } from '@/context/sudoku.types'
+import { PoolRefill } from '@/lib/pool-refill'
 import { boardStateToString } from '@/lib/utils'
-import { Priority, WorkerPool } from '@/lib/worker-pool'
-import type { Responses } from '@/workers/protocol'
-
-const MIN_POOL_SIZE = 3
+import { Lane, WorkerPool } from '@/lib/worker-pool'
 
 /**
- * Manages the Sudoku solver using a multi-threaded Worker Pool.
- * It schedules tasks (solve, generate, validate) and handles their results asynchronously.
+ * Runs the player's solver requests on the foreground worker and refills the puzzle pool.
  *
  * @param state - The current Sudoku state.
  * @param dispatch - The dispatch function from the Sudoku reducer.
  */
 export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAction>) {
   const poolRef = useRef<WorkerPool | null>(null)
+  const refillRef = useRef<PoolRefill | null>(null)
   const { isSolving, isGenerating, isValidating, isHinting, generationDifficulty } = state.solver
-  const { board, puzzlePool, poolRequestCount } = state
+  const { board, puzzlePool } = state
 
-  // Initialize Worker Pool
   useEffect(() => {
     try {
-      poolRef.current = new WorkerPool()
+      const pool = new WorkerPool()
+      poolRef.current = pool
+      refillRef.current = new PoolRefill({
+        generate: (difficulty) => pool.runTask('generate', { difficulty }, Lane.BACKGROUND),
+        store: (puzzles) => dispatch(poolRefill(puzzles)),
+        schedule: scheduleIdle,
+      })
     } catch (error) {
       console.error('Failed to initialize WorkerPool:', error)
     }
 
     return () => {
+      refillRef.current?.dispose()
+      refillRef.current = null
       poolRef.current?.terminate()
       poolRef.current = null
     }
-  }, [])
+  }, [dispatch])
 
-  // 1. Handle Solving (High Priority)
   useEffect(() => {
     if (!isSolving || !poolRef.current) return
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask('solve', { boardString }, Priority.HIGH)
+      .runTask('solve', { boardString })
       .then((result) => {
         dispatch(solveSuccess(result))
         toast.success('Solver finished. Step through its solution beside the board.')
@@ -85,16 +87,12 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isSolving, board, dispatch])
 
-  // 2. Handle User Generation (High Priority - Fallback when pool empty)
-  // It races on every idle worker, and the puzzles that finish after the winner are kept.
+  // A new game with an empty pool for its difficulty generates in the foreground.
   useEffect(() => {
     if (!isGenerating || !generationDifficulty || !poolRef.current) return
 
-    const keepSpare = ({ puzzleString, solutionString }: Responses['generate']) =>
-      dispatch(storeSparePuzzle(generationDifficulty, puzzleString, solutionString))
-
     poolRef.current
-      .runTask('generate', { difficulty: generationDifficulty }, Priority.HIGH, keepSpare)
+      .runTask('generate', { difficulty: generationDifficulty })
       .then(({ puzzleString, solutionString }) => {
         dispatch(generatePuzzleSuccess(puzzleString, solutionString))
         toast.success('New puzzle generated!')
@@ -106,13 +104,12 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isGenerating, generationDifficulty, dispatch])
 
-  // 3. Handle Validation (High Priority)
   useEffect(() => {
     if (!isValidating || !poolRef.current) return
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask('validate', { boardString }, Priority.HIGH)
+      .runTask('validate', { boardString })
       .then(({ isValid, solutionString }) => {
         if (isValid && solutionString) {
           dispatch(validatePuzzleSuccess(solutionString))
@@ -128,13 +125,13 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isValidating, board, dispatch])
 
-  // 4. Handle Hints, which solve the player's current board and keep only the first step
+  // A hint solves the player's current board and keeps only the first step.
   useEffect(() => {
     if (!isHinting || !poolRef.current) return
 
     const boardString = boardStateToString(board)
     poolRef.current
-      .runTask('solve', { boardString }, Priority.HIGH)
+      .runTask('solve', { boardString })
       .then((result) => {
         dispatch(hintSuccess(result))
       })
@@ -144,28 +141,7 @@ export function useSudokuSolver(state: SudokuState, dispatch: Dispatch<SudokuAct
       })
   }, [isHinting, board, dispatch])
 
-  // 5. Handle Background Pool Refill (Low Priority)
   useEffect(() => {
-    if (!poolRef.current) return
-
-    DIFFICULTIES.forEach((difficulty) => {
-      const pool = puzzlePool[difficulty]
-      const pending = poolRequestCount[difficulty]
-
-      if (pool.length + pending < MIN_POOL_SIZE) {
-        // Optimistically increment pending count
-        dispatch(requestPoolRefill(difficulty))
-
-        poolRef.current
-          ?.runTask('generate', { difficulty }, Priority.LOW)
-          .then(({ puzzleString, solutionString }) => {
-            dispatch(poolRefillSuccess(difficulty, puzzleString, solutionString))
-          })
-          .catch((error) => {
-            console.error(`Background refill failed for ${difficulty}:`, error)
-            dispatch(poolRefillFailure(difficulty))
-          })
-      }
-    })
-  }, [puzzlePool, poolRequestCount, dispatch])
+    refillRef.current?.update(puzzlePool)
+  }, [puzzlePool])
 }

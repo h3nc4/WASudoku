@@ -18,362 +18,198 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Priority, WorkerPool } from './worker-pool'
+import type { WorkerRequest } from '@/workers/protocol'
 
-// Hoist mocks
-const { MockWorker, mockPostMessage, mockTerminate, mockAddEventListener } = vi.hoisted(() => {
-  const mockPostMessage = vi.fn()
-  const mockTerminate = vi.fn()
-  const mockAddEventListener = vi.fn()
-  const mockRemoveEventListener = vi.fn()
+import { CRASH_MESSAGE, Lane, TASK_TIMEOUT_MS, TIMEOUT_MESSAGE, WorkerPool } from './worker-pool'
 
-  const MockWorker = vi.fn(function () {
-    return {
-      postMessage: mockPostMessage,
-      terminate: mockTerminate,
-      addEventListener: mockAddEventListener,
-      removeEventListener: mockRemoveEventListener,
+const { FakeWorker } = vi.hoisted(() => {
+  type Listener = (event: unknown) => void
+
+  /** A worker that records what it is sent and lets a test fire its events. */
+  class FakeWorker {
+    static readonly created: FakeWorker[] = []
+    readonly posted: WorkerRequest[] = []
+    readonly terminate = vi.fn()
+    private readonly listeners = new Map<string, Listener>()
+
+    constructor() {
+      FakeWorker.created.push(this)
     }
-  })
 
-  return {
-    MockWorker,
-    mockPostMessage,
-    mockTerminate,
-    mockAddEventListener,
-    mockRemoveEventListener,
+    addEventListener(type: string, listener: Listener) {
+      this.listeners.set(type, listener)
+    }
+
+    postMessage(request: WorkerRequest) {
+      this.posted.push(request)
+    }
+
+    reply(response: { id: number; status: string; payload?: unknown; error?: string }) {
+      this.listeners.get('message')?.({ data: response })
+    }
+
+    /** Answers the last request with a success whose payload is given. */
+    succeed(payload: unknown) {
+      this.reply({ id: this.posted.at(-1)?.id ?? 0, status: 'success', payload })
+    }
+
+    fire(type: 'error' | 'messageerror') {
+      const event = { preventDefault: vi.fn() }
+      this.listeners.get(type)?.(event)
+      return event
+    }
   }
+  return { FakeWorker }
 })
 
-vi.stubGlobal('Worker', MockWorker)
+vi.mock('@/workers/sudoku.worker?worker', () => ({ default: FakeWorker }))
 
-// Mock the module import used by WorkerPool
-vi.mock('@/workers/sudoku.worker?worker', () => ({
-  default: MockWorker,
-}))
-
-// Mock navigator.hardwareConcurrency
-const mockNavigator = {
-  hardwareConcurrency: 4,
-}
-vi.stubGlobal('navigator', mockNavigator)
+const SOLVE = { boardString: '...' }
+const GENERATE = { difficulty: 'expert' } as const
 
 describe('WorkerPool', () => {
   let pool: WorkerPool
 
   beforeEach(() => {
-    vi.clearAllMocks()
-    // Reset hardwareConcurrency to default for tests
-    Object.defineProperty(navigator, 'hardwareConcurrency', {
-      value: 4,
-      configurable: true,
-    })
+    vi.useFakeTimers()
+    FakeWorker.created.length = 0
     pool = new WorkerPool()
   })
 
   afterEach(() => {
-    pool?.terminate()
-  })
-
-  it('initializes the correct number of workers based on hardwareConcurrency', () => {
-    // Default 4 -> Clamped to max 6, min 2. Should be 4.
-    expect(MockWorker).toHaveBeenCalledTimes(4)
-  })
-
-  it('clamps worker count to minimum 2', () => {
-    Object.defineProperty(navigator, 'hardwareConcurrency', { value: 1 })
-    pool.terminate() // Clear previous pool
-    pool = new WorkerPool()
-    expect(MockWorker).toHaveBeenCalledTimes(2 + 4) // 4 from beforeEach + 2 new
-  })
-
-  it('clamps worker count to maximum 6', () => {
-    Object.defineProperty(navigator, 'hardwareConcurrency', { value: 32 })
     pool.terminate()
-    pool = new WorkerPool()
-    expect(MockWorker).toHaveBeenCalledTimes(6 + 4)
+    vi.useRealTimers()
   })
 
-  it('defaults to 4 workers if hardwareConcurrency is unavailable', () => {
-    Object.defineProperty(navigator, 'hardwareConcurrency', { value: undefined })
+  const worker = (n: number) => FakeWorker.created[n]
+
+  it('starts only the foreground worker until a background task arrives', () => {
+    expect(FakeWorker.created).toHaveLength(1)
+
+    void pool.runTask('generate', GENERATE, Lane.BACKGROUND)
+
+    expect(FakeWorker.created).toHaveLength(2)
+    expect(worker(0).posted).toEqual([])
+    expect(worker(1).posted).toEqual([expect.objectContaining({ type: 'generate', ...GENERATE })])
+  })
+
+  it('runs a player request at once while the background worker is busy', async () => {
+    void pool.runTask('generate', GENERATE, Lane.BACKGROUND)
+    const solve = pool.runTask('solve', SOLVE)
+
+    expect(worker(0).posted).toEqual([expect.objectContaining({ type: 'solve', ...SOLVE })])
+    worker(0).succeed({ steps: [] })
+
+    await expect(solve).resolves.toEqual({ steps: [] })
+  })
+
+  it('runs one task at a time per worker, in order', async () => {
+    const first = pool.runTask('solve', SOLVE)
+    const second = pool.runTask('validate', SOLVE)
+    expect(worker(0).posted).toHaveLength(1)
+
+    worker(0).succeed('first')
+    await expect(first).resolves.toBe('first')
+    expect(worker(0).posted.map((r) => r.type)).toEqual(['solve', 'validate'])
+
+    worker(0).succeed('second')
+    await expect(second).resolves.toBe('second')
+  })
+
+  it('rejects with the error the worker reports', async () => {
+    const task = pool.runTask('solve', SOLVE)
+    worker(0).reply({ id: worker(0).posted[0].id, status: 'error', error: 'No solution' })
+
+    await expect(task).rejects.toThrow('No solution')
+  })
+
+  it('ignores a reply to a request it is not running', async () => {
+    const task = pool.runTask('solve', SOLVE)
+    worker(0).reply({ id: 999, status: 'success', payload: { steps: [] } })
+    worker(0).succeed('mine')
+
+    await expect(task).resolves.toBe('mine')
+  })
+
+  it('times a stuck task out, replaces its worker and runs the next task on the new one', async () => {
+    const stuck = pool.runTask('solve', SOLVE)
+    const queued = pool.runTask('validate', SOLVE)
+    const rejected = expect(stuck).rejects.toThrow(TIMEOUT_MESSAGE)
+
+    vi.advanceTimersByTime(TASK_TIMEOUT_MS - 1)
+    expect(worker(0).terminate).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+
+    await rejected
+    expect(worker(0).terminate).toHaveBeenCalledOnce()
+    expect(worker(1).posted).toEqual([expect.objectContaining({ type: 'validate' })])
+    worker(1).succeed('fresh')
+    await expect(queued).resolves.toBe('fresh')
+  })
+
+  it('clears the timeout once a task answers', async () => {
+    const task = pool.runTask('solve', SOLVE)
+    worker(0).succeed('done')
+    await task
+
+    vi.advanceTimersByTime(TASK_TIMEOUT_MS)
+
+    expect(worker(0).terminate).not.toHaveBeenCalled()
+  })
+
+  it.each(['error', 'messageerror'] as const)(
+    'rejects the running task and replaces the worker on %s',
+    async (type) => {
+      const task = pool.runTask('generate', GENERATE, Lane.BACKGROUND)
+      const event = worker(1).fire(type)
+
+      await expect(task).rejects.toThrow(CRASH_MESSAGE)
+      expect(worker(1).terminate).toHaveBeenCalledOnce()
+      if (type === 'error') expect(event.preventDefault).toHaveBeenCalled()
+
+      void pool.runTask('generate', GENERATE, Lane.BACKGROUND)
+      expect(worker(2).posted).toEqual([expect.objectContaining({ type: 'generate' })])
+    },
+  )
+
+  it('replaces an idle worker that crashes only when the next task arrives', () => {
+    worker(0).fire('error')
+    expect(worker(0).terminate).toHaveBeenCalledOnce()
+    expect(FakeWorker.created).toHaveLength(1)
+
+    void pool.runTask('solve', SOLVE)
+
+    expect(FakeWorker.created).toHaveLength(2)
+    expect(worker(1).posted).toHaveLength(1)
+  })
+
+  it('ignores events from a worker it already replaced', async () => {
+    const stuck = pool.runTask('solve', SOLVE)
+    const rejected = expect(stuck).rejects.toThrow(TIMEOUT_MESSAGE)
+    vi.advanceTimersByTime(TASK_TIMEOUT_MS)
+    await rejected
+    const next = pool.runTask('solve', SOLVE)
+
+    worker(0).reply({ id: worker(1).posted[0].id, status: 'success', payload: 'late' })
+    worker(0).fire('error')
+    worker(0).fire('messageerror')
+    worker(1).succeed('current')
+
+    await expect(next).resolves.toBe('current')
+    expect(worker(1).terminate).not.toHaveBeenCalled()
+  })
+
+  it('terminates both workers and drops every task without a timeout left behind', () => {
+    const running = vi.fn()
+    void pool.runTask('solve', SOLVE).then(running, running)
+    void pool.runTask('solve', SOLVE).then(running, running)
+    void pool.runTask('generate', GENERATE, Lane.BACKGROUND).then(running, running)
+
     pool.terminate()
-    pool = new WorkerPool()
-    // Defaults to 4, which is within clamp (2-6)
-    expect(MockWorker).toHaveBeenCalledTimes(4 + 4)
-  })
 
-  it('executes a high priority task immediately if workers are free', async () => {
-    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-
-    expect(mockPostMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'solve',
-        boardString: '...',
-      }),
-    )
-
-    // Simulate worker response
-    const taskId = mockPostMessage.mock.calls[0][0].id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-    const workerInstance = MockWorker.mock.results[0].value
-
-    messageHandler({
-      data: { id: taskId, status: 'success', payload: 'solved' },
-      target: workerInstance,
-    })
-
-    await expect(promise).resolves.toBe('solved')
-  })
-
-  it('posts the id, type and payload as one flat message', async () => {
-    const promise = pool.runTask('generate', { difficulty: 'easy' }, Priority.HIGH)
-
-    expect(mockPostMessage).toHaveBeenCalledWith({
-      id: expect.any(Number),
-      type: 'generate',
-      difficulty: 'easy',
-    })
-
-    const taskId = mockPostMessage.mock.calls[0][0].id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-    const workerInstance = MockWorker.mock.results[0].value
-
-    messageHandler({
-      data: { id: taskId, status: 'success', payload: 'done' },
-      target: workerInstance,
-    })
-
-    await expect(promise).resolves.toBe('done')
-  })
-
-  it('queues low priority tasks if not enough workers are free (reservation logic)', () => {
-    // Simulate all but 1 worker busy. Pool size 4.
-    // We need > 1 free worker to schedule low priority.
-    // If we make 3 workers busy, 1 is free. Low priority should queue.
-
-    // 1. Occupy 3 workers with High Priority tasks
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-
-    // 2. Schedule Low Priority task
-    pool.runTask('generate', { difficulty: 'easy' }, Priority.LOW)
-
-    // Only the first 3 high priority tasks should have been sent
-    expect(mockPostMessage).toHaveBeenCalledTimes(3)
-  })
-
-  it('executes queued tasks when a worker becomes free', async () => {
-    // 1. Saturate the pool
-    const p1 = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-
-    // 2. Add queued task
-    const pQueued = pool.runTask('generate', { difficulty: 'easy' }, Priority.HIGH)
-
-    expect(mockPostMessage).toHaveBeenCalledTimes(4)
-
-    // 3. Resolve first task to free up a worker
-    const id1 = mockPostMessage.mock.calls[0][0].id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-    const workerInstance = MockWorker.mock.results[0].value
-
-    messageHandler({
-      data: { id: id1, status: 'success', payload: 'done1' },
-      target: workerInstance,
-    })
-
-    await p1
-
-    // 4. Expect queued task to be sent now
-    expect(mockPostMessage).toHaveBeenCalledTimes(5)
-    expect(mockPostMessage.mock.calls[4][0].type).toBe('generate')
-
-    // Resolve queued task
-    const idQueued = mockPostMessage.mock.calls[4][0].id
-    messageHandler({
-      data: { id: idQueued, status: 'success', payload: 'doneQueued' },
-      target: workerInstance,
-    })
-    await expect(pQueued).resolves.toBe('doneQueued')
-  })
-
-  it('handles worker errors correctly', async () => {
-    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    const id = mockPostMessage.mock.calls[0][0].id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-
-    messageHandler({
-      data: { id, status: 'error', error: 'Boom' },
-      target: MockWorker.mock.results[0].value,
-    })
-
-    await expect(promise).rejects.toThrow('Boom')
-  })
-
-  it('handles "unknown worker error" fallback', async () => {
-    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    const id = mockPostMessage.mock.calls[0][0].id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-
-    // Send error without message
-    messageHandler({
-      data: { id, status: 'error', error: undefined },
-      target: MockWorker.mock.results[0].value,
-    })
-
-    await expect(promise).rejects.toThrow('Unknown worker error')
-  })
-
-  it('ignores messages for unknown task IDs', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-
-    // Simulate message for ID 999 (orphan ID)
-    expect(() => {
-      messageHandler({
-        data: { id: 999, status: 'success', payload: 'ok' },
-        target: MockWorker.mock.results[0].value,
-      })
-    }).not.toThrow()
-  })
-
-  it('handles missing worker instance in handleMessage (coverage)', async () => {
-    // This is a defensive case where the event target doesn't match any known worker
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-
-    // Create a fake worker object that isn't in our pool
-    const unknownWorker = { some: 'object' }
-
-    // Start a task so we have a pending request
-    const promise = pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-    const id = mockPostMessage.mock.calls[0][0].id
-
-    // Send message from unknown worker
-    // This should NOT throw, and since it doesn't find the worker wrapper,
-    // it just skips setting busy=false on any wrapper, but still resolves the promise.
-    expect(() => {
-      messageHandler({
-        data: { id, status: 'success', payload: 'ok' },
-        target: unknownWorker,
-      })
-    }).not.toThrow()
-
-    // The promise should still resolve based on the task ID
-    await expect(promise).resolves.toBe('ok')
-  })
-
-  describe('racing a generate across idle workers', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reply = (call: number, data: Record<string, any>) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messageHandler = mockAddEventListener.mock.calls[0][1] as (event: any) => void
-      const request = mockPostMessage.mock.calls[call][0]
-      const worker = mockPostMessage.mock.contexts[call]
-      messageHandler({ data: { id: request.id, ...data }, target: worker })
-    }
-
-    it('posts one copy to every idle worker, each under its own id', () => {
-      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
-
-      expect(mockPostMessage).toHaveBeenCalledTimes(4)
-      const requests = mockPostMessage.mock.calls.map(([request]) => request)
-      expect(new Set(requests.map((r) => r.id)).size).toBe(4)
-      requests.forEach((r) => expect(r).toMatchObject({ type: 'generate', difficulty: 'expert' }))
-      expect(new Set(mockPostMessage.mock.contexts).size).toBe(4)
-    })
-
-    it('resolves with the first result and hands every later one to onSpare', async () => {
-      const onSpare = vi.fn()
-      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
-
-      reply(2, { status: 'success', payload: 'first' })
-      await expect(promise).resolves.toBe('first')
-      expect(onSpare).not.toHaveBeenCalled()
-
-      reply(0, { status: 'success', payload: 'second' })
-      reply(3, { status: 'success', payload: 'third' })
-      expect(onSpare.mock.calls).toEqual([['second'], ['third']])
-    })
-
-    it('frees each worker as its copy finishes', () => {
-      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
-      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-      expect(mockPostMessage).toHaveBeenCalledTimes(4)
-
-      reply(1, { status: 'success', payload: 'first' })
-      expect(mockPostMessage).toHaveBeenCalledTimes(5)
-      expect(mockPostMessage.mock.calls[4][0].type).toBe('solve')
-    })
-
-    it('ignores a failed copy while another can still succeed', async () => {
-      const onSpare = vi.fn()
-      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
-
-      reply(0, { status: 'error', error: 'Boom' })
-      reply(1, { status: 'success', payload: 'ok' })
-      reply(2, { status: 'error', error: 'Late boom' })
-      await expect(promise).resolves.toBe('ok')
-      expect(onSpare).not.toHaveBeenCalled()
-    })
-
-    it('rejects only once every copy has failed', async () => {
-      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
-      const settled = vi.fn()
-      promise.then(settled, settled)
-
-      for (const call of [0, 1, 2]) reply(call, { status: 'error', error: `Boom ${call}` })
-      await Promise.resolve()
-      expect(settled).not.toHaveBeenCalled()
-
-      reply(3, { status: 'error', error: 'Boom 3' })
-      await expect(promise).rejects.toThrow('Boom 3')
-    })
-
-    it('runs on a single worker when only one is idle', async () => {
-      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-      pool.runTask('solve', { boardString: '...' }, Priority.HIGH)
-      const onSpare = vi.fn()
-      const promise = pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, onSpare)
-
-      expect(mockPostMessage).toHaveBeenCalledTimes(4)
-      reply(3, { status: 'success', payload: 'only' })
-      await expect(promise).resolves.toBe('only')
-      expect(onSpare).not.toHaveBeenCalled()
-    })
-
-    it('races on both workers of the smallest pool', () => {
-      Object.defineProperty(navigator, 'hardwareConcurrency', { value: 1 })
-      pool.terminate()
-      mockPostMessage.mockClear()
-      pool = new WorkerPool()
-
-      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH, vi.fn())
-      expect(mockPostMessage).toHaveBeenCalledTimes(2)
-    })
-
-    it('does not race a task without onSpare', () => {
-      pool.runTask('generate', { difficulty: 'expert' }, Priority.HIGH)
-      expect(mockPostMessage).toHaveBeenCalledTimes(1)
-    })
-
-    it('does not race a LOW task', () => {
-      pool.runTask('generate', { difficulty: 'expert' }, Priority.LOW, vi.fn())
-      expect(mockPostMessage).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  it('terminates all workers on terminate()', () => {
-    pool.terminate()
-    expect(mockTerminate).toHaveBeenCalledTimes(4)
+    expect(worker(0).terminate).toHaveBeenCalledOnce()
+    expect(worker(1).terminate).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
+    expect(running).not.toHaveBeenCalled()
   })
 })

@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, PooledPuzzle, SolveResult } from './sudoku.types'
 
 /** Action to set the definitive value of a cell. */
 export interface SetCellValueAction {
@@ -99,32 +99,10 @@ export interface GeneratePuzzleFailureAction {
   type: 'GENERATE_PUZZLE_FAILURE'
 }
 
-/** Action to signal that a pool refill request has been sent. */
-export interface RequestPoolRefillAction {
-  type: 'REQUEST_POOL_REFILL'
-  difficulty: Difficulty
-}
-
-/** Action to store a generated puzzle in the pool. */
-export interface PoolRefillSuccessAction {
-  type: 'POOL_REFILL_SUCCESS'
-  difficulty: Difficulty
-  puzzleString: string
-  solutionString: string
-}
-
-/** Action to store a puzzle that lost a generation race, without touching the pending count. */
-export interface StoreSparePuzzleAction {
-  type: 'STORE_SPARE_PUZZLE'
-  difficulty: Difficulty
-  puzzleString: string
-  solutionString: string
-}
-
-/** Action for when a background pool refill fails. */
-export interface PoolRefillFailureAction {
-  type: 'POOL_REFILL_FAILURE'
-  difficulty: Difficulty
+/** Action to add a round of background-generated puzzles to the pool. */
+export interface PoolRefillAction {
+  type: 'POOL_REFILL'
+  puzzles: readonly PooledPuzzle[]
 }
 
 /** Action to begin validating a custom puzzle. */
@@ -309,10 +287,7 @@ export type SudokuAction =
   | GeneratePuzzleStartAction
   | GeneratePuzzleSuccessAction
   | GeneratePuzzleFailureAction
-  | RequestPoolRefillAction
-  | PoolRefillSuccessAction
-  | PoolRefillFailureAction
-  | StoreSparePuzzleAction
+  | PoolRefillAction
   | ValidatePuzzleStartAction
   | ValidatePuzzleSuccessAction
   | ValidatePuzzleFailureAction

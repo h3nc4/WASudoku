@@ -204,7 +204,7 @@ npm run dev
 
 Either takes `-- --project firefox` to run one project. CI runs both suites, one job per project, on every pull request and every push to `main`.
 
-The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in a pool of two to six Web Workers sized from the CPU count.
+The interface is React with Vite, TypeScript, Tailwind CSS and shadcn/ui. One reducer manages all state, and components read it and dispatch to it through React context. The engine is Rust, bound to JavaScript with wasm-bindgen, and runs in two Web Workers, one for the player's requests and one that refills the puzzle pool in the background.
 
 To build the container image from a checkout, run `docker build -f docker/Dockerfile -t wasudoku .`.
 

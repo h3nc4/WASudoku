@@ -98,26 +98,18 @@ export const initialState: SudokuState = {
     expert: [],
     extreme: [],
   },
-  poolRequestCount: {
-    easy: 0,
-    medium: 0,
-    hard: 0,
-    expert: 0,
-    extreme: 0,
-  },
 }
 
-/** A fresh game over the given fields, keeping the puzzle pool and its in-flight requests. */
+/** A fresh game over the given fields. The puzzle pool is kept. */
 export const startGame = (
   state: SudokuState,
-  overrides: Omit<Partial<SudokuState>, 'puzzlePool' | 'poolRequestCount'>,
+  overrides: Omit<Partial<SudokuState>, 'puzzlePool'>,
 ): SudokuState => ({
   ...initialState,
   // Sticky numbers is a preference kept across puzzles, while its lock resets with each one.
   ui: { ...initialState.ui, sticky: state.ui.sticky },
   ...overrides,
   puzzlePool: state.puzzlePool,
-  poolRequestCount: state.poolRequestCount,
 })
 
 export function updateHistory(historyState: HistoryState, newBoard: BoardState): HistoryState {

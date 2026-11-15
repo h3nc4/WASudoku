@@ -38,7 +38,6 @@ describe('Sudoku Worker Logic', () => {
   let validate_puzzle: Mock
   let mockPostMessage: Mock
   let mockAddEventListener: Mock
-  const workerOrigin = 'http://localhost:3000'
 
   beforeEach(async () => {
     vi.resetModules()
@@ -50,9 +49,6 @@ describe('Sudoku Worker Logic', () => {
     vi.stubGlobal('self', {
       postMessage: mockPostMessage,
       addEventListener: mockAddEventListener,
-      location: {
-        origin: workerOrigin,
-      },
     })
 
     const wasmModule = await import('wasudoku-wasm')
@@ -65,13 +61,9 @@ describe('Sudoku Worker Logic', () => {
     handleMessage = workerModule.handleMessage
   })
 
-  const simulateMessage = (
-    data: { id: number; type: string; [key: string]: unknown },
-    origin = workerOrigin,
-  ) => {
-    const event = { data, origin } as MessageEvent
-    return handleMessage(event)
-  }
+  // A dedicated worker receives every message with an empty origin, in every engine.
+  const simulateMessage = (data: { id: number; type: string; [key: string]: unknown }) =>
+    handleMessage({ data, origin: '' } as MessageEvent)
 
   it('should initialize WASM and attach listener', () => {
     expect(mockAddEventListener).toHaveBeenCalledWith('message', handleMessage)
@@ -173,10 +165,5 @@ describe('Sudoku Worker Logic', () => {
       status: 'error',
       error: 'Unknown or malformed request type: unknown_thing',
     })
-  })
-
-  it('should ignore foreign origin', async () => {
-    await simulateMessage({ id: 1, type: 'solve' }, 'https://evil.com')
-    expect(mockPostMessage).not.toHaveBeenCalled()
   })
 })

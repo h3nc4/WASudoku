@@ -21,7 +21,8 @@ import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { initialState } from '@/context/sudoku.reducer'
-import { Priority, WorkerPool } from '@/lib/worker-pool'
+import { DIFFICULTIES } from '@/context/sudoku.types'
+import { Lane, WorkerPool } from '@/lib/worker-pool'
 import { makeState } from '@/test/sudoku-state'
 
 import { useSudokuSolver } from './useSudokuSolver'
@@ -37,10 +38,7 @@ const { mockRunTask, mockTerminate } = vi.hoisted(() => {
 // We need to support new WorkerPool()
 vi.mock('@/lib/worker-pool', () => {
   return {
-    Priority: {
-      HIGH: 0,
-      LOW: 1,
-    },
+    Lane: { FOREGROUND: 'foreground', BACKGROUND: 'background' },
     WorkerPool: vi.fn(function () {
       return {
         runTask: mockRunTask,
@@ -56,6 +54,9 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
   },
 }))
+
+// Longer than scheduleIdle's fallback delay, so an idle callback would have run.
+const IDLE_WAIT_MS = 300
 
 describe('useSudokuSolver', () => {
   const mockDispatch = vi.fn()
@@ -117,14 +118,11 @@ describe('useSudokuSolver', () => {
     // Hook should not throw
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
 
-    // Should not dispatch any refill requests because hook returned early
-    expect(mockDispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'REQUEST_POOL_REFILL' }),
-    )
+    expect(mockRunTask).not.toHaveBeenCalled()
     consoleSpy.mockRestore()
   })
 
-  it('triggers user puzzle generation (High Priority)', async () => {
+  it('generates a puzzle for the player on the foreground worker', async () => {
     const generatingState = makeState(
       { solver: { isGenerating: true, generationDifficulty: 'hard' } },
       fullPoolState,
@@ -137,12 +135,7 @@ describe('useSudokuSolver', () => {
 
     renderHook(() => useSudokuSolver(generatingState, mockDispatch))
 
-    expect(mockRunTask).toHaveBeenCalledWith(
-      'generate',
-      { difficulty: 'hard' },
-      Priority.HIGH,
-      expect.any(Function),
-    )
+    expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'hard' })
 
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -151,24 +144,6 @@ describe('useSudokuSolver', () => {
         solutionString: 'solution',
       })
       expect(toast.success).toHaveBeenCalledWith('New puzzle generated!')
-    })
-  })
-
-  it('keeps the puzzles a raced user generation finishes after the winner', () => {
-    const generatingState = makeState(
-      { solver: { isGenerating: true, generationDifficulty: 'expert' } },
-      fullPoolState,
-    )
-
-    renderHook(() => useSudokuSolver(generatingState, mockDispatch))
-
-    const onSpare = mockRunTask.mock.calls[0][3]
-    onSpare({ puzzleString: 'spare', solutionString: 'spareSolution' })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'STORE_SPARE_PUZZLE',
-      difficulty: 'expert',
-      puzzleString: 'spare',
-      solutionString: 'spareSolution',
     })
   })
 
@@ -192,7 +167,7 @@ describe('useSudokuSolver', () => {
     consoleSpy.mockRestore()
   })
 
-  it('triggers puzzle solving (High Priority)', async () => {
+  it('solves the board on the foreground worker', async () => {
     const solvingState = makeState(
       { solver: { isSolving: true }, board: initialState.board }, // all nulls
       fullPoolState,
@@ -202,11 +177,7 @@ describe('useSudokuSolver', () => {
 
     renderHook(() => useSudokuSolver(solvingState, mockDispatch))
 
-    expect(mockRunTask).toHaveBeenCalledWith(
-      'solve',
-      { boardString: '.'.repeat(81) },
-      Priority.HIGH,
-    )
+    expect(mockRunTask).toHaveBeenCalledWith('solve', { boardString: '.'.repeat(81) })
 
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -226,11 +197,7 @@ describe('useSudokuSolver', () => {
 
     renderHook(() => useSudokuSolver(hintingState, mockDispatch))
 
-    expect(mockRunTask).toHaveBeenCalledWith(
-      'solve',
-      { boardString: '.'.repeat(81) },
-      Priority.HIGH,
-    )
+    expect(mockRunTask).toHaveBeenCalledWith('solve', { boardString: '.'.repeat(81) })
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({ type: 'HINT_SUCCESS', result: mockResult })
     })
@@ -250,17 +217,13 @@ describe('useSudokuSolver', () => {
     consoleSpy.mockRestore()
   })
 
-  it('triggers puzzle validation (High Priority)', async () => {
+  it('validates the board on the foreground worker', async () => {
     const validatingState = makeState({ solver: { isValidating: true } }, fullPoolState)
     mockRunTask.mockResolvedValueOnce({ isValid: true, solutionString: 'sol' })
 
     renderHook(() => useSudokuSolver(validatingState, mockDispatch))
 
-    expect(mockRunTask).toHaveBeenCalledWith(
-      'validate',
-      { boardString: '.'.repeat(81) },
-      Priority.HIGH,
-    )
+    expect(mockRunTask).toHaveBeenCalledWith('validate', { boardString: '.'.repeat(81) })
 
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -304,41 +267,31 @@ describe('useSudokuSolver', () => {
     consoleSpy.mockRestore()
   })
 
-  it('triggers pool refill (Low Priority) when needed', async () => {
-    // Using initialState which has empty pools
+  it('refills an empty pool on the background worker in one dispatch per round', async () => {
     mockRunTask.mockResolvedValue({ puzzleString: 'p', solutionString: 's' })
 
     renderHook(() => useSudokuSolver(initialState, mockDispatch))
 
-    // Should request for all 4 difficulties
+    expect(mockRunTask).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'REQUEST_POOL_REFILL',
-        difficulty: 'easy',
+        type: 'POOL_REFILL',
+        puzzles: DIFFICULTIES.map((difficulty) => ({
+          difficulty,
+          puzzleString: 'p',
+          solutionString: 's',
+        })),
       })
-      expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'easy' }, Priority.LOW)
     })
+    expect(mockRunTask).toHaveBeenCalledWith('generate', { difficulty: 'easy' }, Lane.BACKGROUND)
   })
 
-  it('handles pool refill failure (Low Priority)', async () => {
-    // initialState has empty pools
-    mockRunTask.mockRejectedValueOnce(new Error('Background Fail'))
-    // Spy on console.error since the hook logs it
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('stops refilling once unmounted', async () => {
+    const { unmount } = renderHook(() => useSudokuSolver(initialState, mockDispatch))
+    unmount()
 
-    renderHook(() => useSudokuSolver(initialState, mockDispatch))
-
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'POOL_REFILL_FAILURE',
-        difficulty: 'easy', // First one usually
-      })
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Background refill failed'),
-        expect.any(Error),
-      )
-    })
-    consoleErrorSpy.mockRestore()
+    await new Promise((resolve) => setTimeout(resolve, IDLE_WAIT_MS))
+    expect(mockRunTask).not.toHaveBeenCalled()
   })
 
   it('handles errors gracefully during solve', async () => {

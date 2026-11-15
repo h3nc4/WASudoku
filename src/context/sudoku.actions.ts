@@ -38,11 +38,9 @@ import type {
   NavigateAction,
   OfferPuzzleAction,
   PauseGameAction,
-  PoolRefillFailureAction,
-  PoolRefillSuccessAction,
+  PoolRefillAction,
   RedoAction,
   RequestHintAction,
-  RequestPoolRefillAction,
   ResumeGameAction,
   SetActiveCellAction,
   SetCellValueAction,
@@ -55,7 +53,6 @@ import type {
   SolveSuccessAction,
   StartCustomPuzzleAction,
   StepVisualizationAction,
-  StoreSparePuzzleAction,
   TapCellAction,
   TickTimerAction,
   TogglePencilMarkAction,
@@ -66,7 +63,7 @@ import type {
   ValidatePuzzleSuccessAction,
   ViewSolverStepAction,
 } from './sudoku.actions.types'
-import type { Difficulty, InputMode, SolveResult } from './sudoku.types'
+import type { Difficulty, InputMode, PooledPuzzle, SolveResult } from './sudoku.types'
 
 /** Creates an action to set the definitive value of a cell. */
 export const setCellValue = (index: number, value: number): SetCellValueAction => ({
@@ -156,40 +153,10 @@ export const generatePuzzleFailure = (): GeneratePuzzleFailureAction => ({
   type: 'GENERATE_PUZZLE_FAILURE',
 })
 
-/** Creates an action to note that a pool refill request has been sent to the worker. */
-export const requestPoolRefill = (difficulty: Difficulty): RequestPoolRefillAction => ({
-  type: 'REQUEST_POOL_REFILL',
-  difficulty,
-})
-
-/** Creates an action to add a background-generated puzzle to the pool. */
-export const poolRefillSuccess = (
-  difficulty: Difficulty,
-  puzzleString: string,
-  solutionString: string,
-): PoolRefillSuccessAction => ({
-  type: 'POOL_REFILL_SUCCESS',
-  difficulty,
-  puzzleString,
-  solutionString,
-})
-
-/** Creates an action to keep a puzzle that a raced generation finished after the winner. */
-export const storeSparePuzzle = (
-  difficulty: Difficulty,
-  puzzleString: string,
-  solutionString: string,
-): StoreSparePuzzleAction => ({
-  type: 'STORE_SPARE_PUZZLE',
-  difficulty,
-  puzzleString,
-  solutionString,
-})
-
-/** Creates an action to decrement the pending count if a background refill fails. */
-export const poolRefillFailure = (difficulty: Difficulty): PoolRefillFailureAction => ({
-  type: 'POOL_REFILL_FAILURE',
-  difficulty,
+/** Creates an action to add a round of background-generated puzzles to the pool. */
+export const poolRefill = (puzzles: readonly PooledPuzzle[]): PoolRefillAction => ({
+  type: 'POOL_REFILL',
+  puzzles,
 })
 
 /** Creates an action to signal the start of custom puzzle validation. */

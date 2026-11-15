@@ -151,6 +151,11 @@ export interface PuzzleData {
   readonly solutionString: string
 }
 
+/** A generated puzzle tagged with the difficulty whose pool it joins. */
+export interface PooledPuzzle extends PuzzleData {
+  readonly difficulty: Difficulty
+}
+
 /** The complete state of the Sudoku game. */
 export interface SudokuState {
   /** The current state of the 81 Sudoku cells. */
@@ -169,8 +174,6 @@ export interface SudokuState {
   readonly game: GameMetrics
   /** Pool of pre-generated puzzles keyed by difficulty. */
   readonly puzzlePool: Record<Difficulty, PuzzleData[]>
-  /** Count of pending generation requests per difficulty. */
-  readonly poolRequestCount: Record<Difficulty, number>
 }
 
 /** Game session as written to storage, five characters per cell. */
