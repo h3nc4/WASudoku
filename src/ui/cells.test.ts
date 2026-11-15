@@ -97,10 +97,11 @@ describe('contentKey', () => {
 describe('cellContent', () => {
   it('draws a digit, crossed when it is wrong', () => {
     expect(html(cellContent(document, { value: 5 }))).toBe(
-      '<span class="d" aria-hidden="true">5</span>',
+      '<span class="d" aria-hidden="true" data-testid="cell-digit">5</span>',
     )
     const wrong = cellContent(document, { value: 5, invalid: true })
     expect(wrong[0]).toBeInstanceOf(SVGSVGElement)
+    expect(wrong[0]).toHaveAttribute('data-testid', 'cell-error-mark')
     expect(html(wrong)).toContain('<path d="M10 10 90 90M90 10 10 90"></path>')
   })
 

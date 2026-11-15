@@ -56,6 +56,10 @@ describe('the first visit', async () => {
     expect(stops.map((c) => c.id)).toEqual(['cell-0'])
     expect(doc.querySelectorAll('[role="gridcell"][tabindex="-1"]')).toHaveLength(80)
     expect(cell(doc, 0)).toHaveAttribute('aria-label', 'R1C1, empty')
+    const faces = [...doc.querySelectorAll('[role="grid"] [data-testid="cell-background"]')]
+    expect(faces.map((c) => c.id)).toEqual(
+      Array.from({ length: 81 }, (_, i) => `cell-${String(i)}`),
+    )
   })
 
   it('keeps the board inert behind a labelled selection card', () => {
@@ -198,6 +202,10 @@ describe('preview states', () => {
       'R8C4, 4, given, wrong',
     ])
     for (const c of wrong) expect(c.querySelector('svg.x')).toHaveAttribute('aria-hidden', 'true')
+    const marks = [...doc.querySelectorAll('[data-testid="cell-error-mark"]')]
+    expect(marks.map((m) => m.closest('[data-testid="cell-background"]'))).toEqual(wrong)
+    for (const c of wrong)
+      expect(c.querySelector('[data-testid="cell-digit"]')).toHaveTextContent('4')
     expect(doc.querySelector('[data-status="mistakes"]')?.textContent).toBe('1/3')
   })
 

@@ -16,7 +16,13 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { cellAttributes, type CellView, centerSize, cornerSlots } from '../components-next/view'
+import {
+  CELL_TESTID,
+  cellAttributes,
+  type CellView,
+  centerSize,
+  cornerSlots,
+} from '../components-next/view'
 import { type CellView as GameCell, digitsOf } from '../core/game/selectors'
 
 // Maps the game's cell to the markup's, and writes one cell node as Board.astro first drew it.
@@ -91,6 +97,7 @@ function cross(doc: Document): SVGSVGElement {
   svg.setAttribute('aria-hidden', 'true')
   svg.setAttribute('viewBox', CROSS_BOX)
   svg.setAttribute('preserveAspectRatio', 'none')
+  svg.setAttribute('data-testid', CELL_TESTID.errorMark)
   const path = doc.createElementNS(SVG, 'path')
   path.setAttribute('d', CROSS)
   svg.append(path)
@@ -103,6 +110,7 @@ export function cellContent(doc: Document, cell: CellView): Node[] {
   if (!empty) {
     const digit = span(doc, 'd', String(cell.value))
     digit.setAttribute('aria-hidden', 'true')
+    digit.dataset['testid'] = CELL_TESTID.digit
     return cell.invalid === true ? [cross(doc), digit] : [digit]
   }
   const notes = span(doc, 'n', '')

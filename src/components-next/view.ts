@@ -28,6 +28,14 @@ export const BOARD_SIZE = 9
 
 export const CELL_COUNT = BOARD_SIZE * BOARD_SIZE
 
+/** The data-testid names today's app gives a cell's layers, kept as a contract for e2e and parity.
+ * The gridcell is the face, since it draws its own digit or notes. */
+export const CELL_TESTID = {
+  face: 'cell-background',
+  errorMark: 'cell-error-mark',
+  digit: 'cell-digit',
+} as const
+
 /** One cell as drawn. Fills are exclusive, so at most one of selected, peer, same and placed is set.
  * A target's stripes give way to the highlighter on a selected cell. */
 export interface CellView {
