@@ -19,7 +19,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NOTICES } from '../core/text/messages'
-import { harness, mountPage } from '../test/app-page'
+import { harness, mountPage, playing } from '../test/app-page'
 import { fakeSolver } from '../test/runtime-fakes'
 import { mountApp, startApp, updatePorts } from './app'
 import { createToaster } from './toast'
@@ -38,13 +38,12 @@ describe('mountApp', () => {
     vi.unstubAllGlobals()
   })
 
-  function start() {
-    const test = harness()
+  function start(test = harness(), href = 'https://w/') {
     const toaster = createToaster(byId('toasts'), { reducedMotion: () => true })
     const history = { state: null, replaceState: vi.fn() }
     dispose = mountApp(document, test.store, {
       toaster,
-      address: { search: '', href: 'https://w/' },
+      address: { search: new URL(href).search, href },
       history,
     })
     return test
@@ -89,6 +88,16 @@ describe('mountApp', () => {
     test.store.dispatch({ type: 'digit', digit: 5 })
     byId('new-menu').querySelector<HTMLElement>('[data-difficulty="easy"]')!.click()
     expect((byId('abandon-dialog') as HTMLDialogElement).open).toBe(true)
+  })
+
+  it('asks before a shortcut puzzle replaces a saved game in progress', () => {
+    const saved = playing()
+    saved.store.dispatch({ type: 'select', index: 2 as never })
+    saved.store.dispatch({ type: 'digit', digit: 4 })
+    const test = start(saved, 'https://w/?new=hard')
+    expect((byId('abandon-dialog') as HTMLDialogElement).open).toBe(true)
+    expect(test.state().pending).toBeNull()
+    expect(test.state().game.mode).toBe('playing')
   })
 })
 

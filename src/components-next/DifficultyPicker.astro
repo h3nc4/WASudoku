@@ -17,6 +17,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 import Button from './Button.astro'
+import Icon from './Icon.astro'
 import { DIFFICULTIES } from './view'
 
 interface Props {
@@ -39,6 +40,9 @@ const { disabled = false, submit = false } = Astro.props
         disabled={disabled}
         class:list={[level === 'Extreme' && 'col-span-2 sm:col-span-1']}
       >
+        <span data-spinner hidden>
+          <Icon name="loader-circle" class="size-4 animate-spin" />
+        </span>
         {level}
       </Button>
     ))

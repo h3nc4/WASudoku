@@ -18,6 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PAUSE_LABELS } from '../core/text/labels'
 import { harness, mountPage, playing, solvedExcept } from '../test/app-page'
 import { bindStatus } from './status'
 
@@ -63,6 +64,22 @@ describe('bindStatus', () => {
     expect(part('time')).toHaveTextContent('01:01')
     pause().click()
     expect(test.state().game).toMatchObject({ mode: 'playing', paused: true })
+  })
+
+  it('turns the pause button into resume while paused', () => {
+    const test = playing()
+    dispose = bindStatus(document, test.store)
+    const icon = () => pause().querySelector('use')!.getAttribute('href')
+    expect(pause()).toHaveAttribute('aria-label', PAUSE_LABELS.pause)
+    expect(icon()).toBe('#i-pause')
+    pause().click()
+    expect(pause()).toHaveAttribute('aria-label', PAUSE_LABELS.resume)
+    expect(pause()).toHaveAttribute('title', PAUSE_LABELS.resume)
+    expect(icon()).toBe('#i-play')
+    pause().click()
+    expect(test.state().game).toMatchObject({ mode: 'playing', paused: false })
+    expect(pause()).toHaveAttribute('aria-label', PAUSE_LABELS.pause)
+    expect(icon()).toBe('#i-pause')
   })
 
   it('says solved and drops the pause button after a win', () => {

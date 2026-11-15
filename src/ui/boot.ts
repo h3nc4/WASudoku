@@ -19,17 +19,21 @@
 import { isDifficulty } from '../core/game/selectors'
 import type { AddressBar } from '../runtime/deps'
 import type { Address } from '../runtime/share-link'
-import type { Store } from '../runtime/store'
+import type { GameEvent } from './dialogs'
 
 /** The query a home screen shortcut opens, such as `/?new=easy` from the web manifest. */
 export const NEW_PARAM = 'new'
 
-/** Starts the puzzle in a `?new=` query and drops the query. A reload then resumes that game. */
-export function startFromQuery(address: Address, history: AddressBar, store: Store): void {
+/** Starts a `?new=` puzzle through `startOver` and drops the query, so a reload resumes it. */
+export function startFromQuery(
+  address: Address,
+  history: AddressBar,
+  startOver: (event: GameEvent) => void,
+): void {
   const url = new URL(address.href)
   const difficulty = url.searchParams.get(NEW_PARAM)
   if (difficulty === null) return
   url.searchParams.delete(NEW_PARAM)
   history.replaceState(history.state, '', url.href)
-  if (isDifficulty(difficulty)) store.dispatch({ type: 'newGame', difficulty })
+  if (isDifficulty(difficulty)) startOver({ type: 'newGame', difficulty })
 }

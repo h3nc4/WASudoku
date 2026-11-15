@@ -18,7 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { harness, mountPage, playing, savedGame } from '../test/app-page'
+import { harness, mountPage, pendingId, playing, savedGame } from '../test/app-page'
 import { bindMenus, newPuzzleEvent } from './menus'
 
 const ADDRESS = { search: '', href: 'https://wasudoku.h3nc4.com/' }
@@ -38,11 +38,11 @@ describe('newPuzzleEvent', () => {
 
 describe('bindMenus', () => {
   let dispose: () => void = () => undefined
-  const confirmAbandon = vi.fn()
+  const startOver = vi.fn()
 
   beforeEach(() => {
     mountPage()
-    confirmAbandon.mockClear()
+    startOver.mockClear()
   })
 
   afterEach(() => {
@@ -51,7 +51,7 @@ describe('bindMenus', () => {
   })
 
   function start(test = playing()) {
-    dispose = bindMenus(document, test.store, ADDRESS, confirmAbandon)
+    dispose = bindMenus(document, test.store, ADDRESS, startOver)
     return test
   }
 
@@ -68,20 +68,16 @@ describe('bindMenus', () => {
     expect(writeText).toHaveBeenCalledTimes(2)
   })
 
-  it('asks before a new puzzle replaces progress, and starts one at once otherwise', () => {
-    const test = start()
-    test.store.dispatch({ type: 'select', index: 2 as never })
-    test.store.dispatch({ type: 'digit', digit: 4 })
+  it('starts over from the new puzzle menu with the item picked', () => {
+    start()
     item('#new-menu [data-difficulty="expert"]').click()
-    expect(confirmAbandon).toHaveBeenCalledWith({ type: 'newGame', difficulty: 'expert' })
-    test.store.dispatch({ type: 'clear' })
+    expect(startOver).toHaveBeenCalledWith({ type: 'newGame', difficulty: 'expert' })
     // The layout binding enables the custom entry outside the selection screen.
     item('#new-menu [data-action="custom"]').removeAttribute('disabled')
     item('#new-menu [data-action="custom"]').click()
-    expect(test.state().game.mode).toBe('entering')
-    const before = test.state()
+    expect(startOver).toHaveBeenLastCalledWith({ type: 'enterCustom' })
     item('#new-menu [role="separator"]').click()
-    expect(test.state()).toBe(before)
+    expect(startOver).toHaveBeenCalledTimes(2)
   })
 
   it('starts a puzzle from the selection screen', () => {
@@ -91,5 +87,26 @@ describe('bindMenus', () => {
     item('#selection-screen h2').click()
     item('#custom-button').click()
     expect(test.state().game.mode).toBe('entering')
+  })
+
+  it('holds the levels while a puzzle generates, with a spinner on the one asked for', () => {
+    const test = start(harness())
+    const level = (name: string) =>
+      document.querySelector<HTMLButtonElement>(`#selection-screen [data-difficulty="${name}"]`)!
+    const spinner = (name: string) => level(name).querySelector<HTMLElement>('[data-spinner]')!
+    expect(level('easy').disabled).toBe(false)
+    expect(spinner('easy').hidden).toBe(true)
+    level('easy').click()
+    expect(level('expert').disabled).toBe(true)
+    expect(level('easy')).toHaveAttribute('aria-busy', 'true')
+    expect(spinner('easy').hidden).toBe(false)
+    expect(level('expert')).not.toHaveAttribute('aria-busy')
+    expect(spinner('expert').hidden).toBe(true)
+    level('expert').click()
+    expect(test.solver.calls).toHaveLength(1)
+    test.store.dispatch({ type: 'failed', id: pendingId(test), reason: 'x' })
+    expect(level('expert').disabled).toBe(false)
+    expect(level('easy')).not.toHaveAttribute('aria-busy')
+    expect(spinner('easy').hidden).toBe(true)
   })
 })

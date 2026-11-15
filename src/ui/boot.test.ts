@@ -18,32 +18,31 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { harness } from '../test/app-page'
 import { startFromQuery } from './boot'
 
 const bar = () => ({ state: { kept: true }, replaceState: vi.fn() })
 
 describe('startFromQuery', () => {
-  it('starts the shortcut puzzle and drops only its own parameter', () => {
-    const test = harness()
+  it('starts the shortcut puzzle over and drops only its own parameter', () => {
+    const startOver = vi.fn()
     const history = bar()
     startFromQuery(
       { search: '?new=hard&x=1', href: 'https://w/?new=hard&x=1#top' },
       history,
-      test.store,
+      startOver,
     )
-    expect(test.state().pending).toMatchObject({ task: 'generate', difficulty: 'hard' })
+    expect(startOver).toHaveBeenCalledWith({ type: 'newGame', difficulty: 'hard' })
     expect(history.replaceState).toHaveBeenCalledWith({ kept: true }, '', 'https://w/?x=1#top')
   })
 
   it('drops a difficulty it does not know, and leaves a plain address alone', () => {
-    const test = harness()
+    const startOver = vi.fn()
     const history = bar()
-    startFromQuery({ search: '?new=nope', href: 'https://w/?new=nope' }, history, test.store)
-    expect(test.state().pending).toBeNull()
+    startFromQuery({ search: '?new=nope', href: 'https://w/?new=nope' }, history, startOver)
+    expect(startOver).not.toHaveBeenCalled()
     expect(history.replaceState).toHaveBeenCalledWith({ kept: true }, '', 'https://w/')
     history.replaceState.mockClear()
-    startFromQuery({ search: '', href: 'https://w/' }, history, test.store)
+    startFromQuery({ search: '', href: 'https://w/' }, history, startOver)
     expect(history.replaceState).not.toHaveBeenCalled()
   })
 })

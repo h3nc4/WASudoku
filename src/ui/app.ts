@@ -66,13 +66,15 @@ export function mountApp(doc: Document, store: Store, ports: AppPorts): () => vo
   disposer.add(bindHint(doc, store))
   disposer.add(bindAnnouncer(doc, store))
   disposer.add(bindWalkthrough(doc, store))
-  disposer.add(bindMenus(doc, store, ports.address, dialogs.confirmAbandon))
+  disposer.add(bindMenus(doc, store, ports.address, dialogs.startOver))
   disposer.add(bindThemeToggle(required(doc, '#theme-button', HTMLElement)))
   for (const area of KEEP_FOCUS.flatMap((selector) => all(doc, selector, HTMLElement))) {
     disposer.on(area, 'mousedown', (event) => {
       event.preventDefault()
     })
   }
+  // After the bindings, so a shortcut over a game in progress opens the abandon dialog.
+  startFromQuery(ports.address, ports.history, dialogs.startOver)
   return disposer.dispose
 }
 
@@ -104,7 +106,6 @@ export function startApp(scope: Scope, solver?: Parameters<typeof browserDeps>[2
     address: scope.location,
     history: scope.history,
   })
-  startFromQuery(scope.location, scope.history, runtime.store)
   return () => {
     unmount()
     runtime.stop()

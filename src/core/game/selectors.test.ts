@@ -34,6 +34,7 @@ import {
   selectCell,
   selectCells,
   selectControls,
+  selectGenerating,
   selectGrid,
   selectHint,
   selectInputMode,
@@ -510,6 +511,13 @@ describe('selectors', () => {
         replacesGame: false,
       })
       expect(selectOffer({ ...start(), offer: PUZZLE })?.replacesGame).toBe(true)
+    })
+
+    it('names the difficulty a generate in flight is for, and nothing for another task', () => {
+      expect(selectGenerating(INITIAL_STATE)).toBeNull()
+      const generating = run(INITIAL_STATE, [{ type: 'newGame', difficulty: 'hard' }])
+      expect(selectGenerating(generating)).toBe('hard')
+      expect(selectGenerating({ ...generating, pending: { id: 1, task: 'solve' } })).toBeNull()
     })
   })
 

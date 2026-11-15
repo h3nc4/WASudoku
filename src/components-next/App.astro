@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { OFFER_DESCRIPTIONS } from '../core/text/labels'
 import ActionRow from './ActionRow.astro'
 import Board from './Board.astro'
 import Footer from './Footer.astro'
@@ -105,7 +106,7 @@ const visualizing = view.mode === 'visualizing'
   <ConfirmDialog
     id="pending-dialog"
     title="Start this puzzle?"
-    description="A puzzle was shared with WASudoku. It is checked for a unique solution before play starts."
+    description={OFFER_DESCRIPTIONS.fresh}
     confirmLabel="Start puzzle"
     cancelLabel="Not now"
   />

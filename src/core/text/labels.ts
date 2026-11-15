@@ -47,6 +47,16 @@ export const SOLVE_TITLES: Readonly<Record<SolveBlock | 'ready', string>> = {
 
 export const START_TITLES = { empty: 'Board is empty.', ready: 'Start puzzle' } as const
 
+/** The status bar's pause button, which resumes a paused game. */
+export const PAUSE_LABELS = { pause: 'Pause game', resume: 'Resume game' } as const
+
+/** The shared puzzle dialog's text, which warns when starting it replaces a game. */
+export const OFFER_DESCRIPTIONS = {
+  fresh:
+    'A puzzle was shared with WASudoku. It is checked for a unique solution before play starts.',
+  replaces: 'A puzzle was shared with WASudoku. Starting it replaces the current board.',
+} as const
+
 export const CLEAR_TITLES = {
   playing: 'Clear your progress and reset the puzzle.',
   other: 'Clear all numbers from the board.',

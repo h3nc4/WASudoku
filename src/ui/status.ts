@@ -16,13 +16,14 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { iconHref } from '../components-next/icons'
 import { isMistakeLimit, mistakesText } from '../components-next/view'
 import { selectSeconds, selectStatus, type StatusView } from '../core/game/selectors'
 import { formatTime } from '../core/text/format'
-import { difficultyName } from '../core/text/labels'
+import { difficultyName, PAUSE_LABELS } from '../core/text/labels'
 import { watch } from '../runtime/signals'
 import type { Store } from '../runtime/store'
-import { Disposer, required, setHidden, setText, shallowEqual } from './dom'
+import { Disposer, required, setAttr, setHidden, setText, shallowEqual } from './dom'
 
 /** The classes GameStatus.astro gives a mistake count at the limit. */
 const OVER_LIMIT = ['text-error', 'font-bold']
@@ -39,6 +40,7 @@ export function bindStatus(doc: Document, store: Store): () => void {
   const time = part('time')
   const solved = part('solved')
   const pause = required(bar, '#pause-button', HTMLButtonElement)
+  const pauseIcon = required(pause, 'use', SVGElement)
   const disposer = new Disposer()
 
   const status = store.select(selectStatus, sameStatus)
@@ -53,6 +55,10 @@ export function bindStatus(doc: Document, store: Store): () => void {
         mistakes.classList.toggle(name, isMistakeLimit(current.mistakes))
       setHidden(solved, !current.solved)
       setHidden(pause, current.solved)
+      const label = current.paused ? PAUSE_LABELS.resume : PAUSE_LABELS.pause
+      setAttr(pause, 'aria-label', label)
+      setAttr(pause, 'title', label)
+      setAttr(pauseIcon, 'href', iconHref(current.paused ? 'play' : 'pause'))
     }),
   )
 
@@ -64,7 +70,7 @@ export function bindStatus(doc: Document, store: Store): () => void {
   )
 
   disposer.on(pause, 'click', () => {
-    store.dispatch({ type: 'pause' })
+    store.dispatch({ type: status()?.paused === true ? 'resume' : 'pause' })
   })
   return disposer.dispose
 }

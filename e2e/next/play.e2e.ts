@@ -156,9 +156,28 @@ test.describe('play', () => {
     const frozen = await timer(page).innerText()
     await page.waitForTimeout(1_200)
     await expect(timer(page)).toHaveText(frozen)
-    await page.getByRole('button', { name: 'Resume' }).click()
+    await page.getByRole('button', { name: 'Resume', exact: true }).click()
     await expect(page.locator('#pause-overlay')).toBeHidden()
     await expect(timer(page)).not.toHaveText(frozen, { timeout: 3_000 })
+  })
+
+  test('the status bar button turns into resume while paused', async ({ page }) => {
+    await page.getByRole('button', { name: 'Pause game' }).click()
+    await expect(page.locator('#pause-overlay')).toBeVisible()
+    await page.getByRole('button', { name: 'Resume game' }).click()
+    await expect(page.locator('#pause-overlay')).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Pause game' })).toBeVisible()
+  })
+
+  test('asks before a shortcut puzzle replaces the game in progress', async ({ page }) => {
+    await cell(page, R1C3).click()
+    await page.keyboard.press('4')
+    await expect(digitOf(page, R1C3)).toHaveText('4')
+    await page.goto('/?new=hard')
+    await expect(page.locator('#abandon-dialog')).toBeVisible()
+    await page.locator('#abandon-dialog').getByRole('button', { name: 'Cancel' }).click()
+    await expect(digitOf(page, R1C3)).toHaveText('4')
+    await expect(page.locator('[data-status="difficulty"]')).toHaveText('Easy')
   })
 
   test('a reload restores the game in progress', async ({ page }) => {

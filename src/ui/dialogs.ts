@@ -19,12 +19,13 @@
 import {
   isDifficulty,
   type OfferView,
+  selectControls,
   selectOffer,
   selectSeconds,
   selectWin,
   type WinView,
 } from '../core/game/selectors'
-import { winSummary } from '../core/text/labels'
+import { OFFER_DESCRIPTIONS, winSummary } from '../core/text/labels'
 import { watch } from '../runtime/signals'
 import type { Store } from '../runtime/store'
 import { bindDialog, type DialogHandle } from './dialog'
@@ -38,6 +39,8 @@ export type GameEvent = Parameters<Store['dispatch']>[0]
 export interface Dialogs {
   /** Asks before an event that abandons the game in play, and dispatches it on confirm. */
   readonly confirmAbandon: (event: GameEvent) => void
+  /** Dispatches an event that replaces the game, asking first only when that loses progress. */
+  readonly startOver: (event: GameEvent) => void
   readonly confirmReveal: () => void
   readonly dispose: () => void
 }
@@ -87,21 +90,33 @@ export function bindDialogs(doc: Document, store: Store, onOpen: () => void): Di
 
   // Accepting reads the offer from the state. One close dispatches one event, never a decline first.
   const offered = store.select(selectOffer, sameOrNull<OfferView>())
+  const description = required(doc, '#pending-dialog-description', HTMLElement)
   const pending = handle('pending-dialog', (value) => {
     if (offered() === null) return
     store.dispatch({ type: value === CONFIRM ? 'acceptOffer' : 'declineOffer' })
   })
   disposer.add(
     watch(() => {
-      if (offered() === null) pending.close()
-      else pending.open()
+      const offer = offered()
+      if (offer === null) {
+        pending.close()
+        return
+      }
+      setText(description, OFFER_DESCRIPTIONS[offer.replacesGame ? 'replaces' : 'fresh'])
+      pending.open()
     }),
   )
 
+  const confirmAbandon = (event: GameEvent) => {
+    abandoned = event
+    abandon.open()
+  }
+  const controls = store.select(selectControls)
   return {
-    confirmAbandon: (event) => {
-      abandoned = event
-      abandon.open()
+    confirmAbandon,
+    startOver: (event) => {
+      if (controls().confirmNewPuzzle) confirmAbandon(event)
+      else store.dispatch(event)
     },
     confirmReveal: reveal.open,
     dispose: disposer.dispose,

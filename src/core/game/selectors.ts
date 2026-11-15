@@ -348,6 +348,10 @@ export function selectControls(state: State): Controls {
   }
 }
 
+/** The difficulty a generate in flight is for, which the selection screen marks. */
+export const selectGenerating = ({ pending }: State): Difficulty | null =>
+  pending?.task === 'generate' ? pending.difficulty : null
+
 export interface StatusView {
   readonly difficulty: Difficulty | null
   readonly mistakes: number

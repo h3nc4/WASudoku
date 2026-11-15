@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { PAUSE_LABELS } from '../core/text/labels'
 import Button from './Button.astro'
 import Icon from './Icon.astro'
 import { isMistakeLimit, mistakesText, type StatusView, statusBar } from './view'
@@ -53,8 +54,8 @@ const status = bar.view
       size="icon-lg"
       class="-mr-3"
       id="pause-button"
-      aria-label="Pause game"
-      title="Pause game"
+      aria-label={PAUSE_LABELS.pause}
+      title={PAUSE_LABELS.pause}
       hidden={status.solved === true}
     >
       <Icon name="pause" />

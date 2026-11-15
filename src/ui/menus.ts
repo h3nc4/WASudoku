@@ -16,11 +16,12 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { isDifficulty, selectControls } from '../core/game/selectors'
+import { isDifficulty, selectControls, selectGenerating } from '../core/game/selectors'
 import { type Address, shareEvent } from '../runtime/share-link'
+import { watch } from '../runtime/signals'
 import type { Store } from '../runtime/store'
 import type { GameEvent } from './dialogs'
-import { closestTo, Disposer, required } from './dom'
+import { all, closestTo, Disposer, required, setAttr, setHidden } from './dom'
 import { bindMenu } from './menu'
 
 /** The event a new-puzzle button stands for, from its data-difficulty or data-action. */
@@ -35,7 +36,7 @@ export function bindMenus(
   doc: Document,
   store: Store,
   address: Address,
-  confirmAbandon: (event: GameEvent) => void,
+  startOver: (event: GameEvent) => void,
 ): () => void {
   const disposer = new Disposer()
   const share = required(doc, '#share-menu', HTMLElement)
@@ -49,19 +50,34 @@ export function bindMenus(
     if (action === 'copy-text') store.dispatch({ type: 'export' })
   })
 
-  const controls = store.select(selectControls)
   disposer.on(fresh, 'click', (event) => {
     const item = closestTo(event, '[role="menuitem"]')
     const chosen = item === null ? null : newPuzzleEvent(item)
-    if (chosen === null) return
-    if (controls().confirmNewPuzzle) confirmAbandon(chosen)
-    else store.dispatch(chosen)
+    if (chosen !== null) startOver(chosen)
   })
 
-  disposer.on(required(doc, '#selection-screen', HTMLElement), 'click', (event) => {
+  const screen = required(doc, '#selection-screen', HTMLElement)
+  disposer.on(screen, 'click', (event) => {
     const button = closestTo(event, 'button')
     const chosen = button === null ? null : newPuzzleEvent(button)
     if (chosen !== null) store.dispatch(chosen)
   })
+
+  // A generate in flight disables every level, and the one it is for shows a spinner.
+  const levels = all(screen, 'button[data-difficulty]', HTMLButtonElement)
+  const allowed = store.select((state) => selectControls(state).newPuzzle)
+  const generating = store.select(selectGenerating)
+  disposer.add(
+    watch(() => {
+      const open = allowed()
+      const level = generating()
+      for (const button of levels) {
+        const busy = level !== null && button.getAttribute('data-difficulty') === level
+        button.disabled = !open
+        setAttr(button, 'aria-busy', busy ? 'true' : undefined)
+        setHidden(required(button, '[data-spinner]', HTMLElement), !busy)
+      }
+    }),
+  )
   return disposer.dispose
 }

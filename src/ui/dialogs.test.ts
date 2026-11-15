@@ -18,6 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { OFFER_DESCRIPTIONS } from '../core/text/labels'
 import { harness, mountPage, playing, PUZZLE, solvedExcept } from '../test/app-page'
 import { bindDialogs, CONFIRM } from './dialogs'
 
@@ -68,6 +69,20 @@ describe('bindDialogs', () => {
     expect(test.state().game.mode).toBe('entering')
   })
 
+  it('starts over at once without progress, and asks first with it', () => {
+    const { test, dialogs } = start()
+    dialogs.startOver({ type: 'enterCustom' })
+    expect(dialog('abandon-dialog').open).toBe(false)
+    expect(test.state().game.mode).toBe('entering')
+    test.store.dispatch({ type: 'select', index: 0 as never })
+    test.store.dispatch({ type: 'digit', digit: 5 })
+    dialogs.startOver({ type: 'newGame', difficulty: 'hard' })
+    expect(dialog('abandon-dialog').open).toBe(true)
+    expect(test.state().pending).toBeNull()
+    dialog('abandon-dialog').close(CONFIRM)
+    expect(test.state().pending).toMatchObject({ task: 'generate', difficulty: 'hard' })
+  })
+
   it('opens on a win with what it took, and starts the difficulty picked', () => {
     const { test } = start(playing(solvedExcept(2)))
     test.store.dispatch({ type: 'select', index: 2 as never })
@@ -105,6 +120,21 @@ describe('bindDialogs', () => {
     expect(dispatch.mock.calls.map(([event]) => event.type)).toEqual(['acceptOffer'])
     expect(test.state().game.mode).toBe('entering')
     expect(test.state().pending?.task).toBe('validate')
+  })
+
+  it('says a shared puzzle replaces the board only over a game', () => {
+    const description = () => document.getElementById('pending-dialog-description')
+    const fresh = harness()
+    start(fresh)
+    fresh.store.dispatch({ type: 'opened', search: `?p=${PUZZLE}`, href: `https://x/?p=${PUZZLE}` })
+    expect(description()).toHaveTextContent(OFFER_DESCRIPTIONS.fresh)
+    dialog('pending-dialog').close('cancel')
+    dispose()
+    const test = playing()
+    start(test)
+    test.store.dispatch({ type: 'paste', text: '1'.padEnd(81, '.') })
+    expect(dialog('pending-dialog').open).toBe(true)
+    expect(description()).toHaveTextContent(OFFER_DESCRIPTIONS.replaces)
   })
 
   it('declines a shared puzzle on any other close', () => {
