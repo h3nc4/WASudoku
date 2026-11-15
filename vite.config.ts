@@ -27,19 +27,24 @@ import path from 'path'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+import { precacheEntries } from './src/workers/precache-manifest.ts'
+
 const SERVICE_WORKER = 'sw.js'
+const VERSION_LENGTH = 16
 
-// The rest of public/ is for crawlers and hosts, which never ask the service worker.
-const PRECACHED_PUBLIC_FILES = ['manifest.json', 'favicon.svg', 'icon-192.png', 'icon-512.png']
+// The rest of public/ is for crawlers, hosts and installers, which never ask the service worker.
+const PRECACHED_PUBLIC_FILES = ['manifest.json', 'favicon.svg']
 
-/** Writes every emitted file into sw.js, with a version that changes whenever any of them does. */
+/** Writes what the app can use into sw.js, with a version that changes whenever any of it does. */
 function precacheManifest(): Plugin {
   let publicDir = ''
+  let assetsDir = ''
   return {
     name: 'wasudoku:precache-manifest',
     apply: 'build',
     configResolved(config) {
       publicDir = config.publicDir
+      assetsDir = config.build.assetsDir
     },
     generateBundle: {
       order: 'post',
@@ -64,13 +69,51 @@ function precacheManifest(): Plugin {
             })),
           )
           .sort((a, b) => a.name.localeCompare(b.name))
+        const { files: precached, hashed, urls } = precacheEntries(files, assetsDir)
         const hash = createHash('sha256')
-        for (const file of files) hash.update(file.name).update(file.content)
-        // Some hosts redirect /index.html to /, and a redirect cannot answer a navigation.
-        const urls = files.map((file) => (file.name === 'index.html' ? './' : file.name))
-        const manifest = JSON.stringify({ version: hash.digest('hex').slice(0, 16), urls })
+        for (const file of precached) hash.update(file.name).update(file.content)
+        const version = hash.digest('hex').slice(0, VERSION_LENGTH)
+        const manifest = JSON.stringify({ version, hashed, urls })
         worker.code = worker.code.replaceAll('__PRECACHE_MANIFEST__', manifest)
       },
+    },
+  }
+}
+
+const HEADERS_FILE = '_headers'
+const CACHE_CONTROL = /^\s+Cache-Control:\s*(.+)$/i
+
+/** The Cache-Control of each path in public/_headers, in the order the edge reads them. */
+function readCachePolicy(publicDir: string) {
+  const rules: { readonly pattern: string; readonly value: string }[] = []
+  let pattern = ''
+  for (const line of readFileSync(path.join(publicDir, HEADERS_FILE), 'utf8').split('\n')) {
+    if (line.startsWith('/')) pattern = line.trim()
+    const value = CACHE_CONTROL.exec(line)?.[1]
+    if (value) rules.push({ pattern, value: value.trim() })
+  }
+  return rules
+}
+
+/** A trailing `*` in a _headers path is a splat that matches any rest of the path. */
+const matchesPath = (pattern: string, pathname: string) =>
+  pattern.endsWith('*') ? pathname.startsWith(pattern.slice(0, -1)) : pathname === pattern
+
+/** Caches a preview as production does, because a worker refetches what the HTTP cache lacks. */
+function previewCachePolicy(): Plugin {
+  return {
+    name: 'wasudoku:preview-cache-policy',
+    // The edge never varies on Origin, which would split a crossorigin script from the worker's copy.
+    config: () => ({ preview: { cors: false } }),
+    configurePreviewServer(server) {
+      const rules = readCachePolicy(server.config.publicDir)
+      server.middlewares.use((req, res, next) => {
+        const { pathname } = new URL(req.url ?? '/', 'http://preview')
+        const rule = rules.find((candidate) => matchesPath(candidate.pattern, pathname))
+        // The static handler keeps a header already set, so this replaces its no-cache.
+        if (rule) res.setHeader('Cache-Control', rule.value)
+        next()
+      })
     },
   }
 }
@@ -78,7 +121,7 @@ function precacheManifest(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
-  plugins: [react(), tailwindcss(), precacheManifest()],
+  plugins: [react(), tailwindcss(), precacheManifest(), previewCachePolicy()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -46,10 +46,13 @@ function createEvent(extra: object = {}): FakeEvent & Record<string, unknown> {
 
 function createScope() {
   const handlers = new Map<string, Handler>()
-  const cache = { addAll: vi.fn().mockResolvedValue(undefined) }
+  const cache = {
+    add: vi.fn().mockResolvedValue(undefined),
+    put: vi.fn().mockResolvedValue(undefined),
+  }
   const caches = {
     open: vi.fn().mockResolvedValue(cache),
-    keys: vi.fn().mockResolvedValue(['wasudoku-v1', CURRENT, 'other-app']),
+    keys: vi.fn().mockResolvedValue(['wasudoku-v0', 'wasudoku-v1', CURRENT, 'other-app']),
     delete: vi.fn().mockResolvedValue(true),
     match: vi.fn(),
   }
@@ -63,7 +66,8 @@ function createScope() {
   }
   setUpServiceWorker(scope as unknown as ServiceWorkerGlobalScope, {
     version: 'v2',
-    urls: ['./', 'assets/index-abc.js', 'sudoku.wasm'],
+    hashed: ['assets/index-abc.js', 'assets/font-def.woff2'],
+    urls: ['./', 'sudoku.wasm'],
   })
   const dispatch = (type: string, event: FakeEvent) => {
     handlers.get(type)?.(event)
@@ -85,25 +89,85 @@ describe('setUpServiceWorker', () => {
     sw = createScope()
   })
 
-  it('precaches every listed file into the cache named for this build, bypassing the HTTP cache', async () => {
+  /** Earlier caches holding the given paths, as `caches.match` with a cacheName finds them. */
+  function holdInEarlierCaches(entries: Record<string, string[]>) {
+    sw.caches.match.mockImplementation((url: string, { cacheName }: { cacheName: string }) =>
+      Promise.resolve(
+        entries[cacheName]?.includes(new URL(url).pathname)
+          ? new Response(`${cacheName}${url}`)
+          : undefined,
+      ),
+    )
+  }
+
+  async function install() {
     const event = sw.dispatch('install', createEvent())
     await event.pending()
+    return event
+  }
+
+  it('fetches a hashed file through the HTTP cache when no earlier version holds it', async () => {
+    holdInEarlierCaches({})
+    await install()
 
     expect(sw.caches.open).toHaveBeenCalledWith(CURRENT)
-    const requests = sw.cache.addAll.mock.calls[0][0] as Request[]
-    expect(requests.map((r) => r.url)).toEqual([
-      `${ORIGIN}/`,
-      `${ORIGIN}/assets/index-abc.js`,
-      `${ORIGIN}/sudoku.wasm`,
+    expect(sw.cache.add).toHaveBeenCalledWith(`${ORIGIN}/assets/index-abc.js`)
+    expect(sw.cache.add).toHaveBeenCalledWith(`${ORIGIN}/assets/font-def.woff2`)
+    expect(sw.cache.put).not.toHaveBeenCalled()
+  })
+
+  it('revalidates every unhashed file with the server', async () => {
+    holdInEarlierCaches({})
+    await install()
+
+    const requests = sw.cache.add.mock.calls
+      .map(([entry]) => entry as unknown)
+      .filter((entry): entry is Request => entry instanceof Request)
+    expect(requests.map((r) => [r.url, r.cache])).toEqual([
+      [`${ORIGIN}/`, 'no-cache'],
+      [`${ORIGIN}/sudoku.wasm`, 'no-cache'],
     ])
-    expect(requests.every((r) => r.cache === 'reload')).toBe(true)
+  })
+
+  it('copies a hashed file an earlier version cached instead of fetching it', async () => {
+    holdInEarlierCaches({ 'wasudoku-v1': ['/assets/index-abc.js'] })
+    await install()
+
+    expect(sw.cache.put).toHaveBeenCalledTimes(1)
+    const [url, response] = sw.cache.put.mock.calls[0] as [string, Response]
+    expect(url).toBe(`${ORIGIN}/assets/index-abc.js`)
+    await expect(response.text()).resolves.toBe(`wasudoku-v1${ORIGIN}/assets/index-abc.js`)
+    expect(sw.cache.add).not.toHaveBeenCalledWith(`${ORIGIN}/assets/index-abc.js`)
+    expect(sw.cache.add).toHaveBeenCalledWith(`${ORIGIN}/assets/font-def.woff2`)
+  })
+
+  it('stops at the first earlier version holding a file and never reads another cache', async () => {
+    holdInEarlierCaches({ 'wasudoku-v0': ['/assets/font-def.woff2'] })
+    await install()
+
+    const searched = (path: string) =>
+      sw.caches.match.mock.calls
+        .filter(([url]) => url === `${ORIGIN}${path}`)
+        .map(([, options]) => (options as { cacheName: string }).cacheName)
+    expect(searched('/assets/font-def.woff2')).toEqual(['wasudoku-v0'])
+    expect(searched('/assets/index-abc.js')).toEqual(['wasudoku-v0', 'wasudoku-v1'])
+  })
+
+  it('fails the install when a file cannot be cached', async () => {
+    holdInEarlierCaches({})
+    sw.cache.add.mockRejectedValueOnce(new TypeError('offline'))
+
+    const event = sw.dispatch('install', createEvent())
+
+    await expect(event.pending()).rejects.toThrow('offline')
   })
 
   it('deletes caches of earlier builds and leaves other caches alone on activate', async () => {
     const event = sw.dispatch('activate', createEvent())
     await event.pending()
 
-    expect(sw.caches.delete).toHaveBeenCalledTimes(1)
+    expect(sw.caches.delete).toHaveBeenCalledTimes(2)
+    expect(sw.caches.delete).toHaveBeenCalledWith('wasudoku-v0')
     expect(sw.caches.delete).toHaveBeenCalledWith('wasudoku-v1')
     expect(sw.scope.clients.claim).toHaveBeenCalled()
   })

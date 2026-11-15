@@ -21,7 +21,9 @@
 /** What the build writes into the service worker, with a version that changes on every deploy. */
 export interface PrecacheManifest {
   readonly version: string
-  /** Paths relative to the worker's scope, with `./` standing for the app shell. */
+  /** Paths relative to the worker's scope that hold a hash of their content in the file name. */
+  readonly hashed: readonly string[]
+  /** The other paths, with `./` standing for the app shell. */
   readonly urls: readonly string[]
 }
 
@@ -32,33 +34,47 @@ export interface SkipWaitingMessage {
 
 const CACHE_PREFIX = 'wasudoku-'
 
-/** Precaches the build on install and serves it whenever the network cannot. */
+/** Precaches the build, reusing earlier copies, and serves it whenever the network cannot. */
 export function setUpServiceWorker(sw: ServiceWorkerGlobalScope, manifest: PrecacheManifest) {
   const cacheName = `${CACHE_PREFIX}${manifest.version}`
-  const urls = new Set(manifest.urls.map((url) => new URL(url, sw.location.href).href))
-  const shell = new URL('./', sw.location.href).href
+  const resolve = (url: string) => new URL(url, sw.location.href).href
+  const hashed = manifest.hashed.map(resolve)
+  const unhashed = manifest.urls.map(resolve)
+  const urls = new Set([...hashed, ...unhashed])
+  const shell = resolve('./')
+  const isEarlier = (name: string) => name.startsWith(CACHE_PREFIX) && name !== cacheName
+
+  async function fromEarlierVersion(url: string, earlier: readonly string[]) {
+    for (const name of earlier) {
+      const cached = await sw.caches.match(url, { cacheName: name, ignoreVary: true })
+      if (cached) return cached
+    }
+    return undefined
+  }
+
+  async function install() {
+    const cache = await sw.caches.open(cacheName)
+    const earlier = (await sw.caches.keys()).filter(isEarlier)
+    await Promise.all([
+      ...hashed.map(async (url) => {
+        const cached = await fromEarlierVersion(url, earlier)
+        // The default cache mode lets the HTTP cache answer for a file the page already loaded.
+        return cached ? cache.put(url, cached) : cache.add(url)
+      }),
+      // A plain name says nothing about its version. The server revalidates each one.
+      ...unhashed.map((url) => cache.add(new Request(url, { cache: 'no-cache' }))),
+    ])
+  }
 
   sw.addEventListener('install', (event) => {
-    event.waitUntil(
-      sw.caches
-        .open(cacheName)
-        .then((cache) =>
-          cache.addAll([...urls].map((url) => new Request(url, { cache: 'reload' }))),
-        ),
-    )
+    event.waitUntil(install())
   })
 
   sw.addEventListener('activate', (event) => {
     event.waitUntil(
       sw.caches
         .keys()
-        .then((names) =>
-          Promise.all(
-            names
-              .filter((name) => name.startsWith(CACHE_PREFIX) && name !== cacheName)
-              .map((name) => sw.caches.delete(name)),
-          ),
-        )
+        .then((names) => Promise.all(names.filter(isEarlier).map((name) => sw.caches.delete(name))))
         .then(() => sw.clients.claim()),
     )
   })
