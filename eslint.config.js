@@ -114,7 +114,7 @@ export const layerZones = (root) => [
     root,
     'solver',
     ['core', 'wasudoku-wasm'],
-    'The solver imports only core types and core/codec/wire.',
+    'The solver imports only core types and the wire codec with its types and binding.',
   ),
   {
     files: sourcesOf(['solver']),
@@ -124,9 +124,10 @@ export const layerZones = (root) => [
         {
           patterns: [
             {
-              regex: '(^|/)core(/(?!codec/wire(\\.ts)?$).*)?$',
+              regex: '(^|/)core(/(?!codec/(wire|wire\\.types|abi)(\\.ts)?$).*)?$',
               allowTypeImports: true,
-              message: 'The solver imports only core types and core/codec/wire.',
+              message:
+                'The solver imports only core types and the wire codec with its types and binding.',
             },
           ],
         },

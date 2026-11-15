@@ -241,7 +241,7 @@ class Writer {
 }
 
 // Kept apart from Writer, so the worker glue that imports only this bundles no encoder.
-export function encodeError(error: ApiError): Uint8Array {
+export function encodeError(error: ApiError): Uint8Array<ArrayBuffer> {
   return Uint8Array.of(WIRE_VERSION, TAG.error, API_ERRORS.indexOf(error) + ERROR_CODE_BASE)
 }
 

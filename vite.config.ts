@@ -152,9 +152,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Browser tests start real workers, which jsdom lacks, and the Astro sources test under node.
+    exclude: [...configDefaults.exclude, 'src/**/*.browser.test.ts', ...ASTRO_SOURCES],
     setupFiles: 'src/test/setup.ts',
     css: false,
-    exclude: [...configDefaults.exclude, ...ASTRO_SOURCES],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',

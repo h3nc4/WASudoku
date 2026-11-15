@@ -34,6 +34,7 @@
     "**/*.test.tsx",
     "src/test",
     "src/core",
+    "src/solver",
     "src/pages",
     "src/layouts",
     "src/components-next",

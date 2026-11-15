@@ -45,6 +45,8 @@ const UNSOLVABLE_ROWS = '12345678.' + '........9'
 const UNSOLVABLE = UNSOLVABLE_ROWS + '.'.repeat(BOARD_SIZE - UNSOLVABLE_ROWS.length)
 const CONFLICTING = '55' + '.'.repeat(BOARD_SIZE - 2)
 const NEARLY_EMPTY = '8' + '.'.repeat(BOARD_SIZE - 1)
+// The dev build's expert generate peaked at 6.3 s over 400 runs at load 9, so this allows a far busier machine.
+const GENERATE_TIMEOUT_MS = 30_000
 
 type Listener = (event: MessageEvent<WorkerRequest>) => Promise<void>
 type Request<K extends TaskType = TaskType> = { [T in K]: { type: T } & Requests[T] }[K]
@@ -136,19 +138,23 @@ describe('Sudoku worker against the real wasm', () => {
   })
 
   describe('generate', () => {
-    it.each(DIFFICULTIES)('returns a %s puzzle with its unique solution', async (difficulty) => {
-      const { puzzleString, solutionString } = await payloadOf({ type: 'generate', difficulty })
+    it.each(DIFFICULTIES)(
+      'returns a %s puzzle with its unique solution',
+      async (difficulty) => {
+        const { puzzleString, solutionString } = await payloadOf({ type: 'generate', difficulty })
 
-      expect(puzzleString).toMatch(new RegExp(`^[.1-9]{${BOARD_SIZE}}$`))
-      expect(solutionString).toMatch(new RegExp(`^[1-9]{${BOARD_SIZE}}$`))
-      for (const [index, cell] of [...puzzleString].entries()) {
-        if (cell !== '.') expect(solutionString[index]).toBe(cell)
-      }
-      await expect(payloadOf({ type: 'validate', boardString: puzzleString })).resolves.toEqual({
-        isValid: true,
-        solutionString,
-      })
-    })
+        expect(puzzleString).toMatch(new RegExp(`^[.1-9]{${BOARD_SIZE}}$`))
+        expect(solutionString).toMatch(new RegExp(`^[1-9]{${BOARD_SIZE}}$`))
+        for (const [index, cell] of [...puzzleString].entries()) {
+          if (cell !== '.') expect(solutionString[index]).toBe(cell)
+        }
+        await expect(payloadOf({ type: 'validate', boardString: puzzleString })).resolves.toEqual({
+          isValid: true,
+          solutionString,
+        })
+      },
+      GENERATE_TIMEOUT_MS,
+    )
 
     it('reports an unknown difficulty', async () => {
       const difficulty = 'impossible' as (typeof DIFFICULTIES)[number]

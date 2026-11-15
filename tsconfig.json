@@ -8,6 +8,9 @@
       "path": "./tsconfig.core.json"
     },
     {
+      "path": "./tsconfig.solver.json"
+    },
+    {
       "path": "./tsconfig.node.json"
     },
     {

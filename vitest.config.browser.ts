@@ -41,12 +41,10 @@ const phoneBrowsers = [
   },
 ]
 
-export default mergeConfig(
+const merged = mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      // These read the built wasm or run ESLint from disk, which a page cannot do.
-      exclude: [...configDefaults.exclude, 'src/**/*.wasm.test.ts', 'scripts/**'],
       browser: {
         enabled: true,
         provider: playwright({}),
@@ -56,3 +54,26 @@ export default mergeConfig(
     },
   }),
 )
+
+// Set after the merge, which would append the jsdom exclusion of the browser tests.
+export default {
+  ...merged,
+  test: {
+    ...merged.test,
+    // These read the built wasm or run ESLint from disk, which a page cannot do.
+    // These read the golden file and the built wasm from disk, compare against Node's own parser,
+    // or render Astro through its container API, which test:next runs under node
+    exclude: [
+      ...configDefaults.exclude,
+      'src/components-next/**',
+      'src/pages/**',
+      'src/layouts/**',
+      'src/preview/**',
+      'src/**/*.wasm.test.ts',
+      'src/core/codec/wire.test.ts',
+      'src/core/codec/wire.contract.test.ts',
+      'src/core/codec/share.compat.test.ts',
+      'scripts/**',
+    ],
+  },
+}

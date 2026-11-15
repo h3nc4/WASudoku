@@ -19,13 +19,13 @@
 import { BOARD_LENGTH, encodeError } from './wire'
 import { DIFFICULTIES, type Difficulty } from './wire.types'
 
-/** The solver module's wire exports, each answering with the bytes `wire.ts` decodes. */
+/** The solver module's wire exports, each answering with the bytes `wire.ts` decodes in a buffer of their own. */
 export interface WireModule {
-  readonly solve: (cells: Uint8Array) => Uint8Array
-  readonly validate: (cells: Uint8Array) => Uint8Array
-  readonly nextStep: (cells: Uint8Array) => Uint8Array
+  readonly solve: (cells: Uint8Array) => Uint8Array<ArrayBuffer>
+  readonly validate: (cells: Uint8Array) => Uint8Array<ArrayBuffer>
+  readonly nextStep: (cells: Uint8Array) => Uint8Array<ArrayBuffer>
   /** The same puzzle for the same seed, a non-negative safe integer. */
-  readonly generate: (difficulty: Difficulty, seed: number) => Uint8Array
+  readonly generate: (difficulty: Difficulty, seed: number) => Uint8Array<ArrayBuffer>
 }
 
 type Export = (...args: readonly number[]) => unknown
@@ -75,7 +75,7 @@ export function bindWire(exports: unknown): WireModule | null {
   }
 
   // Memory growth replaces the buffer, so each view is made after the call that may grow it.
-  const read = (length: unknown): Uint8Array => {
+  const read = (length: unknown): Uint8Array<ArrayBuffer> => {
     const bytes = address(length)
     return new Uint8Array(memory.buffer, address(output()), bytes).slice()
   }
