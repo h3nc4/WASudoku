@@ -60,9 +60,8 @@ export default {
   ...merged,
   test: {
     ...merged.test,
-    // These read the built wasm or run ESLint from disk, which a page cannot do.
-    // These read the golden file and the built wasm from disk, compare against Node's own parser,
-    // or render Astro through its container API, which test:next runs under node
+    // These read files from disk, run ESLint, compare against Node's own parser or render Astro
+    // through its container API, none of which a page can do
     exclude: [
       ...configDefaults.exclude,
       'src/components-next/**',
