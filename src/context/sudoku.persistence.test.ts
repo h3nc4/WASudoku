@@ -189,6 +189,44 @@ describe('loadPersistedState', () => {
     expect(loadPersistedState().game).toEqual(game)
   })
 
+  it('ignores the untouched empty game that earlier builds saved from the selection screen', () => {
+    const empty = emptyBoard()
+    saveGame({
+      history: { stack: [empty], index: 0 },
+      initialBoard: empty,
+      solution: null,
+      difficulty: null,
+    })
+    expect(loadPersistedState().game).toBeNull()
+
+    globalThis.localStorage.setItem(STORAGE_KEYS.GAME, legacyGameWith(empty))
+    expect(loadPersistedState().game).toBeNull()
+  })
+
+  it('keeps an empty board that has a history or a puzzle behind it', () => {
+    const empty = emptyBoard()
+    const edited: SavedGame = {
+      history: { stack: [empty, empty], index: 1 },
+      initialBoard: empty,
+      solution: null,
+      difficulty: null,
+    }
+    saveGame(edited)
+    expect(loadPersistedState().game).toEqual(edited)
+
+    const cleared = {
+      ...edited,
+      history: { stack: [empty], index: 0 },
+      initialBoard: midGameBoard(),
+    }
+    saveGame(cleared)
+    expect(loadPersistedState().game).toEqual(cleared)
+
+    const oneMove = sampleGame(1)
+    saveGame(oneMove)
+    expect(loadPersistedState().game).toEqual(oneMove)
+  })
+
   it('loads a legacy game and rewrites it in the current format once', () => {
     const game = sampleGame()
     globalThis.localStorage.setItem(STORAGE_KEYS.GAME, legacyJson(game))

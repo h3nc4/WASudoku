@@ -31,6 +31,8 @@ const withMove = (state: SudokuState): SudokuState => ({
   history: { stack: [...state.history.stack, state.board], index: state.history.stack.length },
 })
 
+const playing = makeState({ solver: { gameMode: 'playing' } })
+
 const storedGame = () => JSON.parse(globalThis.localStorage.getItem(STORAGE_KEYS.GAME) ?? 'null')
 
 const setVisibility = (value: DocumentVisibilityState) =>
@@ -60,14 +62,14 @@ describe('useSudokuPersistence', () => {
   const keysWritten = () => setItemSpy.mock.calls.map(([key]) => key)
 
   const renderPersistence = () => {
-    const view = renderHook((props) => useSudokuPersistence(props), { initialProps: initialState })
+    const view = renderHook((props) => useSudokuPersistence(props), { initialProps: playing })
     vi.runAllTimers()
     setItemSpy.mockClear()
     return view
   }
 
   it('saves metrics and pool at once and the game once idle', () => {
-    renderHook(() => useSudokuPersistence(initialState))
+    renderHook(() => useSudokuPersistence(playing))
     expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS, STORAGE_KEYS.POOL])
 
     vi.runAllTimers()
@@ -75,13 +77,26 @@ describe('useSudokuPersistence', () => {
     expect(storedGame().version).toBe(GAME_FORMAT_VERSION)
   })
 
+  it('never saves a game from the selection screen', () => {
+    const { rerender } = renderHook((props) => useSudokuPersistence(props), {
+      initialProps: initialState,
+    })
+    vi.runAllTimers()
+    globalThis.dispatchEvent(new Event('pagehide'))
+    expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS, STORAGE_KEYS.POOL])
+
+    rerender(playing)
+    vi.runAllTimers()
+    expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS, STORAGE_KEYS.POOL, STORAGE_KEYS.GAME])
+  })
+
   it('writes nothing when only sticky numbers changes, and never stores it', () => {
     const { rerender } = renderPersistence()
-    rerender(makeState({ ui: { sticky: true, stickyValue: 4 } }))
+    rerender(makeState({ ui: { sticky: true, stickyValue: 4 } }, playing))
     vi.runAllTimers()
     expect(keysWritten()).toEqual([])
 
-    rerender(withMove(makeState({ ui: { sticky: true, stickyValue: 4 } })))
+    rerender(withMove(makeState({ ui: { sticky: true, stickyValue: 4 } }, playing)))
     vi.runAllTimers()
     expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
     expect(globalThis.localStorage.getItem(STORAGE_KEYS.GAME)).not.toMatch(/sticky/i)
@@ -89,7 +104,7 @@ describe('useSudokuPersistence', () => {
 
   it('coalesces several moves into one write of the latest history', () => {
     const { rerender } = renderPersistence()
-    const once = withMove(initialState)
+    const once = withMove(playing)
     const twice = withMove(once)
 
     rerender(once)
@@ -103,14 +118,14 @@ describe('useSudokuPersistence', () => {
 
   it('saves the puzzle difficulty with the game', () => {
     const { rerender } = renderPersistence()
-    rerender(makeState({ solver: { difficulty: 'expert' } }))
+    rerender(makeState({ solver: { difficulty: 'expert' } }, playing))
     vi.runAllTimers()
     expect(storedGame().difficulty).toBe('expert')
   })
 
   it('flushes a pending game on pagehide', () => {
     const { rerender } = renderPersistence()
-    rerender(withMove(initialState))
+    rerender(withMove(playing))
 
     globalThis.dispatchEvent(new Event('pagehide'))
     expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
@@ -122,7 +137,7 @@ describe('useSudokuPersistence', () => {
 
   it('flushes a pending game when the page turns hidden but not when visible', () => {
     const { rerender } = renderPersistence()
-    rerender(withMove(initialState))
+    rerender(withMove(playing))
 
     document.dispatchEvent(new Event('visibilitychange'))
     expect(setItemSpy).not.toHaveBeenCalled()
@@ -140,7 +155,7 @@ describe('useSudokuPersistence', () => {
 
   it('flushes a pending game on unmount and stops listening', () => {
     const { rerender, unmount } = renderPersistence()
-    rerender(withMove(initialState))
+    rerender(withMove(playing))
 
     unmount()
     expect(keysWritten()).toEqual([STORAGE_KEYS.GAME])
@@ -152,7 +167,7 @@ describe('useSudokuPersistence', () => {
 
   it('saves only metrics when the timer changes', () => {
     const { rerender } = renderPersistence()
-    rerender(makeState({ game: { timer: 5, mistakes: 1 } }))
+    rerender(makeState({ game: { timer: 5, mistakes: 1 } }, playing))
     vi.runAllTimers()
     expect(keysWritten()).toEqual([STORAGE_KEYS.METRICS])
   })
@@ -160,12 +175,15 @@ describe('useSudokuPersistence', () => {
   it('saves only the pool when the puzzle pool changes', () => {
     const { rerender } = renderPersistence()
     rerender(
-      makeState({
-        puzzlePool: {
-          ...initialState.puzzlePool,
-          easy: [{ puzzleString: 'a', solutionString: 'b' }],
+      makeState(
+        {
+          puzzlePool: {
+            ...playing.puzzlePool,
+            easy: [{ puzzleString: 'a', solutionString: 'b' }],
+          },
         },
-      }),
+        playing,
+      ),
     )
     vi.runAllTimers()
     expect(keysWritten()).toEqual([STORAGE_KEYS.POOL])
@@ -173,7 +191,7 @@ describe('useSudokuPersistence', () => {
 
   it('does not save when unrelated state changes', () => {
     const { rerender } = renderPersistence()
-    rerender(makeState({ solver: { isSolving: true } }))
+    rerender(makeState({ solver: { isSolving: true } }, playing))
     vi.runAllTimers()
     expect(setItemSpy).not.toHaveBeenCalled()
   })
@@ -182,7 +200,7 @@ describe('useSudokuPersistence', () => {
     setItemSpy.mockImplementation(() => {
       throw new Error('Storage is full')
     })
-    renderHook(() => useSudokuPersistence(initialState))
+    renderHook(() => useSudokuPersistence(playing))
     vi.runAllTimers()
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       `Failed to save ${STORAGE_KEYS.GAME} to local storage:`,

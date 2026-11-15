@@ -16,7 +16,9 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { STORAGE_KEYS } from '../src/context/sudoku.persistence'
+import type { Page } from '@playwright/test'
+
+import { encodeGame, STORAGE_KEYS } from '../src/context/sudoku.persistence'
 import {
   cell,
   cellFace,
@@ -27,10 +29,35 @@ import {
   savedGame,
   SOLUTION,
   test,
+  timer,
 } from './fixtures'
 
 const R1C3 = 2
 const R1C4 = 3
+// Longer than the idle timeout after which the app writes the game.
+const PAST_SAVE_DELAY_MS = 2000
+
+const welcome = (page: Page) => page.getByRole('heading', { name: 'Welcome to WASudoku' })
+const storedGame = (page: Page) =>
+  page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.GAME)
+
+/** The single empty board that earlier builds saved from the untouched selection screen. */
+function selectionScreenSave(): string {
+  const empty = Array.from({ length: 81 }, () => ({
+    value: null,
+    isGiven: false,
+    candidates: new Set<number>(),
+    centers: new Set<number>(),
+  }))
+  return JSON.stringify(
+    encodeGame({
+      history: { stack: [empty], index: 0 },
+      initialBoard: empty,
+      solution: null,
+      difficulty: null,
+    }),
+  )
+}
 
 /** Each Set saved as {"__dataType":"Set","value":[...]}, the format of builds before version 2. */
 function legacyGame(): string {
@@ -84,4 +111,24 @@ test('save in the legacy Set-tagged format migrates on load', async ({ page, ope
 
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(cell(page, R1C3)).toHaveValue('')
+})
+
+test('reload from the untouched selection screen keeps the selection screen', async ({
+  page,
+  open,
+}) => {
+  await open()
+  await expect(welcome(page)).toBeVisible()
+  await page.waitForTimeout(PAST_SAVE_DELAY_MS)
+
+  await page.reload()
+  await expect(welcome(page)).toBeVisible()
+  await expect(timer(page)).toBeHidden()
+  expect(await storedGame(page)).toBeNull()
+})
+
+test('empty game saved by an earlier build opens the selection screen', async ({ page, open }) => {
+  await open({ game: selectionScreenSave() })
+  await expect(welcome(page)).toBeVisible()
+  await expect(timer(page)).toBeHidden()
 })

@@ -51,7 +51,9 @@ export function useSudokuPersistence(state: SudokuState) {
     }
   }, [flushGame])
 
+  // The selection screen holds no game, and saving its empty board would resume it as one.
   useEffect(() => {
+    if (state.solver.gameMode === 'selecting') return
     pendingGame.current = {
       history: state.history,
       initialBoard: state.initialBoard,
@@ -59,7 +61,14 @@ export function useSudokuPersistence(state: SudokuState) {
       difficulty: state.solver.difficulty,
     }
     cancelScheduled.current ??= scheduleIdle(flushGame)
-  }, [flushGame, state.history, state.initialBoard, state.solver.solution, state.solver.difficulty])
+  }, [
+    flushGame,
+    state.solver.gameMode,
+    state.history,
+    state.initialBoard,
+    state.solver.solution,
+    state.solver.difficulty,
+  ])
 
   // The timer ticks every second, and its payload is two numbers.
   useEffect(() => {

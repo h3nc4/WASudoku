@@ -1893,11 +1893,19 @@ describe('loadInitialState', () => {
   })
 
   it('should default initialBoard to empty if missing in a legacy game', () => {
-    store(STORAGE_KEYS.GAME, { history: { stack: [legacyBoard()], index: 0 }, solution: null })
+    const noted = [legacyCell([3]), ...legacyBoard().slice(1)]
+    store(STORAGE_KEYS.GAME, { history: { stack: [noted], index: 0 }, solution: null })
 
     const state = loadInitialState()
     expect(state.initialBoard).toEqual(createEmptyBoard())
     expect(state.solver.gameMode).toBe('playing')
+  })
+
+  it('opens the selection screen over the empty game saved from it by earlier builds', () => {
+    store(STORAGE_KEYS.GAME, { history: { stack: [legacyBoard()], index: 0 }, solution: null })
+    store(STORAGE_KEYS.METRICS, { timer: 12, mistakes: 0 })
+
+    expect(loadInitialState().solver.gameMode).toBe('selecting')
   })
 
   it('should reset poolRequestCount to 0 on load even if persisted', () => {

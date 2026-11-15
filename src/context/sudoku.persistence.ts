@@ -266,10 +266,17 @@ export interface PersistedSnapshot {
   readonly puzzlePool: Record<Difficulty, PuzzleData[]> | null
 }
 
+// Earlier builds saved the untouched selection screen as one empty board, which is no game.
+const isUntouchedEmptyGame = (game: SavedGame): boolean =>
+  game.history.stack.length === 1 &&
+  encodeBoard(game.history.stack[0]) === EMPTY_BOARD_CODE &&
+  encodeBoard(game.initialBoard) === EMPTY_BOARD_CODE
+
 /** Reads every key on its own, so one corrupt entry never costs the others. */
 export function loadPersistedState(): PersistedSnapshot {
+  const game = load(STORAGE_KEYS.GAME, decodeAnyGame)
   return {
-    game: load(STORAGE_KEYS.GAME, decodeAnyGame),
+    game: game && !isUntouchedEmptyGame(game) ? game : null,
     metrics: load(STORAGE_KEYS.METRICS, decodeMetrics),
     puzzlePool: load(STORAGE_KEYS.POOL, decodePool),
   }
