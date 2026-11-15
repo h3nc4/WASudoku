@@ -30,6 +30,7 @@ import { PRECACHED_PUBLIC_FILES, precacheManifest as manifestOf } from './src/si
 
 const SERVICE_WORKER = 'sw.js'
 const NOT_FOUND_PAGE = '404.html'
+const ALL = 100
 
 // The Astro UI compiles through Astro's own Vite config, so vitest.config.next.ts tests and covers it.
 const ASTRO_SOURCES = [
@@ -175,6 +176,7 @@ export default defineConfig({
       reportsDirectory: './coverage',
       reporter: ['text', 'lcov'],
       reportOnFailure: true,
+      thresholds: { lines: ALL, branches: ALL, functions: ALL, statements: ALL },
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: [
         'src/main.tsx',

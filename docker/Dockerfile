@@ -30,9 +30,11 @@ WORKDIR /app
 COPY "package.json" "package-lock.json" ./
 RUN npm ci
 
-# Copy source code
+# Copy source code. tsc -b also checks the e2e and parity projects, and the unit tests import e2e/saves.ts.
 COPY "README.md" "LICENSE" *.js *.json *.ts *.html ./
 COPY src/ src/
+COPY e2e/ e2e/
+COPY parity/ parity/
 COPY public/ public/
 
 # Build app for production

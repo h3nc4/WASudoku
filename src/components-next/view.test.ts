@@ -102,7 +102,11 @@ describe('boardRows', () => {
     const [first, second, third] = boardRows(cells).flat()
     expect(first?.center).toEqual({ digits: [3], size: 'few' })
     expect(first?.corner).toBeUndefined()
-    expect(second?.corner?.map((s) => s.digit)).toEqual([1, 2, ...Array(7).fill(undefined)])
+    expect(second?.corner?.map((s) => s.digit)).toEqual([
+      1,
+      2,
+      ...Array<undefined>(7).fill(undefined),
+    ])
     expect(second?.corner?.map((s) => s.struck).slice(0, 2)).toEqual([undefined, ''])
     expect(third?.wrong).toBe(true)
     expect(third?.corner).toBeUndefined()

@@ -109,7 +109,7 @@ export const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme'] as c
 
 /** The board's name for a cell, as the trace and the hint strip print it. */
 export const cellName = (index: number): string =>
-  `R${Math.floor(index / BOARD_SIZE) + 1}C${(index % BOARD_SIZE) + 1}`
+  `R${String(Math.floor(index / BOARD_SIZE) + 1)}C${String((index % BOARD_SIZE) + 1)}`
 
 // "1, 2, 3", which keeps the visible digits in order within the name, as WCAG 2.5.3 asks.
 const spoken = (digits: readonly Digit[]): string => digits.join(', ')

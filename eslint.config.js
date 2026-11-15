@@ -34,7 +34,17 @@ import unusedImports from 'eslint-plugin-unused-imports'
 
 const reactVersion = createRequire(import.meta.url)('react/package.json').version
 
-const LAYERS = ['core', 'solver', 'runtime', 'ui', 'sw', 'pages-data']
+const LAYERS = [
+  'core',
+  'solver',
+  'runtime',
+  'ui',
+  'sw',
+  'pages-data',
+  'site',
+  'components-next',
+  'preview',
+]
 const NUMERIC_LAYERS = ['core', 'solver', 'runtime', 'pages-data']
 const SOURCE = '**/*.ts'
 // The pure modules Astro renders the first paint with. The ui patches the page with the same output.
@@ -200,12 +210,13 @@ export const layerZones = (root) => [
   zone(root, 'sw', [], 'The service worker imports nothing outside sw.'),
 ]
 
-const layerStrictness = [
+/** The strict rules of the rewrite's layers, a function of the root so a test can lint a fixture tree. */
+export const layerStrictness = (root) => [
   ...tseslintConfigs.strictTypeChecked.map((config) => ({ ...config, files: sourcesOf(LAYERS) })),
   {
     files: sourcesOf(LAYERS),
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: { projectService: true, tsconfigRootDir: root },
     },
     rules: {
       '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
@@ -319,7 +330,7 @@ export default [
     },
   },
   ...layerZones(import.meta.dirname),
-  ...layerStrictness,
+  ...layerStrictness(import.meta.dirname),
   {
     files: ['**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
     plugins: {

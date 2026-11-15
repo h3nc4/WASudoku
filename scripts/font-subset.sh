@@ -17,6 +17,7 @@
 # along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
 
 # Runs scripts/font-subset.py on pinned Python packages, and `--check` verifies the checked-in fonts.
+# `--test` runs scripts/font-subset.test.py instead, which checks the files the subset reads.
 set -eu
 
 cd "$(dirname "$0")/../"
@@ -30,5 +31,6 @@ exec docker run --rm --user "${uid}:${gid}" -e HOME=/tmp \
   -v "${root}:/w" -w /w --entrypoint /bin/sh "${image}" -c '
     set -e
     pip install -q --user --no-cache-dir --disable-pip-version-check --no-warn-script-location -r scripts/font-requirements.txt
+    if [ "${1:-}" = --test ]; then exec python scripts/font-subset.test.py; fi
     exec python scripts/font-subset.py "$@"
   ' font-subset "$@"

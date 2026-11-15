@@ -43,7 +43,7 @@ SOURCE_DATE_EPOCH = 1784433118
 
 # A character that UI text in these files gains joins the subset on the next build.
 UI_SOURCES = [ROOT / "index.html", ROOT / "src"]
-UI_SUFFIXES = {".ts", ".tsx", ".css", ".rs", ".html"}
+UI_SUFFIXES = {".ts", ".tsx", ".css", ".rs", ".html", ".astro"}
 SKIPPED_PARTS = {"test", "tests", "__mocks__", "target", "pkg"}
 
 PRINTABLE_ASCII = set(range(0x20, 0x7F))

@@ -79,7 +79,7 @@ describe('finishBuild', () => {
 
     const manifest: unknown = JSON.parse(/^setUp\((.*)\)$/.exec(read('sw.js'))?.[1] ?? '')
     expect(manifest).toEqual({
-      version: expect.stringMatching(/^[0-9a-f]{16}$/),
+      version: expect.stringMatching(/^[0-9a-f]{16}$/) as unknown,
       hashed: ['assets/main.woff2'],
       urls: ['./', 'manifest.json'],
       assetsDir: 'assets',

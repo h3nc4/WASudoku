@@ -69,8 +69,9 @@ describe('webManifest', () => {
 
   it('offers one shortcut per difficulty, as a query the app reads', () => {
     expect(manifest.shortcuts).toEqual(
-      DIFFICULTIES.map((difficulty) =>
-        expect.objectContaining({ url: `/?${NEW_PUZZLE_PARAM}=${difficulty}` }),
+      DIFFICULTIES.map(
+        (difficulty) =>
+          expect.objectContaining({ url: `/?${NEW_PUZZLE_PARAM}=${difficulty}` }) as unknown,
       ),
     )
     expect(manifest.shortcuts).toContainEqual(
@@ -89,7 +90,10 @@ describe('webManifest', () => {
     ])
     expect(manifest.screenshots).toHaveLength(SCREENSHOTS.length)
     expect(manifest.screenshots).not.toContainEqual(
-      expect.objectContaining({ src: '/screenshots/narrow.png', form_factor: expect.anything() }),
+      expect.objectContaining({
+        src: '/screenshots/narrow.png',
+        form_factor: expect.anything() as unknown,
+      }),
     )
   })
 })

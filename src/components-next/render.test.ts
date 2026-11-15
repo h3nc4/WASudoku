@@ -61,7 +61,7 @@ describe('the first visit', async () => {
   it('keeps the board inert behind a labelled selection card', () => {
     expect(doc.querySelector('main')).toHaveAttribute('inert')
     const card = doc.querySelector('section[aria-labelledby="welcome-title"]')
-    expect(doc.getElementById('welcome-title')?.textContent?.trim()).toBe('Welcome to WASudoku')
+    expect(doc.getElementById('welcome-title')?.textContent.trim()).toBe('Welcome to WASudoku')
     expect(card?.querySelectorAll('button')).toHaveLength(6)
   })
 
@@ -87,7 +87,7 @@ describe('the first visit', async () => {
       dialogs.filter((d) => d.getAttribute('role') === 'alertdialog').map((d) => d.id),
     ).toEqual(['abandon-dialog', 'reveal-dialog', 'pending-dialog'])
     const [cancel] = doc.querySelectorAll('#abandon-dialog button[type="submit"]')
-    expect(cancel?.textContent?.trim()).toBe('Cancel')
+    expect(cancel?.textContent.trim()).toBe('Cancel')
   })
 
   it('opens each menu from its button as an anchored popover', () => {
@@ -210,7 +210,7 @@ describe('preview states', () => {
     expect(doc.querySelector('fieldset#input-mode')).toHaveAttribute('disabled')
     expect(doc.querySelector('[data-placed]')?.id).toBe('cell-42')
     expect(doc.querySelectorAll('[data-struck]')).toHaveLength(1)
-    expect(doc.querySelector('#steps-panel p[aria-live="polite"]')?.textContent?.trim()).toBe(
+    expect(doc.querySelector('#steps-panel p[aria-live="polite"]')?.textContent.trim()).toBe(
       'Cell R5C7 has only one possible candidate left, 7.',
     )
   })

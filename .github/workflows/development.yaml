@@ -180,6 +180,8 @@ jobs:
     steps:
       - name: Run actions/checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Test which files the font subset reads
+        run: ./scripts/font-subset.sh --test
       - name: Rebuild the font subset and compare it with the checked-in files
         run: ./scripts/font-subset.sh --check
 
