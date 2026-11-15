@@ -39,9 +39,17 @@ test.afterAll(async () => {
   await server.close()
 })
 
-test('every page the app links to loads, and so does every link on it', async ({ page }) => {
+test('every page in the sitemap loads, and so does every link on it', async ({ page }) => {
   const seen = new Set<string>()
-  const queue = ['/']
+  // The app links to no content page, so the crawl starts from the sitemap as a search engine does.
+  const sitemap = await (await fetch(`${server.url}/sitemap.xml`)).text()
+  const queue = [
+    '/',
+    ...Array.from(
+      sitemap.matchAll(/<loc>([^<]+)<\/loc>/g),
+      ([, loc]) => new URL(loc ?? '/').pathname,
+    ),
+  ]
   while (queue.length > 0) {
     const pathname = queue.shift() ?? '/'
     if (seen.has(pathname)) continue

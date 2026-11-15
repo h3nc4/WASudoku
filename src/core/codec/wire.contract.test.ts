@@ -52,6 +52,8 @@ const STALLS_LOGIC =
   '.....3....8..5.2..754.9.....62..1..8.7.....3.3..8..92.....3.415..9.4..6....6.....'
 const CONFLICTING = '55' + '.'.repeat(BOARD_LENGTH - 2)
 const SEED = 1
+// Seeded generation runs on the unoptimized dev build, where expert takes over 5 s on a loaded host.
+const GENERATE_TIMEOUT_MS = 30_000
 
 const cellsOf = (text: string) => Uint8Array.from(text, (c) => (c === '.' ? 0 : Number(c)))
 const textOf = (cells: Uint8Array) => Array.from(cells, (d) => (d === 0 ? '.' : String(d))).join('')
@@ -177,19 +179,23 @@ describe('wire exports of the real wasm', () => {
     const hex = (bytes: Uint8Array) =>
       Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 
-    it.each(DIFFICULTIES)('gives the seeded %s puzzle of the golden file', (difficulty) => {
-      const bytes = wire.generate(difficulty, SEED)
-      expect(hex(bytes)).toBe(golden.get(`generate-${difficulty}-seed-${String(SEED)}`))
-      const result = ok(decodeGenerate(bytes))
-      if (result.kind !== 'generated') throw new Error(result.kind)
-      expect(result.difficulty).toBe(difficulty)
-      result.puzzle.forEach((digit, i) => {
-        if (digit !== 0) expect(result.solution[i]).toBe(digit)
-      })
-      const validated = ok(decodeValidate(wire.validate(result.puzzle)))
-      expect(validated).toEqual({ kind: 'unique', solution: result.solution })
-      expect(encodeGenerate(result)).toEqual(bytes)
-    })
+    it.each(DIFFICULTIES)(
+      'gives the seeded %s puzzle of the golden file',
+      (difficulty) => {
+        const bytes = wire.generate(difficulty, SEED)
+        expect(hex(bytes)).toBe(golden.get(`generate-${difficulty}-seed-${String(SEED)}`))
+        const result = ok(decodeGenerate(bytes))
+        if (result.kind !== 'generated') throw new Error(result.kind)
+        expect(result.difficulty).toBe(difficulty)
+        result.puzzle.forEach((digit, i) => {
+          if (digit !== 0) expect(result.solution[i]).toBe(digit)
+        })
+        const validated = ok(decodeValidate(wire.validate(result.puzzle)))
+        expect(validated).toEqual({ kind: 'unique', solution: result.solution })
+        expect(encodeGenerate(result)).toEqual(bytes)
+      },
+      GENERATE_TIMEOUT_MS,
+    )
 
     it('answers a seed above 32 bits', () => {
       const result = ok(decodeGenerate(wire.generate('easy', 2 ** 40 + SEED)))

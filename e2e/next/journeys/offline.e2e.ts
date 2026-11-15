@@ -72,7 +72,7 @@ test('an installed app generates a puzzle once its server is gone', async ({ pag
   expect(outside).toBe('failed')
 })
 
-test('a reload after a deploy serves the new build and offers its worker', async ({
+test('a reload after a deploy keeps the cached build and offers the new worker', async ({
   page,
   open,
 }) => {
@@ -90,7 +90,7 @@ test('a reload after a deploy serves the new build and offers its worker', async
     edit('sw.js', /"version":"[0-9a-f]+"/, '"version":"next"')
 
     await page.reload()
-    await expect(page.locator('html')).toHaveAttribute('data-build', 'next')
+    await expect(page.locator('html')).not.toHaveAttribute('data-build', 'next')
 
     const update = page.getByRole('button', { name: 'Reload', exact: true })
     await expect(page.getByText('Update available')).toBeVisible()

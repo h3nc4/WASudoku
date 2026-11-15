@@ -105,6 +105,7 @@ export default {
       'src/core/codec/share.compat.test.ts',
       'src/core/text/techniques.compat.test.ts',
       'scripts/**',
+      'parity/**',
     ],
   },
 }
