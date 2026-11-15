@@ -25,6 +25,7 @@ use wasudoku_wasm::types::{CauseCell, Elimination, Placement, SolvingStep, Techn
 use wasudoku_wasm::wire::{self, Tag, VERSION};
 
 const GOLDEN: &str = "tests/golden/wire.txt";
+const TECHNIQUES: &str = "tests/golden/techniques.txt";
 
 const PUZZLE: &str =
     "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79";
@@ -128,6 +129,57 @@ fn test_golden_file_matches_the_encoder() {
 #[ignore]
 fn write_golden_file() {
     fs::write(GOLDEN, render(&cases())).unwrap();
+    fs::write(TECHNIQUES, render_techniques()).unwrap();
+}
+
+/// The id the app keys a technique on, its legacy serde name, which `web.rs` checks.
+/// The match has no wildcard, so a new variant fails to compile until it is named here.
+fn technique_id(technique: Technique) -> &'static str {
+    match technique {
+        Technique::NakedSingle => "NakedSingle",
+        Technique::HiddenSingle => "HiddenSingle",
+        Technique::NakedPair => "NakedPair",
+        Technique::NakedTriple => "NakedTriple",
+        Technique::HiddenPair => "HiddenPair",
+        Technique::HiddenTriple => "HiddenTriple",
+        Technique::PointingPair => "PointingPair",
+        Technique::PointingTriple => "PointingTriple",
+        Technique::ClaimingCandidate => "ClaimingCandidate",
+        Technique::XWing => "X-Wing",
+        Technique::Swordfish => "Swordfish",
+        Technique::Jellyfish => "Jellyfish",
+        Technique::XyWing => "XY-Wing",
+        Technique::XyzWing => "XYZ-Wing",
+        Technique::Skyscraper => "Skyscraper",
+        Technique::TwoStringKite => "TwoStringKite",
+        Technique::UniqueRectangleType1 => "UniqueRectangleType1",
+        Technique::WWing => "W-Wing",
+    }
+}
+
+/// Each technique's wire code beside its id, which `wire.test.ts` checks against its own table.
+fn render_techniques() -> String {
+    Technique::ALL
+        .iter()
+        .map(|&t| format!("{} {}\n", t as u8, technique_id(t)))
+        .collect()
+}
+
+#[test]
+fn test_technique_codes_match_the_golden_file() {
+    let golden = fs::read_to_string(TECHNIQUES).unwrap();
+    assert_eq!(
+        golden,
+        render_techniques(),
+        "a technique code changed, so bump wire::VERSION and rerun the ignored writer"
+    );
+}
+
+#[test]
+fn test_every_technique_is_listed_at_its_code() {
+    for (code, technique) in Technique::ALL.into_iter().enumerate() {
+        assert_eq!(usize::from(technique as u8), code, "{technique:?}");
+    }
 }
 
 fn step() -> SolvingStep {

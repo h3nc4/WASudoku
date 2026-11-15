@@ -37,7 +37,7 @@ export type Technique =
   | 'UniqueRectangleType1'
   | 'W-Wing'
 
-/** Every technique, at the index of its wire code, the order of `types::Technique` in Rust. */
+/** Every technique, at the index of its wire code, as `tests/golden/techniques.txt` pins it from Rust. */
 export const TECHNIQUES: readonly Technique[] = [
   'NakedSingle',
   'HiddenSingle',

@@ -41,6 +41,7 @@ import type { Decoded, GenerateResult, HintResult, SolveResult, Step } from './w
 import { API_ERRORS, DIFFICULTIES, TECHNIQUES } from './wire.types'
 
 const GOLDEN = resolve('src/wasudoku-wasm/tests/golden/wire.txt')
+const GOLDEN_TECHNIQUES = resolve('src/wasudoku-wasm/tests/golden/techniques.txt')
 
 const board = (digit: number) => new Uint8Array(BOARD_LENGTH).fill(digit)
 const bytes = (...values: number[]) => Uint8Array.from(values)
@@ -197,6 +198,15 @@ describe('golden file shared with the Rust encoder', () => {
   it.each(cases)('decodes $name and encodes it back to the same bytes', ({ name, bytes }) => {
     const kind = name.split('-')[0] as keyof typeof codecs
     expect(codecs[kind](bytes)).toEqual(bytes)
+  })
+
+  it('names each technique code as the Rust enum does', () => {
+    const lines = readFileSync(GOLDEN_TECHNIQUES, 'utf8').trim().split('\n')
+    const rust = lines.map((line) => {
+      const [code = '', name = ''] = line.split(' ')
+      return [Number(code), name]
+    })
+    expect(rust).toEqual([...TECHNIQUES.entries()])
   })
 
   it('keeps the W-Wing cause candidates in the order the finder gave them', () => {

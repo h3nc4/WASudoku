@@ -110,11 +110,13 @@ describe('wire exports of the real wasm', () => {
       expect(ok(decodeSolve(wire.solve(cells)))).toEqual({ kind: 'error', error: 'badDigit' })
     })
 
-    it('reports a board of the wrong length', () => {
-      expect(ok(decodeSolve(wire.solve(new Uint8Array(3))))).toEqual({
-        kind: 'error',
-        error: 'badLength',
-      })
+    // The ABI input is a fixed 81 bytes, so only the JS binding can see a board of another length.
+    it('answers a short board in JS without writing to the wasm input', () => {
+      solve(PUZZLE)
+      const answer = wire.solve(new Uint8Array(3))
+      const input = new Uint8Array(raw.memory.buffer, raw.wire_input(), BOARD_LENGTH)
+      expect(ok(decodeSolve(answer))).toEqual({ kind: 'error', error: 'badLength' })
+      expect(textOf(input)).toBe(PUZZLE)
     })
   })
 

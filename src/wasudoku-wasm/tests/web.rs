@@ -21,6 +21,7 @@
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use wasm_bindgen_test::*;
+use wasudoku_wasm::types::Technique;
 use wasudoku_wasm::{generate_sudoku, solve_sudoku, validate_puzzle};
 
 // `types::SolveResult` only derives `Serialize`, so the result is read through this mirror.
@@ -154,4 +155,17 @@ fn test_validate_puzzle_no_solution() {
         result.err().unwrap().as_string().unwrap(),
         "Invalid puzzle: initial configuration has conflicts."
     );
+}
+
+// The native writer names each technique by hand, so this checks those names against serde.
+#[wasm_bindgen_test]
+fn test_the_technique_golden_file_uses_the_serde_names() {
+    let golden = include_str!("golden/techniques.txt");
+    let lines: Vec<&str> = golden.lines().collect();
+    assert_eq!(lines.len(), Technique::ALL.len());
+    for (technique, line) in Technique::ALL.into_iter().zip(lines) {
+        let name = serde_wasm_bindgen::to_value(&technique).unwrap();
+        let expected = format!("{} {}", technique as u8, name.as_string().unwrap());
+        assert_eq!(line, expected);
+    }
 }

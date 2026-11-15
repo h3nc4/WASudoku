@@ -58,6 +58,30 @@ pub enum Technique {
     WWing,
 }
 
+impl Technique {
+    /// Every technique, in declaration order, which is the order of their wire codes.
+    pub const ALL: [Technique; 18] = [
+        Self::NakedSingle,
+        Self::HiddenSingle,
+        Self::NakedPair,
+        Self::NakedTriple,
+        Self::HiddenPair,
+        Self::HiddenTriple,
+        Self::PointingPair,
+        Self::PointingTriple,
+        Self::ClaimingCandidate,
+        Self::XWing,
+        Self::Swordfish,
+        Self::Jellyfish,
+        Self::XyWing,
+        Self::XyzWing,
+        Self::Skyscraper,
+        Self::TwoStringKite,
+        Self::UniqueRectangleType1,
+        Self::WWing,
+    ];
+}
+
 /// A single logical step in solving the puzzle.
 #[cfg_attr(feature = "legacy", derive(Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
