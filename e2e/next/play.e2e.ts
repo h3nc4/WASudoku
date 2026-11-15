@@ -169,6 +169,27 @@ test.describe('play', () => {
     await expect(page.getByRole('button', { name: 'Pause game' })).toBeVisible()
   })
 
+  test('a pointer press on pause takes no focus, so Space does not toggle it, and Tab still does', async ({
+    page,
+  }) => {
+    const pause = page.locator('#pause-button')
+    await cell(page, R1C3).click()
+    await pause.click()
+    await expect(page.locator('#pause-overlay')).toBeVisible()
+    await expect(pause).not.toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(page.locator('#pause-overlay')).toBeVisible()
+    await pause.click()
+    await expect(page.locator('#pause-overlay')).toBeHidden()
+    await expect(pause).not.toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(page.locator('#pause-overlay')).toBeHidden()
+    await pause.focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(pause).toBeFocused()
+  })
+
   test('asks before a shortcut puzzle replaces the game in progress', async ({ page }) => {
     await cell(page, R1C3).click()
     await page.keyboard.press('4')

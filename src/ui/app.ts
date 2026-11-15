@@ -40,8 +40,15 @@ import { bindWalkthrough } from './walkthrough'
 /** Where the build writes the service worker, whose scope is the whole site. */
 export const SERVICE_WORKER_URL = '/sw.js'
 
-/** Controls pressed with a pointer leave focus on the cell, so the selection they act on stays. */
-const KEEP_FOCUS = ['#number-pad', '#control-row', '#action-row', '#input-mode', '#hint-slot']
+/** Controls pressed with a pointer leave focus where it was, so the selection they act on stays. */
+const KEEP_FOCUS = [
+  '#number-pad',
+  '#control-row',
+  '#action-row',
+  '#input-mode',
+  '#hint-slot',
+  '#pause-button',
+]
 /** Buttons that take focus on a press as in today's app, and drop it to the page as they hide. */
 const TAKES_FOCUS = '#start-button, #exit-button'
 
