@@ -18,7 +18,7 @@ The image on Docker Hub serves the built site with nginx on port 80.
 docker run --rm -p 8080:80 h3nc4/wasudoku
 ```
 
-Then open <http://localhost:8080>. The image starts from scratch and holds nginx with the static files, running as uid 65534. A request for an unknown path returns `index.html` with status 200, as a single-page app expects.
+Then open <http://localhost:8080>. The image starts from scratch and holds nginx with the static files, running as uid 65534. The app has one page, `/`, and a shared puzzle is sent in its `?p=` query, so a request for an unknown path returns `404.html` with status 404, as the Cloudflare deploy does.
 
 Each release on GitHub also attaches the same static build as `WASudoku.tar.gz` and `WASudoku.tar.xz`, for any web server, and an Android package, `WASudoku.apk`, which wraps the live site as a Trusted Web Activity.
 

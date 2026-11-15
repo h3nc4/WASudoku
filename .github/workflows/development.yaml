@@ -319,6 +319,8 @@ jobs:
           echo "Container did not start." >&2
           docker logs "$CONTAINER_ID" >&2
           exit 1
+      - name: Check what each path answers
+        run: ./scripts/container-smoke.sh http://localhost:8080
       - name: Cleanup
         if: always()
         run: docker rm -f "$CONTAINER_ID"
