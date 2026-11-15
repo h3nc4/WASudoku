@@ -18,7 +18,6 @@
 
 import type { Page } from '@playwright/test'
 
-import { encodeGame, STORAGE_KEYS } from '../src/context/sudoku.persistence'
 import {
   cell,
   cellFace,
@@ -28,6 +27,7 @@ import {
   readTimer,
   savedGame,
   SOLUTION,
+  STORAGE_KEYS,
   test,
   timer,
 } from './fixtures'
@@ -41,22 +41,18 @@ const welcome = (page: Page) => page.getByRole('heading', { name: 'Welcome to WA
 const storedGame = (page: Page) =>
   page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.GAME)
 
+// An empty cell saves as five zeros: no digit, then two empty note masks
+const EMPTY_BOARD_CODE = '00000'.repeat(81)
+
 /** The single empty board that earlier builds saved from the untouched selection screen. */
 function selectionScreenSave(): string {
-  const empty = Array.from({ length: 81 }, () => ({
-    value: null,
-    isGiven: false,
-    candidates: new Set<number>(),
-    centers: new Set<number>(),
-  }))
-  return JSON.stringify(
-    encodeGame({
-      history: { stack: [empty], index: 0 },
-      initialBoard: empty,
-      solution: null,
-      difficulty: null,
-    }),
-  )
+  return JSON.stringify({
+    version: 2,
+    history: { stack: [EMPTY_BOARD_CODE], index: 0 },
+    initialBoard: EMPTY_BOARD_CODE,
+    solution: null,
+    difficulty: null,
+  })
 }
 
 /** Each Set saved as {"__dataType":"Set","value":[...]}, the format of builds before version 2. */
@@ -98,6 +94,25 @@ test('reload mid-game restores board, notes and timer', async ({ page, open }) =
   await expect(mistakes(page)).toHaveText('1/3')
   expect(await readTimer(page)).toBeGreaterThanOrEqual(before)
   await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
+})
+
+test('a move saves in the version 2 format', async ({ page, open }) => {
+  const start = JSON.parse(savedGame())
+  const placed = JSON.parse(
+    savedGame({ board: `${PUZZLE.slice(0, R1C3)}4${PUZZLE.slice(R1C3 + 1)}` }),
+  )
+  await open({ game: savedGame() })
+
+  await cell(page, R1C3).click()
+  await page.keyboard.press('4')
+
+  const read = async () =>
+    JSON.parse((await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.GAME)) ?? '{}')
+  const expected = {
+    ...start,
+    history: { stack: [...start.history.stack, placed.history.stack[1]], index: 2 },
+  }
+  await expect(async () => expect(await read()).toEqual(expected)).toPass()
 })
 
 test('save in the legacy Set-tagged format migrates on load', async ({ page, open }) => {

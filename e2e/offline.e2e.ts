@@ -22,8 +22,7 @@ import path from 'node:path'
 
 import { preview, type PreviewServer } from 'vite'
 
-import { STORAGE_KEYS } from '../src/context/sudoku.persistence'
-import { board, expect, mistakes, readBoard, test } from './fixtures'
+import { board, expect, mistakes, readBoard, STORAGE_KEYS, test } from './fixtures'
 
 // Each journey runs its own server, since it stops it or deploys into its directory.
 let server: PreviewServer | undefined
