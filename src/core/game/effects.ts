@@ -52,6 +52,8 @@ export type Effect =
   | { readonly kind: 'cancel'; readonly id: RequestId }
   /** Write a key, encoding it from the state of that moment with `serialize`. */
   | { readonly kind: 'save'; readonly key: StorageKey; readonly when: SaveTiming }
+  /** Write this text to a key at once, for a value the state does not hold. */
+  | { readonly kind: 'write'; readonly key: StorageKey; readonly text: string }
   /** A key that failed to decode, kept as it is and reported for the log. */
   | { readonly kind: 'corrupt'; readonly key: StorageKey; readonly reason: string }
   /** Replaces the one clock timer, which sends `tick` after the delay. Null stops it. */

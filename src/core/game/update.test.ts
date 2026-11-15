@@ -1253,6 +1253,19 @@ describe('update', () => {
       expect(writes('nope', null)).toEqual([`corrupt ${METRICS}`, `save ${POOL}`, 'refill'])
       expect(writes('nope', '[')).toEqual([`corrupt ${METRICS}`, `corrupt ${POOL}`, 'refill'])
     })
+
+    it('writes metrics back as read beside a corrupt or absent game, never as zeros', () => {
+      const text = '{"timer":30,"mistakes":2}'
+      for (const game of ['{"version":2,"history":', null]) {
+        const { state, effects } = step(INITIAL_STATE, {
+          type: 'loaded',
+          slices: slices(game, ' {"mistakes":2,"timer":30} ', null),
+        })
+        expect(state.game.mode).toBe('selecting')
+        expect(effects).toContainEqual({ kind: 'write', key: STORAGE_KEYS.METRICS, text })
+        expect(effects).not.toContainEqual({ kind: 'save', key: STORAGE_KEYS.METRICS, when: 'now' })
+      }
+    })
   })
 
   describe('persistence', () => {

@@ -78,9 +78,18 @@ export function serialize(state: State, key: StorageKey, now: number): string | 
 
 const save = (key: StorageKey, when: 'idle' | 'now'): Effect => ({ kind: 'save', key, when })
 
-/** Normalises a key at once, unless it failed to decode, which stays as it is until the next save. */
-const saveNow = (key: StorageKey, loaded: Loaded<Metrics> | Loaded<Pool>): Effect[] =>
-  loaded.status === 'corrupt' ? [] : [save(key, 'now')]
+/** Normalises the pool at once, unless it failed to decode, which stays as it is until the next save. */
+const savePoolNow = (pool: Loaded<Pool>): Effect[] =>
+  pool.status === 'corrupt' ? [] : [save(STORAGE_KEYS.POOL, 'now')]
+
+/** Normalises the metrics as the pool, writing them as read when no game resumes to hold them. */
+function saveMetricsNow(metrics: Loaded<Metrics>, resumes: boolean): Effect[] {
+  if (metrics.status === 'corrupt') return []
+  if (metrics.status === 'ok' && !resumes) {
+    return [{ kind: 'write', key: STORAGE_KEYS.METRICS, text: writeMetrics(metrics.value) }]
+  }
+  return [save(STORAGE_KEYS.METRICS, 'now')]
+}
 
 const corruptKey = (
   key: StorageKey,
@@ -109,8 +118,8 @@ export function onLoaded(state: State, { game, metrics, pool }: LoadedSlices): O
     ...corruptKey(STORAGE_KEYS.GAME, game),
     ...corruptKey(STORAGE_KEYS.METRICS, metrics),
     ...corruptKey(STORAGE_KEYS.POOL, pool),
-    ...saveNow(STORAGE_KEYS.POOL, pool),
-    ...saveNow(STORAGE_KEYS.METRICS, metrics),
+    ...savePoolNow(pool),
+    ...saveMetricsNow(metrics, saved !== null),
   ]
   if (saved !== null)
     effects.push(save(STORAGE_KEYS.GAME, game.status === 'legacy' ? 'now' : 'idle'))

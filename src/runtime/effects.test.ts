@@ -108,6 +108,12 @@ describe('save', () => {
     expect(storage.writes).toEqual([])
   })
 
+  it('writes a given text at once, whatever the state holds', () => {
+    const { effects, storage } = setup({}, INITIAL_STATE)
+    effects.run({ kind: 'write', key: STORAGE_KEYS.METRICS, text: '{"timer":30,"mistakes":2}' })
+    expect(storage.writes).toEqual([[STORAGE_KEYS.METRICS, '{"timer":30,"mistakes":2}']])
+  })
+
   it('logs a write the storage refuses', () => {
     const storage = new MemoryStorage()
     storage.setItem = () => {

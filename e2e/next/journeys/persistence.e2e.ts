@@ -116,3 +116,11 @@ test('empty game saved by an earlier build opens the selection screen', async ({
   await expect(welcome(page)).toBeVisible()
   await expect(timer(page)).toBeHidden()
 })
+
+test('corrupt game keeps the metrics saved beside it', async ({ page, open }) => {
+  await open({ game: '{"version":2,"history":', metrics: { timer: 30, mistakes: 2 } })
+  await expect(welcome(page)).toBeVisible()
+  await page.waitForTimeout(PAST_SAVE_DELAY_MS)
+  const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.METRICS)
+  expect(stored).toBe('{"timer":30,"mistakes":2}')
+})

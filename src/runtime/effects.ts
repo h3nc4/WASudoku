@@ -140,6 +140,9 @@ export function createEffects(
       case 'save':
         save(effect.key, effect.when)
         return
+      case 'write':
+        writeKey(deps.storage, effect.key, effect.text, deps.log)
+        return
       case 'tick':
         tick?.()
         tick =
