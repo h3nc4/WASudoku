@@ -101,6 +101,7 @@ export default {
       'src/core/codec/wire.contract.test.ts',
       'src/core/codec/share.compat.test.ts',
       'src/core/codec/storage.golden.test.ts',
+      'src/styles/motion.test.ts',
       'scripts/**',
     ],
   },
