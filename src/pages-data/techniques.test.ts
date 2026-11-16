@@ -21,8 +21,9 @@ import { resolve } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { bindWire, type WireModule } from '../core/codec/abi'
+import { decodeValidate } from '../core/codec/wire'
 import { type Technique, TECHNIQUES } from '../core/game/steps'
-import { initSync, validate_puzzle } from '../wasudoku-wasm/pkg/wasudoku_wasm'
 import { parseCorpus } from './corpus'
 import {
   FINDERS,
@@ -35,7 +36,7 @@ import {
 } from './techniques'
 
 // Runs the built crate, so this suite needs `npm run wasm:build:dev` first, as CI does.
-const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm_bg.wasm')
+const WASM_PATH = resolve('src/wasudoku-wasm/pkg/wasudoku_wasm.wasm')
 const SOLVER_SOURCE = resolve('src/wasudoku-wasm/src/logical_solver/mod.rs')
 
 /** What each Rust finder reports, by its function name. */
@@ -97,9 +98,11 @@ describe('techniqueSlug', () => {
 
 describe('techniquePaths', () => {
   const paths = techniquePaths()
+  let wire: WireModule
 
   beforeAll(() => {
-    initSync({ module: readFileSync(WASM_PATH) })
+    const module = new WebAssembly.Module(readFileSync(WASM_PATH))
+    wire = bindWire(new WebAssembly.Instance(module, {}).exports)!
   })
 
   it('makes one page per technique, in solver order', () => {
@@ -123,7 +126,11 @@ describe('techniquePaths', () => {
       const { example, playHref, name } = props.page
       expect(example.caption, name).toContain(" of the solver's test corpus")
       expect(playHref).toBe(playLink(example.puzzle))
-      expect(validate_puzzle(example.puzzle), name).toMatch(/^[1-9]{81}$/)
+      const cells = Uint8Array.from(example.puzzle, (c) => (c === '.' ? 0 : Number(c)))
+      expect(decodeValidate(wire.validate(cells)), name).toMatchObject({
+        ok: true,
+        result: { kind: 'unique' },
+      })
     }
   })
 
