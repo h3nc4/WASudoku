@@ -21,7 +21,7 @@
 set -eu
 
 # Bytes on the wire, 1000 to the kilobyte as Vite counts. Each limit is a measured size plus 10%,
-# rounded up to 100 bytes, from the build at the cutover to Astro on 2026-11-15.
+# rounded up to 100 bytes.
 LIMIT_HTML=7200
 LIMIT_CSS=9000
 LIMIT_INITIAL_JS=29900
