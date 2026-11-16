@@ -16,6 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { positionOf } from './dom'
+
 // showModal() gives the top layer, the inert page, Esc and focus return. CSS locks the scroll
 // through `html:has(dialog:modal)`. This adds wrapped Tab, kept focus, old-engine light dismiss and the result.
 
@@ -80,7 +82,7 @@ export function bindDialog(dialog: HTMLDialogElement, options: DialogOptions = {
       const stops = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
         (element) => !element.closest(UNREACHABLE),
       )
-      const at = stops.findIndex((element) => element === doc.activeElement)
+      const at = positionOf(stops, doc.activeElement)
       const next = wrapTarget(stops.length, at, event.shiftKey)
       if (next === null) return
       event.preventDefault()

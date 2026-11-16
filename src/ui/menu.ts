@@ -16,6 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { positionOf } from './dom'
+
 // An APG menu button over a native auto popover, which already gives the top layer, Esc and
 // light dismiss. This adds the keys, the expanded state, focus return and old-engine placement.
 
@@ -252,7 +254,7 @@ export function bindMenu(menu: HTMLElement, options: MenuOptions = {}): MenuHand
         return
       }
       const list = items()
-      const at = list.findIndex((item) => item === doc.activeElement)
+      const at = positionOf(list, doc.activeElement)
       const modified = event.ctrlKey || event.metaKey || event.altKey
       const next = menuTarget(
         { key: event.key, modified },

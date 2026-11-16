@@ -25,10 +25,10 @@ import { all, closestTo, Disposer, required, setAttr, setHidden } from './dom'
 import { bindMenu } from './menu'
 
 /** The event a new-puzzle button stands for, from its data-difficulty or data-action. */
-export function newPuzzleEvent(button: Element): GameEvent | null {
-  const difficulty = button.getAttribute('data-difficulty')
+export function newPuzzleEvent(button: HTMLElement): GameEvent | null {
+  const difficulty = button.dataset['difficulty']
   if (isDifficulty(difficulty)) return { type: 'newGame', difficulty }
-  return button.getAttribute('data-action') === 'custom' ? { type: 'enterCustom' } : null
+  return button.dataset['action'] === 'custom' ? { type: 'enterCustom' } : null
 }
 
 /** The share and new puzzle menus, and the selection screen's buttons. */
@@ -45,7 +45,7 @@ export function bindMenus(
   disposer.add(bindMenu(fresh).dispose)
 
   disposer.on(share, 'click', (event) => {
-    const action = closestTo(event, '[data-action]')?.getAttribute('data-action')
+    const action = closestTo(event, '[data-action]')?.dataset['action']
     if (action === 'copy-link') store.dispatch(shareEvent(address))
     if (action === 'copy-text') store.dispatch({ type: 'export' })
   })
@@ -72,7 +72,7 @@ export function bindMenus(
       const open = allowed()
       const level = generating()
       for (const button of levels) {
-        const busy = level !== null && button.getAttribute('data-difficulty') === level
+        const busy = level !== null && button.dataset['difficulty'] === level
         button.disabled = !open
         setAttr(button, 'aria-busy', busy ? 'true' : undefined)
         setHidden(required(button, '[data-spinner]', HTMLElement), !busy)

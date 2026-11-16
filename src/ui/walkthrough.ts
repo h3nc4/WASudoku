@@ -141,7 +141,7 @@ export function bindWalkthrough(doc: Document, store: Store): () => void {
 
   disposer.on(panel, 'click', (event) => {
     const row = closestTo(event, '[data-step]')
-    const cursor = Number(row?.getAttribute('data-step') ?? Number.NaN)
+    const cursor = Number(row?.dataset['step'] ?? Number.NaN)
     if (Number.isInteger(cursor)) store.dispatch({ type: 'viewStep', cursor })
   })
   disposer.on(previous, 'click', () => {

@@ -103,7 +103,7 @@ function cross(doc: Document): SVGSVGElement {
   svg.setAttribute('aria-hidden', 'true')
   svg.setAttribute('viewBox', CROSS_BOX)
   svg.setAttribute('preserveAspectRatio', 'none')
-  svg.setAttribute('data-testid', CELL_TESTID.errorMark)
+  svg.dataset['testid'] = CELL_TESTID.errorMark
   const path = doc.createElementNS(SVG, 'path')
   path.setAttribute('d', CROSS)
   svg.append(path)

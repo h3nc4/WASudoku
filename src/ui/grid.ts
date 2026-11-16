@@ -31,6 +31,7 @@ import {
   all,
   closestTo,
   Disposer,
+  positionOf,
   required,
   setAttr,
   setFlag,
@@ -100,7 +101,7 @@ export function bindGrid(grid: HTMLElement, options: GridOptions): GridHandle {
 
   const indexOf = (target: EventTarget | null): number => {
     const cell = target instanceof Element ? target.closest('[role="gridcell"]') : null
-    return cells.findIndex((candidate) => candidate === cell)
+    return positionOf(cells, cell)
   }
 
   const setActive = (index: number) => {
@@ -244,7 +245,7 @@ export function bindBoard(doc: Document, store: Store): () => void {
 
   disposer.on(board, 'click', (event) => {
     const cell = closestTo(event, CELL)
-    const index = cells.findIndex((candidate) => candidate === cell)
+    const index = positionOf(cells, cell)
     const at = toCellIndex(index)
     if (at !== null) store.dispatch({ type: 'tap', index: at })
   })

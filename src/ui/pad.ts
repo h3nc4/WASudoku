@@ -82,7 +82,7 @@ export function bindPad(doc: Document, store: Store): () => void {
   }
   disposer.on(pad, 'click', (event) => {
     const button = closestTo(event, '[data-digit]')
-    const digit = toDigit(Number(button?.getAttribute('data-digit')))
+    const digit = toDigit(Number(button?.dataset['digit']))
     if (digit !== null) store.dispatch({ type: 'pad', digit })
   })
   return disposer.dispose

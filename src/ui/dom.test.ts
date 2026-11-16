@@ -22,6 +22,7 @@ import {
   all,
   closestTo,
   Disposer,
+  positionOf,
   required,
   setAttr,
   setFlag,
@@ -65,11 +66,27 @@ describe('dom helpers', () => {
   it('finds the element an event came from, and nothing for a text node', () => {
     document.body.innerHTML = '<div class="row"><b>x</b></div>'
     const bold = document.querySelector('b')!
-    const seen: (Element | null)[] = []
+    const seen: (HTMLElement | null)[] = []
     document.body.addEventListener('click', (event) => seen.push(closestTo(event, '.row')))
     bold.click()
     bold.firstChild!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(seen).toEqual([document.querySelector('.row'), null])
+  })
+
+  it('finds nothing where the match is not an HTML element', () => {
+    document.body.innerHTML = '<svg class="row"><g></g></svg>'
+    const group = document.querySelector('g')!
+    const seen: (HTMLElement | null)[] = []
+    document.body.addEventListener('click', (event) => seen.push(closestTo(event, '.row')))
+    group.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(seen).toEqual([null])
+  })
+
+  it('finds where an element sits in a list', () => {
+    const [first, second] = [document.createElement('a'), document.createElement('b')]
+    expect(positionOf([first, second], second)).toBe(1)
+    expect(positionOf([first], second)).toBe(-1)
+    expect(positionOf([first], null)).toBe(-1)
   })
 
   it('compares flat records', () => {

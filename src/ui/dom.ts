@@ -33,9 +33,15 @@ export const all = <T extends Element>(
   kind: abstract new () => T,
 ): T[] => [...root.querySelectorAll(selector)].filter((found): found is T => found instanceof kind)
 
-/** The element an event came from or its nearest ancestor matching `selector`. */
-export const closestTo = (event: Event, selector: string): Element | null =>
-  event.target instanceof Element ? event.target.closest(selector) : null
+/** The HTML element an event came from or its nearest ancestor matching `selector`. */
+export function closestTo(event: Event, selector: string): HTMLElement | null {
+  const found = event.target instanceof Element ? event.target.closest(selector) : null
+  return found instanceof HTMLElement ? found : null
+}
+
+/** Where `element` sits in `list`, or -1 when it is absent or null. */
+export const positionOf = (list: readonly (Element | null)[], element: Element | null): number =>
+  list.indexOf(element)
 
 /** Sets or removes an attribute, writing only when the page holds something else. */
 export function setAttr(element: Element, name: string, value: string | undefined): void {
