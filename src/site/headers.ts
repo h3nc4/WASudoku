@@ -18,6 +18,8 @@
 
 import { createHash } from 'node:crypto'
 
+import { byCodeUnit } from './order'
+
 /** The text of every inline script and stylesheet a build's pages hold, each listed once. */
 export interface InlineSources {
   readonly scripts: readonly string[]
@@ -43,7 +45,7 @@ function split(element: string) {
   return { tag: element.slice(0, open), body: element.slice(open + 1, element.lastIndexOf('</')) }
 }
 
-const unique = (values: readonly string[]) => [...new Set(values)].sort()
+const unique = (values: readonly string[]) => [...new Set(values)].sort(byCodeUnit)
 
 /** The inline scripts and styles across pages, which a hash in the policy has to allow. */
 export function inlineSources(pages: readonly string[]): InlineSources {
@@ -117,7 +119,7 @@ export const formatHeaders = (rules: readonly HeaderRule[]): string =>
     ),
   ].join('\n\n') + '\n'
 
-const HEADER_LINE = /^\s+([\w-]+):\s*(.*)$/
+const HEADER_LINE = /^\s+([\w-]+):\s*(\S.*)?$/
 
 /** Reads a `_headers` file back, skipping comments and blank lines. */
 export function parseHeaders(text: string): HeaderRule[] {

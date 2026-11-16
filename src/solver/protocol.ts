@@ -52,6 +52,7 @@ export type Response =
 
 const BOARD_KINDS: readonly unknown[] = ['solve', 'validate', 'hint'] satisfies BoardKind[]
 const FAULTS: readonly unknown[] = ['load', 'trap'] satisfies Fault[]
+const DIFFICULTY_VALUES: readonly unknown[] = DIFFICULTIES
 
 type Fields = (name: string) => unknown
 
@@ -68,8 +69,7 @@ const isBoard = (value: unknown): value is Uint8Array =>
 const isId = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 
-const isDifficulty = (value: unknown): value is Difficulty =>
-  DIFFICULTIES.some((difficulty) => difficulty === value)
+const isDifficulty = (value: unknown): value is Difficulty => DIFFICULTY_VALUES.includes(value)
 
 const isFault = (value: unknown): value is Fault => FAULTS.includes(value)
 

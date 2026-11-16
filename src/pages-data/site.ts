@@ -69,7 +69,8 @@ export interface Head {
 export const canonicalUrl = (path: string): string => new URL(path, SITE).href
 
 // A data block ends at the first "</script", so every "<" is escaped as JSON allows.
-export const jsonLdText = (data: JsonLd): string => JSON.stringify(data).replaceAll('<', '\\u003c')
+export const jsonLdText = (data: JsonLd): string =>
+  JSON.stringify(data).replaceAll('<', String.raw`\u003c`)
 
 export function headOf(meta: PageMeta): Head {
   const url = canonicalUrl(meta.path)

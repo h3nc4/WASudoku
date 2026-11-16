@@ -39,7 +39,7 @@ export function assetPaths(html: string, assetsDir: string): string[] {
     String.raw`(?<=[\s"'(=/])${escapeRegExp(assetsDir)}/[^\s"'()<>]+`,
     'g',
   )
-  return [...new Set(html.match(reference))]
+  return [...new Set(Array.from(html.matchAll(reference), ([path]) => path))]
 }
 
 /** Precaches the build, reusing earlier copies, and serves the shell cache-first. */

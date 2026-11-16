@@ -26,7 +26,7 @@ export const IDLE_TIMEOUT_MS = 1000
 /** The delay before an idle save runs where the browser has no idle callback, such as Safari. */
 export const IDLE_FALLBACK_MS = 200
 /** Seeds span 32 bits, which the generator takes whole. */
-const SEED_RANGE = 0x1_0000_0000
+const SEED_RANGE = 0x1_00_00_00_00
 
 type TimerScope = Pick<typeof globalThis, 'setTimeout' | 'clearTimeout'> &
   Partial<Pick<typeof globalThis, 'requestIdleCallback' | 'cancelIdleCallback'>>

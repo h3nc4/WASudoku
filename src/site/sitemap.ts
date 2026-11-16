@@ -16,6 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { byCodeUnit } from './order'
+
 /** A built page, by its path in the output directory. */
 export interface BuiltPage {
   readonly name: string
@@ -41,7 +43,7 @@ export const indexedPaths = (pages: readonly BuiltPage[]): string[] =>
   pages
     .filter(({ name, html }) => name.endsWith(HTML) && name !== NOT_FOUND && !NOINDEX.test(html))
     .map(({ name }) => servedPath(name))
-    .sort()
+    .sort(byCodeUnit)
 
 /** The build's day as YYYY-MM-DD, from SOURCE_DATE_EPOCH when set so a rebuild matches. */
 export function buildDay(sourceDateEpoch: string | undefined, now: Date): string {

@@ -45,8 +45,7 @@ type CodePointRange = readonly [first: number, last: number]
 const HEX = 16
 const FONT_FACE = /@font-face\s*\{[^}]*\}/g
 const UNICODE_RANGE = /unicode-range\s*:\s*([^;}]+)/i
-// A lookbehind, so the whole match is the URL without its quotes.
-const SOURCE_URL = /(?<=url\(\s*["']?)[^"')\s]+/g
+const SOURCE_URL = /url\(\s*["']?([^"')\s]+)/g
 const TEXT_FILE = /\.(?:html|js|css)$/
 // A page may inline its stylesheet, so its @font-face rules sit in the HTML.
 const STYLE_FILE = /\.(?:html|css)$/
@@ -95,7 +94,7 @@ export function unusedFonts(
           [...codePoints].some((codePoint) => codePoint >= first && codePoint <= last),
         )
       const files = isUsed ? used : judged
-      for (const [url] of face.matchAll(SOURCE_URL)) {
+      for (const [, url = ''] of face.matchAll(SOURCE_URL)) {
         // Resolved against the stylesheet, which maps a relative and a root-relative URL to one file.
         const name = new URL(url, `file:///${style.name}`).pathname.slice(1)
         files.add(name)

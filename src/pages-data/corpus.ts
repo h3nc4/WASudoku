@@ -44,8 +44,9 @@ const RUST_NAMES: Readonly<Record<string, Technique>> = {
 
 const PUZZLE_LINE = /^PUZZLE (\S{81})$/
 const STEP_LINE = /^(\S+) p(.*) e(.*) c(.*)$/
-const CELL_DIGIT = /(\d+)=(\d+)/g
-const CAUSE_CELL = /(\d+)=\[([\d, ]*)\]/g
+// A match starts only at the first digit of a run, so a failed attempt never rescans it.
+const CELL_DIGIT = /(?<!\d)(\d+)=(\d+)/g
+const CAUSE_CELL = /(?<!\d)(\d+)=\[([\d, ]*)\]/g
 const LIST_SEPARATOR = ', '
 
 function techniqueOf(name: string): Technique {
