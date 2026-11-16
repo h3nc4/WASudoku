@@ -1,0 +1,78 @@
+---
+/*
+ * Copyright (C) 2026  Henrique Almeida
+ * This file is part of WASudoku.
+ *
+ * WASudoku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * WASudoku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import { SHORTCUT_SECTIONS, SHORTCUTS_TEXT } from '../core/text/shortcuts'
+import CloseButton from './CloseButton.astro'
+---
+
+{/* A static list, built from the keymap's tables. Esc, the close button and a click outside close it. */}
+<dialog
+  id="shortcuts-dialog"
+  class="dlg shortcuts sm:max-w-lg lg:max-w-4xl"
+  closedby="any"
+  aria-labelledby="shortcuts-title"
+  aria-describedby="shortcuts-note"
+>
+  <form method="dialog" class="contents">
+    <h2 id="shortcuts-title" class="voice-ink text-ink pr-6 text-xl leading-tight tracking-tight">
+      {SHORTCUTS_TEXT.title}
+    </h2>
+    {/* Focusable, so the list scrolls by keyboard on a short screen in every engine. */}
+    <div class="shortcuts-body" tabindex="0" role="region" aria-labelledby="shortcuts-title">
+      {
+        SHORTCUT_SECTIONS.map((section) => (
+          <table class="shortcuts-table">
+            <caption class="voice-mono text-muted-foreground text-xs tracking-wider uppercase">
+              {section.title}
+            </caption>
+            <thead class="sr-only">
+              <tr>
+                <th scope="col">{SHORTCUTS_TEXT.keys}</th>
+                <th scope="col">{SHORTCUTS_TEXT.action}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {section.rows.map((row) => (
+                <tr>
+                  <th scope="row">
+                    {row.chords.map((chord, index) => (
+                      <>
+                        {index > 0 && <span class="shortcuts-or">{SHORTCUTS_TEXT.or}</span>}
+                        <kbd class="shortcuts-chord">
+                          {chord.map((key, at) => (
+                            <>
+                              {at > 0 && <span>{SHORTCUTS_TEXT.join}</span>}
+                              <kbd>{key}</kbd>
+                            </>
+                          ))}
+                        </kbd>
+                      </>
+                    ))}
+                  </th>
+                  <td>{row.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))
+      }
+    </div>
+    <p id="shortcuts-note" class="text-muted-foreground text-sm">{SHORTCUTS_TEXT.note}</p>
+    <CloseButton autofocus />
+  </form>
+</dialog>

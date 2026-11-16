@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { SHORTCUTS_TEXT } from '../core/text/shortcuts'
 import Button from './Button.astro'
 import Icon from './Icon.astro'
 import Wordmark from './Wordmark.astro'
@@ -63,6 +64,16 @@ import Wordmark from './Wordmark.astro'
       data-variant="ghost"
       data-size="icon-lg"><Icon name="github" class="size-5" /></a
     >
+    <Button
+      variant="ghost"
+      size="icon-lg"
+      id="shortcuts-button"
+      title={SHORTCUTS_TEXT.open}
+      aria-label={SHORTCUTS_TEXT.open}
+      aria-haspopup="dialog"
+    >
+      <Icon name="keyboard" class="size-5" />
+    </Button>
     <Button variant="ghost" size="icon-lg" id="theme-button">
       <Icon
         name="sun"

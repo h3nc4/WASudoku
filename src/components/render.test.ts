@@ -23,6 +23,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container'
 import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 
+import { SHORTCUT_SECTIONS } from '../core/text/shortcuts'
 import Preview from '../pages/_preview/[state].astro'
 import Index from '../pages/index.astro'
 import { PREVIEW_STATES, previewPaths } from '../preview/states'
@@ -76,6 +77,7 @@ describe('the first visit', async () => {
       'abandon-dialog',
       'reveal-dialog',
       'pending-dialog',
+      'shortcuts-dialog',
     ])
     for (const dialog of dialogs) {
       expect(dialog).not.toHaveAttribute('open')
@@ -92,6 +94,27 @@ describe('the first visit', async () => {
     ).toEqual(['abandon-dialog', 'reveal-dialog', 'pending-dialog'])
     const [cancel] = doc.querySelectorAll('#abandon-dialog button[type="submit"]')
     expect(cancel?.textContent.trim()).toBe('Cancel')
+  })
+
+  it('lists the keymap in the shortcuts dialog, opened from a labelled header button', () => {
+    const button = doc.getElementById('shortcuts-button')
+    expect(button).toHaveAccessibleName('Keyboard shortcuts')
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog')
+    const dialog = doc.getElementById('shortcuts-dialog')
+    expect(dialog?.querySelector('h2')?.textContent.trim()).toBe('Keyboard shortcuts')
+    const tables = [...(dialog?.querySelectorAll('table') ?? [])]
+    expect(tables.map((t) => t.caption?.textContent.trim())).toEqual(
+      SHORTCUT_SECTIONS.map((section) => section.title),
+    )
+    const rows = tables.flatMap((t) => [...t.querySelectorAll('tbody tr')])
+    const shown = rows.map((row) => [
+      row.querySelector('th')?.textContent,
+      row.querySelector('td')?.textContent,
+    ])
+    expect(shown).toContainEqual(['Ctrl+Shift+Z or Ctrl+Y', 'Redo'])
+    expect(shown).toContainEqual(['1–9', 'Enter the digit, or toggle its note in Corner or Center'])
+    expect(rows).toHaveLength(SHORTCUT_SECTIONS.flatMap((section) => section.rows).length)
+    expect(dialog?.querySelectorAll('tbody th[scope="row"] > kbd > kbd').length).toBeGreaterThan(0)
   })
 
   it('opens each menu from its button as an anchored popover', () => {
@@ -159,7 +182,7 @@ describe('the first visit', async () => {
 
   it('draws every icon from the inline sprite', () => {
     const symbols = new Set([...doc.querySelectorAll('svg.sprite symbol')].map((s) => s.id))
-    expect(symbols.size).toBe(27)
+    expect(symbols.size).toBe(28)
     const uses = [...doc.querySelectorAll('use')].map((u) => u.getAttribute('href')?.slice(1))
     expect(uses.length).toBeGreaterThan(0)
     for (const id of uses) expect(symbols.has(id ?? '')).toBe(true)

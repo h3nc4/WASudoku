@@ -17,11 +17,19 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 import Icon from './Icon.astro'
+
+interface Props {
+  /** Takes the dialog's first focus, ahead of a focusable list above it. */
+  autofocus?: boolean
+}
+
+const { autofocus } = Astro.props
 ---
 
 <button
   type="submit"
   value="close"
+  autofocus={autofocus}
   class="ring-offset-card focus-visible:ring-ring text-muted-foreground hover:text-foreground absolute top-4 right-4 rounded-[4px] transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
   ><Icon name="x" class="size-4" /><span class="sr-only">Close</span></button
 >

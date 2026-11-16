@@ -372,6 +372,87 @@
     }
   }
 
+  /* The shortcuts list scrolls inside its dialog, which stays unclipped for a toast it raises. */
+  .shortcuts-body {
+    display: grid;
+    gap: 1.25rem;
+    max-height: calc(100dvh - 12rem);
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Side by side on a wide screen, where the list would otherwise scroll in a short window. */
+  @media (min-width: 64rem) {
+    .shortcuts-body {
+      grid-template-columns: 1fr 1fr;
+      column-gap: 2rem;
+    }
+  }
+
+  .shortcuts-body:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .shortcuts-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .shortcuts-table caption {
+    padding-bottom: 0.375rem;
+    text-align: left;
+  }
+
+  .shortcuts-table tr + tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .shortcuts-table th,
+  .shortcuts-table td {
+    padding: 0.375rem 0;
+    font-weight: inherit;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .shortcuts-table th {
+    width: 45%;
+    padding-right: 1rem;
+  }
+
+  .shortcuts-chord {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+  }
+
+  .shortcuts-chord kbd {
+    min-width: 1.75rem;
+    padding: 0.125rem 0.375rem;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: var(--corner-sm);
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
+    font-variation-settings: 'MONO' 1;
+    text-align: center;
+  }
+
+  .shortcuts-or {
+    margin: 0 0.125rem;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+  }
+
   /* Menus: an auto popover anchored to its button, flipped above it when it would overflow below. */
   .menu {
     position: fixed;

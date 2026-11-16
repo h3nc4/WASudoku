@@ -23,7 +23,7 @@ import { valueAt } from '../core/board'
 import { selectBoard, selectControls } from '../core/game/selectors'
 import { CELLS } from '../core/geometry'
 import { fakeDeps, MemoryStorage } from '../test/runtime-fakes'
-import { bindKeyboard, pressOf } from './keyboard'
+import { asksForShortcuts, bindKeyboard, pressOf } from './keyboard'
 import { loadSlices } from './storage'
 import { createStore } from './store'
 
@@ -130,5 +130,30 @@ describe('bindKeyboard', () => {
     unbind()
     press(element('[role="gridcell"]'), '4')
     expect(digitAt()).toBeNull()
+  })
+})
+
+describe('asksForShortcuts', () => {
+  const asks = (target: Element, init: KeyboardEventInit = {}): boolean => {
+    let asked = false
+    const listener = (event: KeyboardEvent) => {
+      asked = asksForShortcuts(document, event)
+    }
+    document.addEventListener('keydown', listener)
+    press(target, '?', { shiftKey: true, ...init })
+    document.removeEventListener('keydown', listener)
+    return asked
+  }
+
+  it('takes ? on the grid and on a button, as the game keys read them', () => {
+    expect(asks(element('[role="gridcell"]'))).toBe(true)
+    expect(asks(element('#check'))).toBe(true)
+  })
+
+  it('leaves ? to a text field, an open dialog and a composition', () => {
+    expect(asks(element('#field'))).toBe(false)
+    expect(asks(element('[role="gridcell"]'), { isComposing: true })).toBe(false)
+    element('#dialog').setAttribute('open', '')
+    expect(asks(element('[role="gridcell"]'))).toBe(false)
   })
 })

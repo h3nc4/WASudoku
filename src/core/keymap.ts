@@ -96,7 +96,17 @@ export const WALKTHROUGH_KEYS: ReadonlyMap<string, KeyCommand> = new Map<string,
   ['ArrowRight', { kind: 'step', delta: 1 }],
 ])
 
+/** Opens the list of keyboard shortcuts, with Shift allowed since most layouts need it for `?`. */
+export const SHORTCUTS_KEY = '?'
+
 const hasModifier = (press: KeyPress): boolean => press.ctrl || press.meta || press.alt
+
+/** Whether a press opens the shortcuts list, which a text field or an open dialog keeps. */
+export const opensShortcuts = (
+  press: KeyPress,
+  context: Pick<KeyContext, 'typing' | 'dialogOpen'>,
+): boolean =>
+  press.key === SHORTCUTS_KEY && !hasModifier(press) && !context.typing && !context.dialogOpen
 
 function gridKey(press: KeyPress, context: KeyContext): KeyAction | null {
   if (!context.inGrid || context.gridReadOnly || hasModifier(press)) return null

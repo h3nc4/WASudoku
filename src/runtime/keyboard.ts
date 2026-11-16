@@ -18,7 +18,7 @@
 
 import { fromKey } from '../core/game/events'
 import { type GameKeyContext, selectKeyContext } from '../core/game/selectors'
-import { type KeyContext, keymap, type KeyPress } from '../core/keymap'
+import { type KeyContext, keymap, type KeyPress, opensShortcuts } from '../core/keymap'
 import type { Store } from './store'
 
 const GRID_CELL = '[role="gridcell"]'
@@ -52,6 +52,14 @@ export const pressOf = (event: KeyboardEvent): KeyPress => ({
   alt: event.altKey,
   shift: event.shiftKey,
 })
+
+/** Whether a keydown on `page` asks for the shortcuts list, read as the game keys are. */
+export const asksForShortcuts = (page: Document, event: KeyboardEvent): boolean =>
+  !event.isComposing &&
+  opensShortcuts(pressOf(event), {
+    typing: isTyping(event.target),
+    dialogOpen: page.querySelector(OPEN_DIALOG) !== null,
+  })
 
 const sameContext = (a: GameKeyContext, b: GameKeyContext): boolean =>
   a.gridReadOnly === b.gridReadOnly &&

@@ -30,6 +30,7 @@ import Icon from './Icon.astro'
 import InputMode from './InputMode.astro'
 import NumberPad from './NumberPad.astro'
 import SelectionScreen from './SelectionScreen.astro'
+import ShortcutsDialog from './ShortcutsDialog.astro'
 import StepsPanel from './StepsPanel.astro'
 import ToastRegion from './ToastRegion.astro'
 import { type AppView, isReadOnly } from './view'
@@ -110,6 +111,7 @@ const visualizing = view.mode === 'visualizing'
     confirmLabel="Start puzzle"
     cancelLabel="Not now"
   />
+  <ShortcutsDialog />
   <Footer />
 </div>
 <ToastRegion toasts={toasts} />

@@ -31,6 +31,7 @@ import { bindAnnouncer, bindHint } from './hint'
 import { bindLayout } from './layout'
 import { bindMenus } from './menus'
 import { bindPad } from './pad'
+import { bindShortcuts } from './shortcuts'
 import { bindStatus } from './status'
 import { bindThemeToggle } from './theme'
 import { createToaster, type Toaster } from './toast'
@@ -77,6 +78,7 @@ export function mountApp(doc: Document, store: Store, ports: AppPorts): () => vo
   disposer.add(bindWalkthrough(doc, store))
   disposer.add(bindMenus(doc, store, ports.address, dialogs.startOver))
   disposer.add(bindThemeToggle(required(doc, '#theme-button', HTMLElement)))
+  disposer.add(bindShortcuts(doc, toaster.raise))
   for (const area of KEEP_FOCUS.flatMap((selector) => all(doc, selector, HTMLElement))) {
     disposer.on(area, 'mousedown', (event) => {
       if (!closestTo(event, TAKES_FOCUS)) event.preventDefault()

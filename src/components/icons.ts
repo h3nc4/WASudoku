@@ -24,6 +24,7 @@ export type IconName =
   | 'eraser'
   | 'eye'
   | 'github'
+  | 'keyboard'
   | 'lightbulb'
   | 'link'
   | 'loader-circle'

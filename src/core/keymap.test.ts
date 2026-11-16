@@ -18,7 +18,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { type KeyAction, type KeyContext, keymap, type KeyPress } from './keymap'
+import { type KeyAction, type KeyContext, keymap, type KeyPress, opensShortcuts } from './keymap'
 
 const PLAYING: KeyContext = {
   inGrid: false,
@@ -205,5 +205,20 @@ describe('sticky keys', () => {
   it('leaves the letter to a field that takes typing, but not to a read-only cell', () => {
     expect(keymap(press('s'), { ...PLAYING, typing: true })).toEqual([])
     expect(commands(keymap(press('s'), IN_GRID))).toEqual([{ kind: 'toggleSticky' }])
+  })
+})
+
+describe('the shortcuts key', () => {
+  it('opens on ? with or without Shift, and does nothing in the keymap', () => {
+    expect(opensShortcuts(press('?'), PLAYING)).toBe(true)
+    expect(opensShortcuts(press('?', { shift: true }), WALKTHROUGH)).toBe(true)
+    expect(keymap(press('?', { shift: true }), IN_GRID)).toEqual([])
+  })
+
+  it('leaves ? to a text field, an open dialog and a modified press', () => {
+    expect(opensShortcuts(press('?'), { ...PLAYING, typing: true })).toBe(false)
+    expect(opensShortcuts(press('?'), { ...PLAYING, dialogOpen: true })).toBe(false)
+    expect(opensShortcuts(press('?', { ctrl: true }), PLAYING)).toBe(false)
+    expect(opensShortcuts(press('/'), PLAYING)).toBe(false)
   })
 })
