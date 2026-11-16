@@ -104,13 +104,14 @@
 }
 
 /* Unlayered rules override every layer. Native dialogs and menus have no reduced-motion guard. */
+/* A non-zero duration starts a transition on every inherited colour, which reads stale until the next frame. */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
   ::after,
   ::backdrop {
     animation-duration: 0.01ms;
-    transition-duration: 0.01ms;
+    transition-duration: 0s;
   }
 }
 
