@@ -37,7 +37,7 @@ import {
 
 const R1C3 = 2
 const R1C4 = 3
-// Longer than the idle timeout after which the app writes the game.
+// Longer than the idle timeout after which the app writes the game, run on the fake clock.
 const PAST_SAVE_DELAY_MS = 2000
 
 const welcome = (page: Page) => page.getByRole('heading', { name: 'Welcome to WASudoku' })
@@ -101,9 +101,10 @@ test('reload from the untouched selection screen keeps the selection screen', as
   page,
   open,
 }) => {
+  await page.clock.install()
   await open()
   await expect(welcome(page)).toBeVisible()
-  await page.waitForTimeout(PAST_SAVE_DELAY_MS)
+  await page.clock.runFor(PAST_SAVE_DELAY_MS)
 
   await page.reload()
   await expect(welcome(page)).toBeVisible()
@@ -118,9 +119,10 @@ test('empty game saved by an earlier build opens the selection screen', async ({
 })
 
 test('corrupt game keeps the metrics saved beside it', async ({ page, open }) => {
+  await page.clock.install()
   await open({ game: '{"version":2,"history":', metrics: { timer: 30, mistakes: 2 } })
   await expect(welcome(page)).toBeVisible()
-  await page.waitForTimeout(PAST_SAVE_DELAY_MS)
+  await page.clock.runFor(PAST_SAVE_DELAY_MS)
   const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.METRICS)
   expect(stored).toBe('{"timer":30,"mistakes":2}')
 })

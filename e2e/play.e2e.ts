@@ -37,6 +37,10 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Expert', 'Extreme'] as const
 // R1C3 takes 1, 2 or 4 and its answer is 4. R1C4 takes 2 or 6.
 const R1C3 = 2
 const R1C4 = 3
+const CLOCK_START = new Date('2026-01-01T00:00:00')
+const CLOCK_PAUSE = new Date('2026-01-01T00:00:01')
+// More than the one second the timer shows, so a running clock must change it.
+const PAST_A_TICK_MS = 2000
 
 test.describe('first visit', () => {
   test('shows the selection screen over an inert board', async ({ page, open }) => {
@@ -149,18 +153,6 @@ test.describe('play', () => {
     await expect(page.locator('[role="gridcell"][data-target]')).toHaveCount(0)
   })
 
-  test('pauses behind an overlay and resumes', async ({ page }) => {
-    await page.getByRole('button', { name: 'Pause game' }).click()
-    await expect(page.locator('#pause-overlay')).toBeVisible()
-    await expect(page.locator('#board')).toHaveAttribute('data-paused', '')
-    const frozen = await timer(page).innerText()
-    await page.waitForTimeout(1_200)
-    await expect(timer(page)).toHaveText(frozen)
-    await page.getByRole('button', { name: 'Resume', exact: true }).click()
-    await expect(page.locator('#pause-overlay')).toBeHidden()
-    await expect(timer(page)).not.toHaveText(frozen, { timeout: 3_000 })
-  })
-
   test('the status bar button turns into resume while paused', async ({ page }) => {
     await page.getByRole('button', { name: 'Pause game' }).click()
     await expect(page.locator('#pause-overlay')).toBeVisible()
@@ -218,6 +210,23 @@ test.describe('play', () => {
     await page.reload()
     await expect(root).toHaveAttribute('data-theme', after)
   })
+})
+
+test('pauses behind an overlay and resumes', async ({ page, open }) => {
+  // A paused clock moves only by runFor, so the frozen timer is read without waiting in real time.
+  await page.clock.install({ time: CLOCK_START })
+  await page.clock.pauseAt(CLOCK_PAUSE)
+  await open({ game: savedGame() })
+  await page.getByRole('button', { name: 'Pause game' }).click()
+  await expect(page.locator('#pause-overlay')).toBeVisible()
+  await expect(page.locator('#board')).toHaveAttribute('data-paused', '')
+  const frozen = await timer(page).innerText()
+  await page.clock.runFor(PAST_A_TICK_MS)
+  await expect(timer(page)).toHaveText(frozen)
+  await page.getByRole('button', { name: 'Resume', exact: true }).click()
+  await expect(page.locator('#pause-overlay')).toBeHidden()
+  await page.clock.runFor(PAST_A_TICK_MS)
+  await expect(timer(page)).not.toHaveText(frozen)
 })
 
 test('the last digit wins, and the win dialog starts another puzzle', async ({ page, open }) => {

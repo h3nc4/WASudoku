@@ -160,18 +160,17 @@ test.describe('an update', () => {
     await expectUpdateFetchesOnlyTheChange(page, site)
   })
 
-  test('copies unchanged files from the earlier version once the HTTP cache lost them', async ({
-    page,
-    open,
-    browserName,
-  }) => {
-    test.skip(browserName !== 'chromium', 'Only Chromium lets a test clear its HTTP cache')
-    await open({ path: await serve(site) })
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
+  test(
+    'copies unchanged files from the earlier version once the HTTP cache lost them',
+    { tag: '@chromium-only' },
+    async ({ page, open }) => {
+      await open({ path: await serve(site) })
+      await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
 
-    const session = await page.context().newCDPSession(page)
-    await expectUpdateFetchesOnlyTheChange(page, site, async () => {
-      await session.send('Network.clearBrowserCache')
-    })
-  })
+      const session = await page.context().newCDPSession(page)
+      await expectUpdateFetchesOnlyTheChange(page, site, async () => {
+        await session.send('Network.clearBrowserCache')
+      })
+    },
+  )
 })

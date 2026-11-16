@@ -19,6 +19,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const isCI = Boolean(process.env.CI)
+// Tests that drive the browser over CDP, which only Chromium speaks, such as clearing the HTTP cache.
+const CHROMIUM_ONLY = /@chromium-only/
 
 // Each suite serves the build in dist itself, through e2e/server.ts, which applies _headers as the edge does.
 export default defineConfig({
@@ -36,8 +38,8 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'iphone-15', use: { ...devices['iPhone 15'] } },
+    { name: 'firefox', grepInvert: CHROMIUM_ONLY, use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', grepInvert: CHROMIUM_ONLY, use: { ...devices['Desktop Safari'] } },
+    { name: 'iphone-15', grepInvert: CHROMIUM_ONLY, use: { ...devices['iPhone 15'] } },
   ],
 })
