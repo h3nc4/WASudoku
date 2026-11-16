@@ -18,7 +18,7 @@
 
 import type { StorageKey } from '../codec/storage'
 import type { Difficulty, Pool } from '../pool'
-import type { RequestId, State } from './state'
+import type { State } from './state'
 
 /** Work for the foreground solver worker, the boards as 81-character puzzle strings. */
 export type SolverTask =
@@ -48,8 +48,8 @@ export type SaveTiming = 'idle' | 'now'
 
 /** Side effects as data. The runtime performs them, and reports back through events. */
 export type Effect =
-  | { readonly kind: 'solver'; readonly id: RequestId; readonly task: SolverTask }
-  | { readonly kind: 'cancel'; readonly id: RequestId }
+  | { readonly kind: 'solver'; readonly id: number; readonly task: SolverTask }
+  | { readonly kind: 'cancel'; readonly id: number }
   /** Write a key, encoding it from the state of that moment with `serialize`. */
   | { readonly kind: 'save'; readonly key: StorageKey; readonly when: SaveTiming }
   /** Write this text to a key at once, for a value the state does not hold. */

@@ -18,10 +18,9 @@
 
 import { type Board, parseBoard } from '../core/board'
 import type * as Wire from '../core/codec/wire.types'
-import { type Digit, type Mask, maskOf, toDigit } from '../core/digits'
+import { type Digit, maskOf, toDigit } from '../core/digits'
 import type { SolverTask } from '../core/game/effects'
 import type { SystemEvent } from '../core/game/events'
-import type { RequestId } from '../core/game/state'
 import {
   type CauseCell,
   type CellDigit,
@@ -34,7 +33,7 @@ import type { Difficulty, PooledPuzzle, PuzzleData } from '../core/pool'
 import type { RunOptions, SolverClient } from '../solver/client'
 
 /** A solver reply as the game reads it. */
-export type Reply = Extract<SystemEvent, { readonly id: RequestId }>
+export type Reply = Extract<SystemEvent, { readonly id: number }>
 
 const EMPTY_CELL = '.'
 const EMPTY_CODE = 0
@@ -57,7 +56,7 @@ function cellDigit({ index, value }: Wire.CellDigit): CellDigit | null {
   return cell === null || digit === null ? null : { index: cell, digit }
 }
 
-function mask(candidates: readonly number[]): Mask | null {
+function mask(candidates: readonly number[]): number | null {
   const digits = candidates.map(toDigit)
   return digits.every((digit): digit is Digit => digit !== null) ? maskOf(digits) : null
 }
@@ -96,16 +95,16 @@ export function toSolveResult(
   return mapped === null || board === null ? null : { steps: mapped, solution: board }
 }
 
-const failed = (id: RequestId, reason: string): Reply => ({ type: 'failed', id, reason })
+const failed = (id: number, reason: string): Reply => ({ type: 'failed', id, reason })
 
-function solved(id: RequestId, result: Wire.SolveResult): Reply {
+function solved(id: number, result: Wire.SolveResult): Reply {
   if (result.kind === 'error') return failed(id, result.error)
   const mapped = toSolveResult(result.steps, result.solution)
   return mapped === null ? failed(id, OUT_OF_RANGE) : { type: 'solved', id, result: mapped }
 }
 
 /** Only a board with one solution validates, and any other answer refuses it. */
-function validated(id: RequestId, result: Wire.ValidateResult): Reply {
+function validated(id: number, result: Wire.ValidateResult): Reply {
   switch (result.kind) {
     case 'error':
       return failed(id, result.error)
@@ -120,7 +119,7 @@ function validated(id: RequestId, result: Wire.ValidateResult): Reply {
   }
 }
 
-function generated(id: RequestId, result: Wire.GenerateResult): Reply {
+function generated(id: number, result: Wire.GenerateResult): Reply {
   if (result.kind === 'error') return failed(id, result.error)
   const puzzle = toPuzzle(result.puzzle, result.solution)
   return puzzle === null ? failed(id, OUT_OF_RANGE) : { type: 'generated', id, puzzle }
@@ -168,7 +167,7 @@ export function runTask(
 }
 
 /** The reply event for a request. A wire error code, or bytes that failed to decode, is `failed`. */
-export function toReply(id: RequestId, answer: Answer): Reply {
+export function toReply(id: number, answer: Answer): Reply {
   switch (answer.kind) {
     case 'solve':
       return answer.decoded.ok

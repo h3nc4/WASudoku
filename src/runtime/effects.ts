@@ -20,7 +20,7 @@ import type { StorageKey } from '../core/codec/storage'
 import type { Effect } from '../core/game/effects'
 import type { Event } from '../core/game/events'
 import { serialize } from '../core/game/persist'
-import type { RequestId, State } from '../core/game/state'
+import type { State } from '../core/game/state'
 import { SolverError } from '../solver/client'
 import type { Cancel, RuntimeDeps } from './deps'
 import { createRefill, type Refill } from './refill'
@@ -48,7 +48,7 @@ export function createEffects(
   read: () => State,
 ): Effects {
   const idleSaves = new Map<StorageKey, Cancel>()
-  const requests = new Map<RequestId, AbortController>()
+  const requests = new Map<number, AbortController>()
   const flashes = new Set<Cancel>()
   const corrupted = new Set<StorageKey>()
   let tick: Cancel | null = null
@@ -90,7 +90,7 @@ export function createEffects(
     write(key)
   }
 
-  function solve(id: RequestId, task: Extract<Effect, { kind: 'solver' }>['task']): void {
+  function solve(id: number, task: Extract<Effect, { kind: 'solver' }>['task']): void {
     const controller = new AbortController()
     requests.set(id, controller)
     const forget = (): void => {

@@ -31,7 +31,6 @@ import {
   newPlay,
   type Pending,
   type Play,
-  type RequestId,
   type State,
 } from './state'
 
@@ -121,7 +120,7 @@ export function request(state: State, pending: PendingTask, task: SolverTask): O
 }
 
 /** The pending request a reply answers, or null for a stale or unknown reply. */
-export const answered = (state: State, id: RequestId): Pending | null =>
+export const answered = (state: State, id: number): Pending | null =>
   state.pending?.id === id ? state.pending : null
 
 /** Clears the answered request. */

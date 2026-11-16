@@ -17,7 +17,7 @@
  */
 
 import { type Board, boardToString, isBoardFull, place, valueAt } from '../board'
-import { EMPTY_MASK, type Mask, withoutDigit } from '../digits'
+import { EMPTY_MASK, withoutDigit } from '../digits'
 import { CELLS, lookup } from '../geometry'
 import { candidateMasks } from '../rules'
 import { type Outcome, stay } from './effects'
@@ -117,7 +117,7 @@ export function walkBoard(board: Board, walk: Walk): Board {
 }
 
 /** Candidates before the current step: those of the board then, less every elimination made so far. */
-export function walkCandidates(board: Board, walk: Walk): Mask[] {
+export function walkCandidates(board: Board, walk: Walk): number[] {
   const before = Math.max(0, walk.cursor - 1)
   const masks = candidateMasks(placedUpTo(board, walk.steps, before))
   for (const step of walk.steps.slice(0, before)) {

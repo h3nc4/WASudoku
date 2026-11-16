@@ -26,15 +26,7 @@ import {
   valueAt,
   withCandidates,
 } from './board'
-import {
-  type CellIndex,
-  type Digit,
-  EMPTY_MASK,
-  FULL_MASK,
-  hasDigit,
-  type Mask,
-  withoutDigit,
-} from './digits'
+import { type CellIndex, type Digit, EMPTY_MASK, FULL_MASK, hasDigit, withoutDigit } from './digits'
 import { CELLS, peersOf, SIZE, type Unit, UNITS, unitsOf } from './geometry'
 
 /** Peers already holding the digit, which placing it here would clash with. */
@@ -62,7 +54,7 @@ export function conflicts(board: Board): ReadonlySet<CellIndex> {
 }
 
 /** The digits no peer holds, per cell, with an empty mask for a filled cell. */
-export const candidateMasks = (board: Board): Mask[] =>
+export const candidateMasks = (board: Board): number[] =>
   CELLS.map((index) => {
     if (valueAt(board, index) !== null) return EMPTY_MASK
     return peersOf(index).reduce((mask, peer) => {

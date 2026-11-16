@@ -20,8 +20,10 @@
 export const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'extreme'] as const
 export type Difficulty = (typeof DIFFICULTIES)[number]
 
+const DIFFICULTY_NAMES: readonly unknown[] = DIFFICULTIES
+
 export const isDifficulty = (value: unknown): value is Difficulty =>
-  DIFFICULTIES.some((difficulty) => difficulty === value)
+  DIFFICULTY_NAMES.includes(value)
 
 /** Puzzles kept ready per difficulty, so a new game rarely waits for the generator. */
 export const MIN_POOL_SIZE = 3

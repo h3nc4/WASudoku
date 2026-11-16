@@ -34,7 +34,7 @@ import {
   onValidated,
   onValidateFailed,
 } from './entering'
-import type { Event } from './events'
+import type { Event, EventType } from './events'
 import { isClockRunning } from './guards'
 import { onDismissHint, onHint, onHintFailed, onHintSolved } from './hint'
 import { onLoaded, savedGame, savedMetrics } from './persist'
@@ -121,86 +121,59 @@ function onReply(state: State, event: Extract<Event, { id: unknown }>): Outcome 
   }
 }
 
-function handle(state: State, event: Event, now: number): Outcome {
-  switch (event.type) {
-    case 'digit':
-      return onDigit(state, event.digit)
-    case 'pad':
-      return onPad(state, event.digit)
-    case 'erase':
-      return onErase(state, event.how)
-    case 'move':
-      return onMove(state, event.direction)
-    case 'select':
-      return onSelect(state, event.index)
-    case 'tap':
-      return onTap(state, event.index)
-    case 'setMode':
-      return onSetMode(state, event.mode)
-    case 'cycleMode':
-      return onCycleMode(state)
-    case 'toggleSticky':
-      return onToggleSticky(state)
-    case 'releaseSticky':
-      return lockSticky(state, null)
-    case 'undo':
-    case 'redo':
-      return onUndoRedo(state, event.type)
-    case 'clear':
-      return onClear(state)
-    case 'autoFill':
-      return onAutoFill(state)
-    case 'hint':
-      return onHint(state)
-    case 'dismissHint':
-      return onDismissHint(state)
-    case 'solve':
-      return onSolve(state)
-    case 'newGame':
-      return onNewGame(state, event.difficulty)
-    case 'enterCustom':
-      return onEnterCustom(state)
-    case 'validate':
-      return onValidate(state)
-    case 'pause':
-      return onPause(state)
-    case 'resume':
-      return onResume(state)
-    case 'paste':
-      return onPaste(state, event.text)
-    case 'acceptOffer':
-      return onAcceptOffer(state)
-    case 'declineOffer':
-      return onDeclineOffer(state)
-    case 'export':
-      return onExport(state)
-    case 'share':
-      return onShare(state, event.href)
-    case 'viewStep':
-      return onViewStep(state, event.cursor)
-    case 'step':
-      return onStep(state, event.delta)
-    case 'exitWalkthrough':
-      return onExitWalkthrough(state)
-    case 'loaded':
-      return onLoaded(state, event.slices)
-    case 'opened':
-      return onOpened(state, event.search, event.href)
-    case 'hidden':
-      return onHidden(state)
-    case 'tick':
-      return onTick(state, now)
-    case 'flashEnded':
-      return stay(state.flash?.pulse === event.pulse ? { ...state, flash: null } : state)
-    case 'solved':
-    case 'validated':
-    case 'generated':
-    case 'failed':
-      return onReply(state, event)
-    case 'refilled':
-      return stay({ ...state, pool: add(state.pool, event.puzzles) })
-  }
+type EventOf = { readonly [E in Event as E['type']]: E }
+type Handlers = {
+  readonly [K in EventType]: (state: State, event: EventOf[K], now: number) => Outcome
 }
+
+/** One handler per event type, so adding an event without its handler fails to compile. */
+const HANDLERS: Handlers = {
+  digit: (state, event) => onDigit(state, event.digit),
+  pad: (state, event) => onPad(state, event.digit),
+  erase: (state, event) => onErase(state, event.how),
+  move: (state, event) => onMove(state, event.direction),
+  select: (state, event) => onSelect(state, event.index),
+  tap: (state, event) => onTap(state, event.index),
+  setMode: (state, event) => onSetMode(state, event.mode),
+  cycleMode: onCycleMode,
+  toggleSticky: onToggleSticky,
+  releaseSticky: (state) => lockSticky(state, null),
+  undo: (state, event) => onUndoRedo(state, event.type),
+  redo: (state, event) => onUndoRedo(state, event.type),
+  clear: onClear,
+  autoFill: onAutoFill,
+  hint: onHint,
+  dismissHint: onDismissHint,
+  solve: onSolve,
+  newGame: (state, event) => onNewGame(state, event.difficulty),
+  enterCustom: onEnterCustom,
+  validate: onValidate,
+  pause: onPause,
+  resume: onResume,
+  paste: (state, event) => onPaste(state, event.text),
+  acceptOffer: onAcceptOffer,
+  declineOffer: onDeclineOffer,
+  export: onExport,
+  share: (state, event) => onShare(state, event.href),
+  viewStep: (state, event) => onViewStep(state, event.cursor),
+  step: (state, event) => onStep(state, event.delta),
+  exitWalkthrough: onExitWalkthrough,
+  loaded: (state, event) => onLoaded(state, event.slices),
+  opened: (state, event) => onOpened(state, event.search, event.href),
+  hidden: onHidden,
+  tick: (state, _event, now) => onTick(state, now),
+  flashEnded: (state, event) =>
+    stay(state.flash?.pulse === event.pulse ? { ...state, flash: null } : state),
+  solved: onReply,
+  validated: onReply,
+  generated: onReply,
+  failed: onReply,
+  refilled: (state, event) => stay({ ...state, pool: add(state.pool, event.puzzles) }),
+}
+
+// The type travels apart from the event so the handler and its event stay correlated.
+const handle = <K extends EventType>(type: K, state: State, event: EventOf[K], now: number) =>
+  HANDLERS[type](state, event, now)
 
 type PlayGame = Extract<Game, { readonly play: Play }>
 
@@ -294,7 +267,7 @@ function merge(own: readonly Effect[], extra: readonly Effect[]): Effect[] {
 
 /** The game after one event at time `now`, with the effects the runtime performs for it, in order. */
 export function update(state: State, event: Event, now: number): Outcome {
-  const outcome = handle(state, event, now)
+  const outcome = handle(event.type, state, event, now)
   const effects = [...outcome.effects]
   const next = syncClock(afterBoardChange(state, settleSticky(state, outcome.state), effects), now)
   return { state: next, effects: merge(effects, implied(state, next, now)) }

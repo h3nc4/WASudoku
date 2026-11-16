@@ -18,14 +18,7 @@
 
 import type { CellView } from '../components/view'
 import { type Board, isBoardFull, isGiven, parseBoard, place, valueAt } from '../core/board'
-import {
-  type CellIndex,
-  type Digit,
-  digitsOf,
-  EMPTY_MASK,
-  type Mask,
-  withDigit,
-} from '../core/digits'
+import { type CellIndex, type Digit, digitsOf, EMPTY_MASK, withDigit } from '../core/digits'
 import type { CellDigit, Step, Technique } from '../core/game/steps'
 import { walkCandidates } from '../core/game/walkthrough'
 import { CELLS, lookup } from '../core/geometry'
@@ -54,8 +47,8 @@ function placedUpTo(board: Board, steps: readonly Step[], upTo: number): Board {
   return next
 }
 
-function struckMasks(eliminations: readonly CellDigit[]): Map<CellIndex, Mask> {
-  const masks = new Map<CellIndex, Mask>()
+function struckMasks(eliminations: readonly CellDigit[]): Map<CellIndex, number> {
+  const masks = new Map<CellIndex, number>()
   for (const { index, digit } of eliminations) {
     masks.set(index, withDigit(masks.get(index) ?? EMPTY_MASK, digit))
   }
@@ -63,7 +56,7 @@ function struckMasks(eliminations: readonly CellDigit[]): Map<CellIndex, Mask> {
 }
 
 /** Givens in ink, earlier placements in the solver's voice, and candidates as corner notes. */
-function cellViews(board: Board, candidates: readonly Mask[], step: Step | null): CellView[] {
+function cellViews(board: Board, candidates: readonly number[], step: Step | null): CellView[] {
   const placed = new Map(step?.placements.map(({ index, digit }) => [index, digit]))
   const cause = new Set(step?.cause.map(({ index }) => index))
   const struck = struckMasks(step?.eliminations ?? [])

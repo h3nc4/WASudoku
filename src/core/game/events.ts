@@ -22,7 +22,7 @@ import type { CellIndex, Digit } from '../digits'
 import type { Direction } from '../geometry'
 import type { KeyCommand } from '../keymap'
 import type { Difficulty, Pool, PooledPuzzle, PuzzleData } from '../pool'
-import type { InputMode, RequestId } from './state'
+import type { InputMode } from './state'
 import type { SolveResult } from './steps'
 
 /** Every storage key read back on startup, each decoded on its own. */
@@ -83,11 +83,11 @@ export type SystemEvent =
   /** The clock timer fired. */
   | { readonly type: 'tick' }
   | { readonly type: 'flashEnded'; readonly pulse: number }
-  | { readonly type: 'solved'; readonly id: RequestId; readonly result: SolveResult }
+  | { readonly type: 'solved'; readonly id: number; readonly result: SolveResult }
   /** The unique solution of a validated board, or null when it has none or several. */
-  | { readonly type: 'validated'; readonly id: RequestId; readonly solution: Board | null }
-  | { readonly type: 'generated'; readonly id: RequestId; readonly puzzle: PuzzleData }
-  | { readonly type: 'failed'; readonly id: RequestId; readonly reason: string }
+  | { readonly type: 'validated'; readonly id: number; readonly solution: Board | null }
+  | { readonly type: 'generated'; readonly id: number; readonly puzzle: PuzzleData }
+  | { readonly type: 'failed'; readonly id: number; readonly reason: string }
   /** A round of background generation, stored in one update. */
   | { readonly type: 'refilled'; readonly puzzles: readonly PooledPuzzle[] }
 

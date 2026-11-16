@@ -31,7 +31,7 @@ export interface WireModule {
 type Export = (...args: readonly number[]) => unknown
 
 /** The seed crosses the C ABI as two 32-bit halves. */
-const SEED_HALF = 0x1_0000_0000
+const SEED_HALF = 0x1_00_00_00_00
 
 const isExport = (value: unknown): value is Export => typeof value === 'function'
 

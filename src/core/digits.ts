@@ -24,13 +24,11 @@ declare const cellIndexBrand: unique symbol
 /** A cell position from 0 to 80, row by row. Only geometry and the codecs mint one. */
 export type CellIndex = number & { readonly [cellIndexBrand]: true }
 
-/** A set of digits as nine bits, bit 0 for the digit 1. */
-export type Mask = number
-
 export const MIN_DIGIT = 1
 export const MAX_DIGIT = 9
-export const EMPTY_MASK: Mask = 0
-export const FULL_MASK: Mask = (1 << MAX_DIGIT) - 1
+/** A mask is a set of digits as nine bits, bit 0 for the digit 1. */
+export const EMPTY_MASK = 0
+export const FULL_MASK = (1 << MAX_DIGIT) - 1
 
 export const isDigit = (value: unknown): value is Digit =>
   Number.isInteger(value) && Number(value) >= MIN_DIGIT && Number(value) <= MAX_DIGIT
@@ -44,21 +42,21 @@ export const DIGITS: readonly Digit[] = Array.from({ length: MAX_DIGIT + 1 }, (_
 
 const bit = (digit: Digit): number => 1 << (digit - MIN_DIGIT)
 
-export const isMask = (value: unknown): value is Mask =>
+export const isMask = (value: unknown): value is number =>
   Number.isInteger(value) && Number(value) >= EMPTY_MASK && Number(value) <= FULL_MASK
 
-export const hasDigit = (mask: Mask, digit: Digit): boolean => (mask & bit(digit)) !== 0
-export const withDigit = (mask: Mask, digit: Digit): Mask => mask | bit(digit)
-export const withoutDigit = (mask: Mask, digit: Digit): Mask => mask & ~bit(digit)
-export const toggleDigit = (mask: Mask, digit: Digit): Mask => mask ^ bit(digit)
+export const hasDigit = (mask: number, digit: Digit): boolean => (mask & bit(digit)) !== 0
+export const withDigit = (mask: number, digit: Digit): number => mask | bit(digit)
+export const withoutDigit = (mask: number, digit: Digit): number => mask & ~bit(digit)
+export const toggleDigit = (mask: number, digit: Digit): number => mask ^ bit(digit)
 
-export const maskOf = (digits: Iterable<Digit>): Mask => {
+export const maskOf = (digits: Iterable<Digit>): number => {
   let mask = EMPTY_MASK
   for (const digit of digits) mask = withDigit(mask, digit)
   return mask
 }
 
 /** The digits in a mask, in ascending order. */
-export const digitsOf = (mask: Mask): Digit[] => DIGITS.filter((digit) => hasDigit(mask, digit))
+export const digitsOf = (mask: number): Digit[] => DIGITS.filter((digit) => hasDigit(mask, digit))
 
-export const maskSize = (mask: Mask): number => digitsOf(mask).length
+export const maskSize = (mask: number): number => digitsOf(mask).length

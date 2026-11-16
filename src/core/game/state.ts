@@ -26,9 +26,6 @@ import type { Hint, Step } from './steps'
 export type InputMode = 'normal' | 'candidate' | 'center'
 export const INPUT_MODES: readonly InputMode[] = ['normal', 'candidate', 'center']
 
-/** Names one solver request, so a reply to anything but the pending one is dropped. */
-export type RequestId = number
-
 /** One puzzle in play, kept whole while the walkthrough or the win screen shows it. */
 export interface Play {
   /** The board the puzzle started from, its givens marked. */
@@ -65,10 +62,10 @@ export type Game =
 
 export type Mode = Game['mode']
 
-/** The one solver request the player waits on. Pool refills run apart from it. */
+/** The one solver request the player waits on, its id naming it so any other reply is dropped. Pool refills run apart from it. */
 export type Pending =
-  | { readonly id: RequestId; readonly task: 'solve' | 'hint' | 'validate' }
-  | { readonly id: RequestId; readonly task: 'generate'; readonly difficulty: Difficulty }
+  | { readonly id: number; readonly task: 'solve' | 'hint' | 'validate' }
+  | { readonly id: number; readonly task: 'generate'; readonly difficulty: Difficulty }
 
 export type Task = Pending['task']
 
@@ -97,7 +94,7 @@ export interface State {
   readonly offer: string | null
   readonly flash: Flash | null
   readonly pulses: number
-  readonly nextId: RequestId
+  readonly nextId: number
 }
 
 export const SELECTING: Game = { mode: 'selecting' }

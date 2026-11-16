@@ -106,13 +106,11 @@ function resumed(saved: SavedGame, metrics: Metrics): Game {
 /** Builds the starting state from storage. A corrupt key costs only itself, and a legacy game is rewritten. */
 export function onLoaded(state: State, { game, metrics, pool }: LoadedSlices): Outcome {
   const saved = game.status === 'ok' || game.status === 'legacy' ? game.value : null
+  const resumedMetrics = metrics.status === 'ok' ? metrics.value : ZERO_METRICS
   const next: State = {
     ...state,
     pool: pool.status === 'ok' ? pool.value : EMPTY_POOL,
-    game:
-      saved === null
-        ? SELECTING
-        : resumed(saved, metrics.status === 'ok' ? metrics.value : ZERO_METRICS),
+    game: saved === null ? SELECTING : resumed(saved, resumedMetrics),
   }
   const effects: Effect[] = [
     ...corruptKey(STORAGE_KEYS.GAME, game),

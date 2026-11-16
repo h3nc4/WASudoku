@@ -30,7 +30,7 @@ import {
   valueAt,
 } from '../board'
 import { elapsedSeconds } from '../clock'
-import { type CellIndex, type Digit, DIGITS, EMPTY_MASK, type Mask, withDigit } from '../digits'
+import { type CellIndex, type Digit, DIGITS, EMPTY_MASK, withDigit } from '../digits'
 import { boxOf, CELLS, colOf, isPeer, lookup, rowOf, SIZE } from '../geometry'
 import type { History } from '../history'
 import type { KeyContext } from '../keymap'
@@ -62,7 +62,7 @@ import type { Hint, Step } from './steps'
 import { currentStep, walkBoard, walkCandidates } from './walkthrough'
 
 // The ui imports the core only through this module. These parse what it reads off the page.
-export { type CellIndex, type Digit, digitsOf, type Mask, toDigit } from '../digits'
+export { type CellIndex, type Digit, digitsOf, toDigit } from '../digits'
 export { toCellIndex } from '../geometry'
 export { DIFFICULTIES, type Difficulty, isDifficulty } from '../pool'
 export type { MessageId, Tone } from './effects'
@@ -84,10 +84,10 @@ export const selectBoard = (state: State): Board => boardOf(state.game) ?? EMPTY
 export interface CellView {
   readonly digit: Digit | null
   readonly given: boolean
-  readonly candidates: Mask
-  readonly centers: Mask
+  readonly candidates: number
+  readonly centers: number
   /** Candidates the current walkthrough step or hint strikes out. */
-  readonly eliminated: Mask
+  readonly eliminated: number
   readonly conflict: boolean
   readonly wrong: boolean
   readonly selected: boolean
@@ -109,7 +109,9 @@ const NO_CELLS: ReadonlySet<CellIndex> = new Set()
 const cellsOf = (entries: readonly { readonly index: CellIndex }[]): ReadonlySet<CellIndex> =>
   new Set(entries.map(({ index }) => index))
 
-function struck(entries: readonly { readonly index: CellIndex; readonly digit: Digit }[]): Mask[] {
+function struck(
+  entries: readonly { readonly index: CellIndex; readonly digit: Digit }[],
+): number[] {
   const masks = CELLS.map(() => EMPTY_MASK)
   for (const { index, digit } of entries)
     masks[index] = withDigit(lookup(masks, index, EMPTY_MASK), digit)
@@ -133,8 +135,8 @@ function hintCells(hint: Hint | null): {
 
 interface Layer {
   readonly board: Board
-  readonly notes: (index: CellIndex) => { candidates: Mask; centers: Mask }
-  readonly eliminated: readonly Mask[]
+  readonly notes: (index: CellIndex) => { candidates: number; centers: number }
+  readonly eliminated: readonly number[]
   readonly cause: ReadonlySet<CellIndex>
   readonly placed: ReadonlySet<CellIndex>
   readonly target: ReadonlySet<CellIndex>

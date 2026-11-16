@@ -38,5 +38,6 @@ export function readSharedPuzzle(search: string): string | null {
 export function stripSharedPuzzle(href: string): string {
   const { base, query, hash } = splitHref(href)
   const rest = serializeQuery(parsePairs(query ?? '').filter(([name]) => name !== SHARE_PARAM))
-  return `${base}${rest === '' ? '' : `?${rest}`}${hash}`
+  const search = rest === '' ? '' : `?${rest}`
+  return `${base}${search}${hash}`
 }

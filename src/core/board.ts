@@ -22,7 +22,6 @@ import {
   EMPTY_MASK,
   FULL_MASK,
   isMask,
-  type Mask,
   toDigit,
   toggleDigit,
   withDigit,
@@ -46,8 +45,8 @@ export interface Board {
 export interface Cell {
   readonly value: Digit | null
   readonly given: boolean
-  readonly candidates: Mask
-  readonly centers: Mask
+  readonly candidates: number
+  readonly centers: number
 }
 
 export type MarkKind = 'candidate' | 'center'
@@ -67,9 +66,9 @@ export const valueAt = (board: Board, index: CellIndex): Digit | null =>
   toDigit(cellCode(board, index) & VALUE_MASK)
 export const isGiven = (board: Board, index: CellIndex): boolean =>
   (cellCode(board, index) & GIVEN_BIT) !== 0
-export const candidatesAt = (board: Board, index: CellIndex): Mask =>
+export const candidatesAt = (board: Board, index: CellIndex): number =>
   (cellCode(board, index) >>> CANDIDATES_SHIFT) & FULL_MASK
-export const centersAt = (board: Board, index: CellIndex): Mask =>
+export const centersAt = (board: Board, index: CellIndex): number =>
   (cellCode(board, index) >>> CENTERS_SHIFT) & FULL_MASK
 
 export const cellAt = (board: Board, index: CellIndex): Cell => ({
@@ -133,7 +132,7 @@ export const toggleMark = (board: Board, index: CellIndex, kind: MarkKind, digit
   })
 
 /** Writes the given candidates into every empty cell and clears its center notes. */
-export const withCandidates = (board: Board, masks: readonly Mask[]): Board =>
+export const withCandidates = (board: Board, masks: readonly number[]): Board =>
   edit(board, (cells) => {
     for (const index of CELLS) {
       const cell = cellAt(board, index)

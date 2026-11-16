@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { CellIndex, Digit, Mask } from '../core/digits'
+import type { CellIndex, Digit } from '../core/digits'
 import { maskOf, toDigit } from '../core/digits'
 import {
   type CauseCell,
@@ -72,7 +72,7 @@ const cellDigits = (text: string): CellDigit[] =>
     digit: digitOf(digit),
   }))
 
-const candidatesOf = (list: string): Mask =>
+const candidatesOf = (list: string): number =>
   maskOf(list === '' ? [] : list.split(LIST_SEPARATOR).map(digitOf))
 
 const causeCells = (text: string): CauseCell[] =>

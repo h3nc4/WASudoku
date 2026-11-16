@@ -17,7 +17,7 @@
  */
 
 import type { Board } from '../board'
-import type { CellIndex, Digit, Mask } from '../digits'
+import type { CellIndex, Digit } from '../digits'
 
 /** Technique ids the solver reports, plus the one appended when logic runs out. */
 export const TECHNIQUES = [
@@ -43,8 +43,9 @@ export const TECHNIQUES = [
 ] as const
 export type Technique = (typeof TECHNIQUES)[number]
 
-export const isTechnique = (value: unknown): value is Technique =>
-  TECHNIQUES.some((technique) => technique === value)
+const TECHNIQUE_NAMES: readonly unknown[] = TECHNIQUES
+
+export const isTechnique = (value: unknown): value is Technique => TECHNIQUE_NAMES.includes(value)
 
 /** A digit a step writes into a cell, or one it strikes from the cell's candidates. */
 export interface CellDigit {
@@ -55,7 +56,7 @@ export interface CellDigit {
 /** A cell of the pattern behind a step, with the candidates that form it. */
 export interface CauseCell {
   readonly index: CellIndex
-  readonly candidates: Mask
+  readonly candidates: number
 }
 
 /** One deduction of the logical solver. */

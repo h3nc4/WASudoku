@@ -27,7 +27,7 @@ import {
   valueAt,
 } from '../board'
 import { MS_PER_SECOND } from '../clock'
-import { isDigit, isMask, type Mask, maskOf, toDigit } from '../digits'
+import { isDigit, isMask, maskOf, toDigit } from '../digits'
 import { CELL_COUNT, CELLS } from '../geometry'
 import { fromStack, type History, toStack } from '../history'
 import { DIFFICULTIES, type Difficulty, isDifficulty, type Pool, type PuzzleData } from '../pool'
@@ -97,7 +97,7 @@ const fail = (reason: string): never => {
   throw new Error(reason)
 }
 
-const encodeMask = (mask: Mask): string =>
+const encodeMask = (mask: number): string =>
   `${MASK_DIGITS.charAt(mask >> MASK_DIGIT_BITS)}${MASK_DIGITS.charAt(mask & LOW_DIGIT)}`
 
 const encodeCell = ({ value, given, candidates, centers }: Cell): string =>
@@ -119,7 +119,7 @@ export function encodeBoard(board: Board): string {
 
 const EMPTY_BOARD_CODE = encodeBoard(EMPTY_BOARD)
 
-function decodeMask(code: string, offset: number): Mask {
+function decodeMask(code: string, offset: number): number {
   const high = MASK_DIGITS.indexOf(code.charAt(offset))
   const low = MASK_DIGITS.indexOf(code.charAt(offset + 1))
   const mask = (high << MASK_DIGIT_BITS) | low
@@ -204,7 +204,7 @@ function readCurrentGame(raw: Record<string, unknown>): SavedGame {
 }
 
 // Builds before version 2 wrote every Set as {"__dataType":"Set","value":[...]}.
-function readLegacyMarks(marks: unknown): Mask {
+function readLegacyMarks(marks: unknown): number {
   if (!isRecord(marks) || marks['__dataType'] !== 'Set' || !Array.isArray(marks['value'])) {
     return fail('Bad legacy marks')
   }

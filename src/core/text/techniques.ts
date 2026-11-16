@@ -16,7 +16,7 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type CellIndex, digitsOf, EMPTY_MASK, type Mask, maskOf } from '../digits'
+import { type CellIndex, digitsOf, EMPTY_MASK, maskOf } from '../digits'
 import type { Hint, Step, Technique } from '../game/steps'
 import { boxOf, colOf, rowOf } from '../geometry'
 import { formatCell } from './format'
@@ -50,8 +50,8 @@ export const techniqueName = (technique: Technique): string => TECHNIQUE_NAMES[t
 /** The sentences of one technique, or null when the step lacks the cells they name. */
 export type Explainer = (step: Step) => string | null
 
-const listOr = (mask: Mask) => EN.or(digitsOf(mask).map(String))
-const listAnd = (mask: Mask) => EN.and(digitsOf(mask).map(String))
+const listOr = (mask: number) => EN.or(digitsOf(mask).map(String))
+const listAnd = (mask: number) => EN.and(digitsOf(mask).map(String))
 const formatCells = (indices: readonly number[]) => EN.and(indices.map(formatCell))
 const causeCells = (step: Step) => step.cause.map((cell) => cell.index)
 

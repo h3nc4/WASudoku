@@ -20,7 +20,6 @@
 // URLSearchParams implements, written out because the core has no URL or TextDecoder.
 
 const HEX = 16
-const PERCENT = '%'
 const REPLACEMENT = '�'
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
 const PERCENT_BYTE = /%([0-9A-F]{2})|./gs
@@ -29,28 +28,32 @@ const ESCAPE_LENGTH = 2
 // encodeURIComponent leaves these alone, while the form serializer escapes them.
 const FORM_ESCAPED = /[!'()~]/g
 
+/** The code of a one-character string, always ASCII here, so a code point and a code unit agree. */
+const codeOf = (char: string): number => Number(char.codePointAt(0))
+
+const PERCENT = codeOf('%')
+
 /** Lone surrogates become U+FFFD, as every URL API converts a string to scalar values. */
 const toScalars = (text: string): string => text.replaceAll(LONE_SURROGATE, REPLACEMENT)
 
 /** UTF-8 bytes of a string, read back off encodeURIComponent's escapes. */
 const utf8 = (text: string): number[] =>
   Array.from(encodeURIComponent(toScalars(text)).matchAll(PERCENT_BYTE), ([char, hex]) =>
-    hex === undefined ? char.charCodeAt(0) : Number.parseInt(hex, HEX),
+    hex === undefined ? codeOf(char) : Number.parseInt(hex, HEX),
   )
 
 /** Percent-decodes a string into bytes, keeping a % that starts no valid escape. */
 function percentDecode(text: string): number[] {
   const bytes = utf8(text)
   const out: number[] = []
-  const percent = PERCENT.charCodeAt(0)
   let skip = 0
   bytes.forEach((byte, i) => {
     if (skip > 0) {
       skip--
       return
     }
-    const hex = String.fromCharCode(...bytes.slice(i + 1, i + 1 + ESCAPE_LENGTH))
-    if (byte === percent && ESCAPED_HEX.test(hex)) {
+    const hex = String.fromCodePoint(...bytes.slice(i + 1, i + 1 + ESCAPE_LENGTH))
+    if (byte === PERCENT && ESCAPED_HEX.test(hex)) {
       out.push(Number.parseInt(hex, HEX))
       skip = ESCAPE_LENGTH
     } else {
@@ -96,6 +99,28 @@ const LEADS: readonly Lead[] = [
   },
 ]
 
+/** A lead's continuation bytes from `start`, as far as they stay in bounds, and the code point they build. */
+function continuation(
+  bytes: readonly number[],
+  start: number,
+  byte: number,
+  lead: Lead,
+): { readonly codePoint: number; readonly seen: number } {
+  let codePoint = byte & lead.payload
+  let lower = lead.lower?.byte === byte ? lead.lower.bound : LOWEST_CONTINUATION
+  let upper = lead.upper?.byte === byte ? lead.upper.bound : HIGHEST_CONTINUATION
+  let seen = 0
+  while (seen < lead.needed) {
+    const next = bytes[start + seen]
+    if (next === undefined || next < lower || next > upper) break
+    codePoint = (codePoint << CONTINUATION_BITS) | (next & CONTINUATION_PAYLOAD)
+    lower = LOWEST_CONTINUATION
+    upper = HIGHEST_CONTINUATION
+    seen++
+  }
+  return { codePoint, seen }
+}
+
 /** The UTF-8 decoder of the Encoding Standard, one U+FFFD per maximal invalid subpart. */
 function utf8Decode(bytes: readonly number[]): string {
   let out = ''
@@ -103,7 +128,7 @@ function utf8Decode(bytes: readonly number[]): string {
   for (let byte = bytes[i]; byte !== undefined; byte = bytes[i]) {
     i++
     if (byte < ASCII_END) {
-      out += String.fromCharCode(byte)
+      out += String.fromCodePoint(byte)
       continue
     }
     const lead = LEADS.find((candidate) => byte >= candidate.first && byte <= candidate.last)
@@ -111,19 +136,8 @@ function utf8Decode(bytes: readonly number[]): string {
       out += REPLACEMENT
       continue
     }
-    let codePoint = byte & lead.payload
-    let lower = lead.lower?.byte === byte ? lead.lower.bound : LOWEST_CONTINUATION
-    let upper = lead.upper?.byte === byte ? lead.upper.bound : HIGHEST_CONTINUATION
-    let seen = 0
-    while (seen < lead.needed) {
-      const next = bytes[i]
-      if (next === undefined || next < lower || next > upper) break
-      codePoint = (codePoint << CONTINUATION_BITS) | (next & CONTINUATION_PAYLOAD)
-      lower = LOWEST_CONTINUATION
-      upper = HIGHEST_CONTINUATION
-      seen++
-      i++
-    }
+    const { codePoint, seen } = continuation(bytes, i, byte, lead)
+    i += seen
     out += seen === lead.needed ? String.fromCodePoint(codePoint) : REPLACEMENT
   }
   return out
@@ -151,7 +165,7 @@ export const parseQuery = (search: string): QueryPair[] =>
 
 const encodePart = (text: string): string =>
   encodeURIComponent(toScalars(text))
-    .replaceAll(FORM_ESCAPED, (char) => `%${char.charCodeAt(0).toString(HEX).toUpperCase()}`)
+    .replaceAll(FORM_ESCAPED, (char) => `%${codeOf(char).toString(HEX).toUpperCase()}`)
     .replaceAll('%20', '+')
 
 /** Serializes pairs as URLSearchParams does, without a leading '?'. */
