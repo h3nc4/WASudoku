@@ -126,3 +126,40 @@ test('corrupt game keeps the metrics saved beside it', async ({ page, open }) =>
   const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.METRICS)
   expect(stored).toBe('{"timer":30,"mistakes":2}')
 })
+
+// The portfolio shows the app in an iframe on the same site. That frame shares its localStorage.
+const FRAME_HOST = '/e2e-frame-host'
+
+test.describe('framed', () => {
+  // A service worker would answer the host page before the route could.
+  test.use({ serviceWorkers: 'block' })
+
+  test('play in a framed copy leaves the saved game as it was', async ({ page, open }) => {
+    await open({ game: savedGame() })
+    await cell(page, R1C3).click()
+    await page.keyboard.press('4')
+    await expect.poll(() => storedGame(page)).not.toBe(savedGame())
+    const original = await storedGame(page)
+
+    await page.route(`**${FRAME_HOST}`, (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<iframe src="/" width="420" height="900">',
+      }),
+    )
+    await page.goto(FRAME_HOST)
+    const frame = page.frameLocator('iframe')
+    await expect(frame.getByRole('heading', { name: 'Welcome to WASudoku' })).toBeVisible()
+    await frame.getByRole('button', { name: 'Easy', exact: true }).click()
+    const empty = frame.locator('[id^="cell-"]:not(:has(.d))').first()
+    await empty.click()
+    await page.keyboard.press('1')
+    const framedGame = () => page.evaluate((key) => sessionStorage.getItem(key), STORAGE_KEYS.GAME)
+    await expect.poll(framedGame).not.toBeNull()
+    expect(await storedGame(page)).toBe(original)
+
+    await page.goto('/')
+    await expect(digitOf(page, R1C3)).toHaveText('4')
+    expect(await storedGame(page)).toBe(original)
+  })
+})

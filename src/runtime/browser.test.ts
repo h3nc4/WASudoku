@@ -19,6 +19,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { browserDeps, browserTimers, IDLE_FALLBACK_MS, IDLE_TIMEOUT_MS } from './browser'
+import { pageStorage } from './storage'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -68,7 +69,7 @@ describe('browserDeps', () => {
     const toast = vi.fn()
     const solver = { run: vi.fn(), warm: vi.fn(), dispose: vi.fn() }
     const deps = browserDeps(window, toast, solver)
-    expect(deps.storage).toBe(window.localStorage)
+    expect(deps.storage).toBe(pageStorage(window))
     expect(deps.location).toBe(window.location)
     expect(deps.history).toBe(window.history)
     expect(deps.page).toBe(document)
