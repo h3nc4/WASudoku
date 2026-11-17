@@ -16,6 +16,8 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { pageStorage } from '../runtime/storage'
+
 /** The storage key of the React app, kept so a choice stored then still applies. */
 export const THEME_KEY = 'wasudoku-ui-theme'
 
@@ -24,19 +26,20 @@ export type Theme = 'light' | 'dark'
 /** The app opens dark whatever the system says, as the React app did. */
 export const DEFAULT_THEME: Theme = 'dark'
 
-// Sets the stored theme before first paint, a stored `system` following the OS.
-// A page that already sets data-theme, such as a preview, keeps it.
-export const THEME_SCRIPT = `(()=>{const r=document.documentElement;if(r.dataset.theme)return;let t=null,d=true;try{t=localStorage.getItem(${JSON.stringify(THEME_KEY)});d=matchMedia('(prefers-color-scheme: dark)').matches}catch{}r.dataset.theme=t==='light'||(t==='system'&&!d)?'light':${JSON.stringify(DEFAULT_THEME)}})()`
+// Sets the stored theme before first paint, a stored `system` following the OS, and reads
+// sessionStorage inside a frame as pageStorage does. A page that already sets data-theme keeps it.
+export const THEME_SCRIPT = `(()=>{const r=document.documentElement;if(r.dataset.theme)return;let t=null,d=true;try{t=(self===top?localStorage:sessionStorage).getItem(${JSON.stringify(THEME_KEY)});d=matchMedia('(prefers-color-scheme: dark)').matches}catch{}r.dataset.theme=t==='light'||(t==='system'&&!d)?'light':${JSON.stringify(DEFAULT_THEME)}})()`
 
 /** The CSP source of THEME_SCRIPT, for a `script-src` that doesn't allow inline scripts. */
-export const THEME_SCRIPT_HASH = "'sha256-kdF02PEfL7YUBaA+ZF2bmKVaE2RQ4iL2ONhnfGkYvhc='"
+export const THEME_SCRIPT_HASH = "'sha256-BrsjEp0rB1JxsopKWmy5m8SqD9dFCHfy58oB0SOqeR8='"
 
 export const readTheme = (doc: Document): Theme =>
   doc.documentElement.dataset['theme'] === 'light' ? 'light' : DEFAULT_THEME
 
 const store = (doc: Document, theme: Theme) => {
+  const view = doc.defaultView
   try {
-    doc.defaultView?.localStorage.setItem(THEME_KEY, theme)
+    if (view) pageStorage(view).setItem(THEME_KEY, theme)
   } catch {
     // Some private windows refuse storage. The theme then applies to this visit only.
   }

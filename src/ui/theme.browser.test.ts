@@ -24,7 +24,7 @@ import { bindThemeToggle, readTheme, THEME_KEY, THEME_SCRIPT } from './theme'
 
 describe('the theme in a real engine', () => {
   afterEach(() => {
-    localStorage.removeItem(THEME_KEY)
+    sessionStorage.removeItem(THEME_KEY)
     document.documentElement.dataset['theme'] = 'dark'
     document.body.innerHTML = ''
   })
@@ -48,7 +48,8 @@ describe('the theme in a real engine', () => {
     const dispose = bindThemeToggle(document.getElementById('theme-button')!)
     await userEvent.click(document.getElementById('theme-button')!)
     await expect.poll(() => readTheme(document)).toBe('light')
-    expect(localStorage.getItem(THEME_KEY)).toBe('light')
+    // The runner frames each test. The theme is stored in sessionStorage there.
+    expect(sessionStorage.getItem(THEME_KEY)).toBe('light')
     expect(getComputedStyle(document.documentElement).colorScheme).toBe('light')
     dispose()
   })
