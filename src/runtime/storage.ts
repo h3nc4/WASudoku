@@ -52,10 +52,19 @@ export function writeKey(storage: KeyValueStore, key: StorageKey, text: string, 
   }
 }
 
-/** The page's `localStorage`, or a store that keeps nothing when reading the property throws. */
-export function pageStorage(page: { readonly localStorage: KeyValueStore }): KeyValueStore {
+/** The storage areas of a page and whether it runs inside a frame. */
+export interface StoragePage {
+  readonly localStorage: KeyValueStore
+  readonly sessionStorage: KeyValueStore
+  readonly self: unknown
+  readonly top: unknown
+}
+
+// The page's localStorage, or sessionStorage inside a frame, which keeps the portfolio's preview
+// off the visitor's saved game. A store that drops every write stands in on a throw.
+export function pageStorage(page: StoragePage): KeyValueStore {
   try {
-    return page.localStorage
+    return page.self === page.top ? page.localStorage : page.sessionStorage
   } catch {
     return { getItem: () => null, setItem: () => undefined }
   }

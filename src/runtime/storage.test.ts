@@ -64,12 +64,30 @@ describe('writeKey', () => {
 })
 
 describe('pageStorage', () => {
-  it('is the page localStorage', () => {
-    expect(pageStorage(globalThis)).toBe(globalThis.localStorage)
+  const areas = () => ({ localStorage: new MemoryStorage(), sessionStorage: new MemoryStorage() })
+
+  // The browser runner frames each test, while jsdom runs it at the top.
+  it('is the real page area for where it runs', () => {
+    const framed = globalThis.self !== globalThis.top
+    expect(pageStorage(globalThis)).toBe(framed ? sessionStorage : localStorage)
+  })
+
+  it('is sessionStorage inside a frame', () => {
+    const page = { ...areas(), self: {}, top: {} }
+    expect(pageStorage(page)).toBe(page.sessionStorage)
+  })
+
+  it('is localStorage in a top-level page', () => {
+    const self = {}
+    const page = { ...areas(), self, top: self }
+    expect(pageStorage(page)).toBe(page.localStorage)
   })
 
   it('keeps nothing when the property throws', () => {
     const page = {
+      ...areas(),
+      self: globalThis,
+      top: globalThis,
       get localStorage(): Storage {
         throw new DOMException('denied', 'SecurityError')
       },
