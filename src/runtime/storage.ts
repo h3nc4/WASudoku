@@ -60,10 +60,8 @@ export interface StoragePage {
   readonly top: unknown
 }
 
-/**
- * The page's `localStorage`, or `sessionStorage` inside a frame, which keeps the portfolio's
- * preview off the visitor's saved game. A store that drops every write stands in on a throw.
- */
+// The page's localStorage, or sessionStorage inside a frame, which keeps the portfolio's preview
+// off the visitor's saved game. A store that drops every write stands in on a throw.
 export function pageStorage(page: StoragePage): KeyValueStore {
   try {
     return page.self === page.top ? page.localStorage : page.sessionStorage
