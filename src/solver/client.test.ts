@@ -265,7 +265,7 @@ describe('createSolverClient', () => {
 
     it('terminates the worker of a running task and starts a fresh one for the next', async () => {
       const controller = new AbortController()
-      const running = outcome(client.run(generate, { signal: controller.signal }))
+      const running = outcome(client.run(solve, { signal: controller.signal }))
       const next = client.run(validate)
       controller.abort()
       await expect(running).resolves.toEqual(failure('aborted'))
@@ -402,6 +402,163 @@ describe('createSolverClient', () => {
       }
       expect(worker(0).terminate).toHaveBeenCalledOnce()
       expect(worker(1).terminate).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe('generating across lanes', () => {
+    const background = { lane: 'background' } as const
+    const easy = { kind: 'generate', difficulty: 'easy', seed: 3 } as const
+    const other = { ...generate, seed: 11 }
+    const solution = new Uint8Array(BOARD_LENGTH).fill(9)
+    const bytes = (fill: number, difficulty: 'easy' | 'expert' = 'expert') =>
+      encodeGenerate({
+        kind: 'generated',
+        difficulty,
+        puzzle: new Uint8Array(BOARD_LENGTH).fill(fill),
+        solution,
+      })
+    const puzzle = (fill: number, difficulty: 'easy' | 'expert' = 'expert') => ({
+      ok: true,
+      result: {
+        kind: 'generated',
+        difficulty,
+        puzzle: new Uint8Array(BOARD_LENGTH).fill(fill),
+        solution,
+      },
+    })
+
+    /** Tells a test whether `promise` settled once pending callbacks ran. */
+    const watch = (promise: Promise<unknown>) => {
+      let settled = false
+      void promise.then(
+        () => (settled = true),
+        () => (settled = true),
+      )
+      return async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        return settled
+      }
+    }
+
+    it('races a foreground generate on the idle background worker with the next seed', async () => {
+      const pending = client.run(generate)
+      expect(worker(1).last).toEqual({ v, id: worker(1).last.id, ...generate, seed: 8 })
+      worker(1).answer(bytes(2))
+      await expect(pending).resolves.toEqual(puzzle(2))
+      expect(worker(0).terminate).not.toHaveBeenCalled()
+    })
+
+    it('keeps the slower copy as a spare for the next generate of that difficulty', async () => {
+      const first = client.run(generate)
+      worker(1).answer(bytes(2))
+      await first
+      worker(0).answer(bytes(1))
+      await expect(client.run(generate, background)).resolves.toEqual(puzzle(1))
+      expect(worker(1).posted).toHaveLength(1)
+      start(easy)
+      expect(worker(0).last).toMatchObject(easy)
+    })
+
+    it('hands a running refill result to the waiting foreground generate, and swaps back', async () => {
+      const refill = client.run(generate, background)
+      const foreground = client.run(other)
+      expect(workers).toHaveLength(2)
+      expect(worker(0).posted).toHaveLength(1)
+      const refilled = watch(refill)
+      worker(0).answer(bytes(1))
+      await expect(foreground).resolves.toEqual(puzzle(1))
+      expect(await refilled()).toBe(false)
+      worker(1).answer(bytes(2))
+      await expect(refill).resolves.toEqual(puzzle(2))
+    })
+
+    it('leaves another difficulty to its caller and joins the race once the refill frees', async () => {
+      const refill = client.run(easy, background)
+      const foreground = client.run(other)
+      const waited = watch(foreground)
+      worker(0).answer(bytes(4, 'easy'))
+      await expect(refill).resolves.toEqual(puzzle(4, 'easy'))
+      expect(await waited()).toBe(false)
+      expect(worker(0).last).toMatchObject({ ...other, seed: 12 })
+      worker(0).answer(bytes(2))
+      await expect(foreground).resolves.toEqual(puzzle(2))
+    })
+
+    it('stops a foreground generate left serving the refill when the player asks, and requeues it', async () => {
+      const refill = client.run(generate, background)
+      const foreground = client.run(other)
+      worker(0).answer(bytes(1))
+      await foreground
+      const hint = client.run({ kind: 'hint', cells })
+      expect(worker(1).terminate).toHaveBeenCalledOnce()
+      expect(worker(2).last.kind).toBe('hint')
+      expect(worker(0).last).toMatchObject(other)
+      expect(worker(0).last.id).not.toBe(worker(1).posted[0]?.request.id)
+      worker(0).answer(bytes(3))
+      await expect(refill).resolves.toEqual(puzzle(3))
+      worker(2).answer(STUCK)
+      await expect(hint).resolves.toMatchObject({ ok: true })
+    })
+
+    it('moves a queued foreground generate it no longer needs to the refill it now serves', async () => {
+      const hint = client.run({ kind: 'hint', cells })
+      const refill = client.run(generate, background)
+      const foreground = client.run(other)
+      worker(1).answer(bytes(1))
+      await expect(foreground).resolves.toEqual(puzzle(1))
+      expect(worker(1).last).toMatchObject(other)
+      worker(0).answer(STUCK)
+      await hint
+      expect(worker(0).posted).toHaveLength(1)
+      worker(1).answer(bytes(2))
+      await expect(refill).resolves.toEqual(puzzle(2))
+    })
+
+    it('gives a copy nobody waits on to a refill and drops the refill unit queued for it', async () => {
+      const foreground = client.run(generate)
+      const refill = client.run(other, background)
+      worker(0).answer(bytes(1))
+      await expect(foreground).resolves.toEqual(puzzle(1))
+      worker(1).answer(bytes(2))
+      await expect(refill).resolves.toEqual(puzzle(2))
+      expect(worker(1).posted).toHaveLength(1)
+    })
+
+    it('stops a foreground generate nobody waits on, without requeueing it', async () => {
+      const foreground = client.run(generate)
+      worker(1).answer(bytes(2))
+      await foreground
+      start({ kind: 'hint', cells })
+      expect(worker(0).terminate).toHaveBeenCalledOnce()
+      expect(worker(1).posted).toHaveLength(1)
+    })
+
+    it('joins once, and a failed copy rejects nobody', async () => {
+      const foreground = client.run(generate)
+      worker(1).fire('error')
+      expect(workers).toHaveLength(2)
+      worker(0).answer(bytes(1))
+      await expect(foreground).resolves.toEqual(puzzle(1))
+    })
+
+    it('keeps the copy of an aborted generate running, for a spare', async () => {
+      const controller = new AbortController()
+      const aborted = outcome(client.run(generate, { signal: controller.signal }))
+      controller.abort()
+      await expect(aborted).resolves.toEqual(failure('aborted'))
+      expect(worker(0).terminate).toHaveBeenCalledOnce()
+      expect(worker(1).terminate).not.toHaveBeenCalled()
+      worker(1).answer(bytes(2))
+      await expect(client.run(generate, background)).resolves.toEqual(puzzle(2))
+    })
+
+    it('rejects a refill with disposed while its unit runs on the foreground worker', async () => {
+      const refill = outcome(client.run(generate, background))
+      const foreground = client.run(other)
+      worker(0).answer(bytes(1))
+      await foreground
+      client.dispose()
+      await expect(refill).resolves.toEqual(failure('disposed'))
     })
   })
 
