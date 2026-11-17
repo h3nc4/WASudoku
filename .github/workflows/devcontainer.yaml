@@ -16,7 +16,6 @@ on:
       - 'docker/dev.Dockerfile'
       - 'scripts/wasm-deps.sh'
       - '.devcontainer.json'
-  workflow_dispatch:
 
 jobs:
   bump:
@@ -53,7 +52,7 @@ jobs:
 
   release:
     name: Publish the pinned images
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-release
