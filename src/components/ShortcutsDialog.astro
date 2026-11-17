@@ -16,17 +16,17 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { SHORTCUT_SECTIONS, SHORTCUTS_TEXT } from '../core/text/shortcuts'
+import { MODIFIER, SHORTCUT_SECTIONS, SHORTCUTS_HINT, SHORTCUTS_TEXT } from '../core/text/shortcuts'
 import CloseButton from './CloseButton.astro'
 ---
 
-{/* A static list, built from the keymap's tables. Esc, the close button and a click outside close it. */}
+{/* A static list, built from the keymap's tables. The page swaps each data-modifier cap for Cmd on Apple. */}
 <dialog
   id="shortcuts-dialog"
   class="dlg shortcuts sm:max-w-lg lg:max-w-4xl"
   closedby="any"
   aria-labelledby="shortcuts-title"
-  aria-describedby="shortcuts-note"
+  aria-describedby="shortcuts-hint"
 >
   <form method="dialog" class="contents">
     <h2 id="shortcuts-title" class="voice-ink text-ink pr-6 text-xl leading-tight tracking-tight">
@@ -57,7 +57,7 @@ import CloseButton from './CloseButton.astro'
                           {chord.map((key, at) => (
                             <>
                               {at > 0 && <span>{SHORTCUTS_TEXT.join}</span>}
-                              <kbd>{key}</kbd>
+                              <kbd data-modifier={key === MODIFIER ? '' : undefined}>{key}</kbd>
                             </>
                           ))}
                         </kbd>
@@ -72,7 +72,7 @@ import CloseButton from './CloseButton.astro'
         ))
       }
     </div>
-    <p id="shortcuts-note" class="text-muted-foreground text-sm">{SHORTCUTS_TEXT.note}</p>
+    <p id="shortcuts-hint" class="text-muted-foreground text-sm">{SHORTCUTS_HINT}</p>
     <CloseButton autofocus />
   </form>
 </dialog>

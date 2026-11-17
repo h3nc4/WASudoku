@@ -115,6 +115,11 @@ describe('the first visit', async () => {
     expect(shown).toContainEqual(['1–9', 'Enter the digit, or toggle its note in Corner or Center'])
     expect(rows).toHaveLength(SHORTCUT_SECTIONS.flatMap((section) => section.rows).length)
     expect(dialog?.querySelectorAll('tbody th[scope="row"] > kbd > kbd').length).toBeGreaterThan(0)
+    const modifiers = [...(dialog?.querySelectorAll('kbd[data-modifier]') ?? [])]
+    expect(modifiers.map((cap) => cap.textContent)).toEqual(['Ctrl', 'Ctrl', 'Ctrl', 'Ctrl'])
+    expect(doc.getElementById('shortcuts-hint')?.textContent).toBe(
+      'Press ? to open this list from anywhere but a text field.',
+    )
   })
 
   it('opens each menu from its button as an anchored popover', () => {
