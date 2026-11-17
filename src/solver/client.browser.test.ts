@@ -56,9 +56,10 @@ describe('the solver client in a real worker', () => {
 
   it('generates the same puzzle for the same seed on either lane', async () => {
     const task = { kind: 'generate', difficulty: 'medium', seed: SEED } as const
-    const [foreground, background] = await Promise.all([
-      client.run(task),
+    // Background first, so the background worker is busy and no copy with another seed joins.
+    const [background, foreground] = await Promise.all([
       client.run(task, { lane: 'background' }),
+      client.run(task),
     ])
     expect(foreground).toEqual(background)
     const generated = ok(foreground)
