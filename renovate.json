@@ -39,6 +39,11 @@
       ]
     },
     {
+      "description": "Playwright 1.65 installs Firefox build 1572, which crashes the page once two script worlds read ariaLabelledByElements, as https://github.com/microsoft/playwright/issues/43967 reports. Build 1578 in 1.66 fixes it.",
+      "matchPackageNames": ["playwright", "playwright-core", "@playwright/test"],
+      "allowedVersions": "!/^1\\.65\\./"
+    },
+    {
       "groupName": "eslint",
       "matchPackageNames": [
         "/^eslint/",
