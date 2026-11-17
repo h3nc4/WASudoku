@@ -20,7 +20,16 @@ import { describe, expect, it } from 'vitest'
 
 import { DIGITS } from '../digits'
 import { GRID_KEYS, HISTORY_KEYS, type KeyCommand, WALKTHROUGH_KEYS } from '../keymap'
-import { actionOf, keyName, rowsOf, SHORTCUT_SECTIONS, SHORTCUTS_TEXT } from './shortcuts'
+import {
+  actionOf,
+  keyName,
+  MODIFIER,
+  modifierName,
+  rowsOf,
+  SHORTCUT_SECTIONS,
+  SHORTCUTS_HINT,
+  SHORTCUTS_TEXT,
+} from './shortcuts'
 
 const rowsIn = (title: string) =>
   SHORTCUT_SECTIONS.find((section) => section.title === title)?.rows.map((row) => [
@@ -43,6 +52,19 @@ describe('keyName', () => {
       'Delete',
       '?',
     ])
+  })
+})
+
+describe('modifierName', () => {
+  it('prints Ctrl, and Cmd on an Apple keyboard', () => {
+    expect(modifierName(false)).toBe('Ctrl')
+    expect(modifierName(true)).toBe('Cmd')
+  })
+})
+
+describe('SHORTCUTS_HINT', () => {
+  it('names the key that opens the list', () => {
+    expect(SHORTCUTS_HINT).toBe('Press ? to open this list from anywhere but a text field.')
   })
 })
 
@@ -80,7 +102,6 @@ describe('the shortcuts list', () => {
       [['Ctrl+V'], 'Paste a puzzle string onto the board'],
       [['S'], 'Turn sticky numbers on or off'],
       [['Esc'], 'Release the locked sticky digit'],
-      [['?'], 'Show this list'],
     ])
   })
 
@@ -89,6 +110,13 @@ describe('the shortcuts list', () => {
       [['←'], 'Previous solving step'],
       [['→'], 'Next solving step'],
     ])
+  })
+
+  it('leads every Ctrl chord with the one modifier the page swaps', () => {
+    const chords = SHORTCUT_SECTIONS.flatMap((section) => section.rows.flatMap((row) => row.chords))
+    const modified = chords.filter((chord) => chord.includes(MODIFIER))
+    expect(modified).toHaveLength(4)
+    for (const chord of modified) expect(chord[0]).toBe(MODIFIER)
   })
 
   it('names every command a binding table holds', () => {

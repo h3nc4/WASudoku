@@ -16,18 +16,30 @@
  * along with WASudoku.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { modifierName } from '../core/text/shortcuts'
 import { asksForShortcuts } from '../runtime/keyboard'
 import { bindDialog } from './dialog'
-import { Disposer, required } from './dom'
+import { Disposer, required, setText } from './dom'
 
 export const SHORTCUTS_DIALOG = '#shortcuts-dialog'
 export const SHORTCUTS_BUTTON = '#shortcuts-button'
 
+const APPLE = /Mac|iPhone|iPad|iPod/u
+
+/** Whether a user agent runs on Apple's hardware, whose keyboards print Cmd. iPadOS reads as a Mac. */
+export const isApple = (userAgent: string): boolean => APPLE.test(userAgent)
+
 /** Opens the shortcuts dialog from its header button and from the `?` key. */
-export function bindShortcuts(doc: Document, onOpen: () => void): () => void {
+export function bindShortcuts(
+  doc: Document,
+  onOpen: () => void,
+  apple = isApple(navigator.userAgent),
+): () => void {
   const disposer = new Disposer()
-  const dialog = bindDialog(required(doc, SHORTCUTS_DIALOG, HTMLDialogElement), { onOpen })
+  const element = required(doc, SHORTCUTS_DIALOG, HTMLDialogElement)
+  const dialog = bindDialog(element, { onOpen })
   disposer.add(dialog.dispose)
+  for (const cap of element.querySelectorAll('[data-modifier]')) setText(cap, modifierName(apple))
   disposer.on(required(doc, SHORTCUTS_BUTTON, HTMLElement), 'click', dialog.open)
   doc.addEventListener(
     'keydown',

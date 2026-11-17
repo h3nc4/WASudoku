@@ -41,7 +41,7 @@ export interface ShortcutSection {
   readonly rows: readonly ShortcutRow[]
 }
 
-/** The dialog's own text. The app doesn't detect the platform, and the note names Cmd on macOS. */
+/** The dialog's own text. */
 export const SHORTCUTS_TEXT = {
   title: 'Keyboard shortcuts',
   open: 'Keyboard shortcuts',
@@ -50,11 +50,12 @@ export const SHORTCUTS_TEXT = {
   join: '+',
   /** Spaced, since the markup leaves the chords touching. */
   or: ' or ',
-  note: 'On macOS, Cmd works in place of Ctrl.',
 } as const
 
 /** The modifier HISTORY_KEYS names, which the keymap also takes as Cmd. */
 export const MODIFIER = 'Ctrl'
+/** The cap an Apple keyboard prints for the same modifier. */
+export const APPLE_MODIFIER = 'Cmd'
 const SHIFT = 'Shift'
 /** The browser's own paste, which the grid reads as a puzzle string rather than a key binding. */
 export const PASTE_KEY = 'v'
@@ -100,7 +101,12 @@ export function actionOf(command: KeyCommand): string {
 }
 
 const PASTE_ACTION = 'Paste a puzzle string onto the board'
-const SHORTCUTS_ACTION = 'Show this list'
+
+/** The line under the list, naming the key that opens it again. */
+export const SHORTCUTS_HINT = `Press ${keyName(SHORTCUTS_KEY)} to open this list from anywhere but a text field.`
+
+/** The modifier cap the list shows, Cmd where the keyboard is Apple's. */
+export const modifierName = (apple: boolean): string => (apple ? APPLE_MODIFIER : MODIFIER)
 
 interface Binding {
   readonly chord: Chord
@@ -139,7 +145,6 @@ export const SHORTCUT_SECTIONS: readonly ShortcutSection[] = [
       { chord: [MODIFIER, keyName(PASTE_KEY)], action: PASTE_ACTION },
       { chord: [keyName(STICKY_KEY)], action: actionOf({ kind: 'toggleSticky' }) },
       { chord: [keyName(RELEASE_KEY)], action: actionOf({ kind: 'releaseSticky' }) },
-      { chord: [keyName(SHORTCUTS_KEY)], action: SHORTCUTS_ACTION },
     ]),
   },
   { title: 'While viewing the solving steps', rows: rowsOf(fromMap(WALKTHROUGH_KEYS)) },
