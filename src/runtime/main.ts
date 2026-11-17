@@ -61,6 +61,8 @@ export function startRuntime(deps: PageDeps, serviceWorker?: ServiceWorkerOption
   const cancelWarm = deps.timers.idle(() => {
     deps.solver.warm()
   })
+  // WebKit refuses a worker spawned once a navigation began and logs that as a page error.
+  deps.window.addEventListener('beforeunload', cancelWarm)
   if (serviceWorker !== undefined) {
     void registerServiceWorker(serviceWorker.url, serviceWorker.ports, serviceWorker.offer)
   }
@@ -71,6 +73,7 @@ export function startRuntime(deps: PageDeps, serviceWorker?: ServiceWorkerOption
       unbindKeys()
       deps.window.removeEventListener('pagehide', hide)
       deps.page.removeEventListener('visibilitychange', onVisibility)
+      deps.window.removeEventListener('beforeunload', cancelWarm)
       cancelWarm()
       store.dispose()
     },
