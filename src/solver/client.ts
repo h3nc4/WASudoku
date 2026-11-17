@@ -116,6 +116,16 @@ interface Job {
   readonly timeoutMs: number
   readonly resolve: (bytes: ArrayBuffer) => void
   readonly reject: (reason: SolverError) => void
+  /** True while a foreground job may stop this running one, which then calls `yielded` and not `reject`. */
+  readonly preemptible?: () => boolean
+  readonly yielded?: () => void
+}
+
+interface LaneOptions {
+  /** Lets a pushed job stop a running one that says it is preemptible. */
+  readonly preempts?: boolean
+  /** Called each time the lane runs out of jobs. */
+  readonly onIdle?: () => void
 }
 
 /** One worker running one job at a time from its own queue, started only when a job needs it. */
@@ -125,26 +135,48 @@ class WorkerLane {
     null
   private queue: Job[] = []
   private readonly spawn: Spawn
+  private readonly options: LaneOptions
 
-  constructor(spawn: Spawn) {
+  constructor(spawn: Spawn, options: LaneOptions = {}) {
     this.spawn = spawn
+    this.options = options
+  }
+
+  get idle(): boolean {
+    return this.running === null && this.queue.length === 0
   }
 
   warm(): void {
     this.worker ??= this.start()
   }
 
-  push(job: Job): void {
-    this.queue.push(job)
+  push(job: Job, front = false): void {
+    if (front) this.queue.unshift(job)
+    else this.queue.push(job)
+    const stopped = this.running?.job
+    if (this.options.preempts === true && stopped?.preemptible?.() === true) {
+      this.stop()
+      stopped.yielded?.()
+      return
+    }
     this.next()
   }
 
+  runs(job: Job): boolean {
+    return this.running?.job === job
+  }
+
+  /** Drops a queued job without settling it. */
+  remove(job: Job): void {
+    this.queue = this.queue.filter((queued) => queued !== job)
+  }
+
   cancel(job: Job, reason: SolverError): void {
-    if (this.running?.job === job) {
+    if (this.runs(job)) {
       this.fail(reason)
       return
     }
-    this.queue = this.queue.filter((queued) => queued !== job)
+    this.remove(job)
     job.reject(reason)
   }
 
@@ -174,7 +206,10 @@ class WorkerLane {
   private next(): void {
     while (this.running === null) {
       const job = this.queue.shift()
-      if (job === undefined) return
+      if (job === undefined) {
+        this.options.onIdle?.()
+        return
+      }
       let worker: Worker
       try {
         worker = this.worker ?? this.start()
@@ -191,6 +226,7 @@ class WorkerLane {
     }
   }
 
+  // The job settles before the next one starts. The idle hook then sees what its result changed.
   private receive(data: unknown): void {
     const response = parseResponse(data)
     if (response === null) {
@@ -203,8 +239,9 @@ class WorkerLane {
       this.fail(new SolverError(response.fault === 'load' ? 'load' : 'crashed'))
       return
     }
-    this.finish()
+    this.release()
     job.resolve(response.bytes)
+    this.next()
   }
 
   // Wasm cannot be interrupted, so a stuck or failed worker is replaced, but only for a waiting job.
@@ -216,13 +253,154 @@ class WorkerLane {
   private stop(): void {
     this.worker?.terminate()
     this.worker = null
-    this.finish()
+    this.release()
+    this.next()
   }
 
-  private finish(): void {
+  private release(): void {
     if (this.running !== null) clearTimeout(this.running.timer)
     this.running = null
-    this.next()
+  }
+}
+
+type GenerateRequest = Extract<Request, { kind: 'generate' }>
+
+interface Settle {
+  readonly resolve: (bytes: ArrayBuffer) => void
+  readonly reject: (reason: SolverError) => void
+}
+
+/** A caller waiting on a generate, and the unit whose failure rejects it. */
+interface Waiter extends Settle {
+  readonly lane: Lane
+  readonly difficulty: Difficulty
+  unit: Unit
+  joined: boolean
+}
+
+/** One generate on a worker. Its result goes to whichever waiter needs that difficulty most. */
+interface Unit {
+  readonly lane: Lane
+  readonly request: GenerateRequest
+  readonly job: Job
+  owner: Waiter | null
+}
+
+const SEED_LIMIT = Number.MAX_SAFE_INTEGER + 1
+
+/**
+ * Generate tasks pooled by difficulty. Generation is rejection sampling, so a puzzle from any seed
+ * is as good as another and a late copy has the same odds as an early one.
+ */
+class Generator {
+  private waiters: Waiter[] = []
+  private readonly spares = new Map<Difficulty, ArrayBuffer[]>()
+  private readonly lanes: Readonly<Record<Lane, WorkerLane>>
+  private readonly nextId: () => number
+
+  constructor(lanes: Readonly<Record<Lane, WorkerLane>>, nextId: () => number) {
+    this.lanes = lanes
+    this.nextId = nextId
+  }
+
+  /** Takes a result left over from a race of this difficulty, if there is one. */
+  spare(difficulty: Difficulty): ArrayBuffer | undefined {
+    return this.spares.get(difficulty)?.shift()
+  }
+
+  /** Queues a unit on `lane` and returns how to cancel the wait. */
+  run(
+    lane: Lane,
+    request: GenerateRequest,
+    timeoutMs: number,
+    settle: Settle,
+  ): (reason: SolverError) => void {
+    const unit = this.unit(lane, request, timeoutMs)
+    const waiter: Waiter = { ...settle, lane, difficulty: request.difficulty, unit, joined: false }
+    unit.owner = waiter
+    this.waiters.push(waiter)
+    this.lanes[lane].push(unit.job)
+    this.join()
+    return (reason) => {
+      this.lanes[waiter.unit.lane].cancel(waiter.unit.job, reason)
+    }
+  }
+
+  /** Runs a copy of a waiting foreground generate on the background worker, once it has nothing else. */
+  join(): void {
+    if (!this.lanes.background.idle) return
+    const waiter = this.waiters.find((w) => w.lane === 'foreground' && !w.joined)
+    if (waiter === undefined) return
+    waiter.joined = true
+    const seed = (waiter.unit.request.seed + 1) % SEED_LIMIT
+    const request = this.request(waiter.difficulty, seed)
+    const copy = this.unit('background', request, waiter.unit.job.timeoutMs)
+    this.lanes.background.push(copy.job)
+  }
+
+  private request(difficulty: Difficulty, seed: number): GenerateRequest {
+    return { v: PROTOCOL_VERSION, id: this.nextId(), kind: 'generate', difficulty, seed }
+  }
+
+  private unit(lane: Lane, request: GenerateRequest, timeoutMs: number): Unit {
+    const unit: Unit = {
+      lane,
+      request,
+      owner: null,
+      job: {
+        request,
+        transfer: [],
+        timeoutMs,
+        resolve: (bytes) => {
+          this.deliver(unit, bytes)
+        },
+        reject: (reason) => {
+          this.close(unit.owner)?.reject(reason)
+        },
+        preemptible: () => unit.owner?.lane !== 'foreground',
+        yielded: () => {
+          if (unit.owner !== null) this.adopt(unit.owner, unit)
+        },
+      },
+    }
+    return unit
+  }
+
+  /** Gives `owner` a fresh unit like `like`, at the front of its own lane. */
+  private adopt(owner: Waiter, like: Unit): void {
+    const unit = this.unit(owner.lane, { ...like.request, id: this.nextId() }, like.job.timeoutMs)
+    unit.owner = owner
+    owner.unit = unit
+    this.lanes[owner.lane].push(unit.job, true)
+  }
+
+  private close(waiter: Waiter | null): Waiter | null {
+    this.waiters = this.waiters.filter((w) => w !== waiter)
+    return waiter
+  }
+
+  // A foreground waiter comes first. The one whose unit it took inherits its unit in exchange.
+  private deliver(unit: Unit, bytes: ArrayBuffer): void {
+    const { difficulty } = unit.request
+    const open = this.waiters.filter((w) => w.difficulty === difficulty)
+    const target = open.find((w) => w.lane === 'foreground') ?? unit.owner ?? open[0]
+    if (target === undefined) {
+      this.spares.set(difficulty, [...(this.spares.get(difficulty) ?? []), bytes])
+      return
+    }
+    this.close(target)
+    if (target !== unit.owner) this.hand(target.unit, unit.owner)
+    target.resolve(bytes)
+  }
+
+  // A running unit keeps going. Queued, it is dropped and its new owner gets a copy on its own lane.
+  private hand(unit: Unit, owner: Waiter | null): void {
+    unit.owner = owner
+    if (owner !== null) owner.unit = unit
+    const lane = this.lanes[unit.lane]
+    if (lane.runs(unit.job)) return
+    lane.remove(unit.job)
+    if (owner !== null) this.adopt(owner, unit)
   }
 }
 
@@ -251,13 +429,25 @@ function onAbort(
   }
 }
 
-/** A client with a foreground lane for the player's requests and a background lane for refills. */
+/**
+ * A client with a foreground lane for the player's requests and a background lane for refills.
+ * A foreground generate takes the first result of its difficulty from either lane.
+ */
 export function createSolverClient(spawn: Spawn = spawnWorker): SolverClient {
-  const lanes: Readonly<Record<Lane, WorkerLane>> = {
-    foreground: new WorkerLane(spawn),
-    background: new WorkerLane(spawn),
-  }
   let lastId = 0
+  const nextId = (): number => {
+    lastId += 1
+    return lastId
+  }
+  const lanes: Readonly<Record<Lane, WorkerLane>> = {
+    foreground: new WorkerLane(spawn, { preempts: true }),
+    background: new WorkerLane(spawn, {
+      onIdle: () => {
+        generator.join()
+      },
+    }),
+  }
+  const generator = new Generator(lanes, nextId)
 
   // The overload ties each task to its result, which a generic body cannot narrow to.
   function run<T extends Task>(task: T, options?: RunOptions): Promise<ResultOf<T>>
@@ -268,17 +458,22 @@ export function createSolverClient(spawn: Spawn = spawnWorker): SolverClient {
         reject(new SolverError('aborted', signal.reason))
         return
       }
-      lastId += 1
-      const { request, transfer } = message(lastId, task)
+      const { request, transfer } = message(nextId(), task)
       const parsed = parseRequest(request)
       if (parsed === null) {
         reject(new SolverError('invalid'))
         return
       }
-      const job: Job = {
-        request: parsed,
-        transfer,
-        timeoutMs,
+      const spare = parsed.kind === 'generate' ? generator.spare(parsed.difficulty) : undefined
+      if (spare !== undefined) {
+        resolve(decode(task.kind, new Uint8Array(spare)))
+        return
+      }
+      let cancel: (reason: SolverError) => void
+      const detach = onAbort(signal, (reason) => {
+        cancel(reason)
+      })
+      const settle: Settle = {
         resolve: (bytes) => {
           detach()
           resolve(decode(task.kind, new Uint8Array(bytes)))
@@ -288,9 +483,14 @@ export function createSolverClient(spawn: Spawn = spawnWorker): SolverClient {
           reject(reason)
         },
       }
-      const detach = onAbort(signal, (reason) => {
+      if (parsed.kind === 'generate') {
+        cancel = generator.run(lane, parsed, timeoutMs, settle)
+        return
+      }
+      const job: Job = { request: parsed, transfer, timeoutMs, ...settle }
+      cancel = (reason) => {
         lanes[lane].cancel(job, reason)
-      })
+      }
       lanes[lane].push(job)
     })
   }
