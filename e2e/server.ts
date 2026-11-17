@@ -17,7 +17,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
+import { createServer, type IncomingMessage, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 
@@ -36,6 +36,15 @@ const TYPES: Readonly<Record<string, string>> = {
   '.wasm': 'application/wasm',
 }
 const NOT_FOUND = 404
+const OPENER_POLICY = 'Cross-Origin-Opener-Policy'
+
+// The policy moves a WebKit navigation into a new process, where it now and then never commits.
+// That is https://bugs.webkit.org/show_bug.cgi?id=327297, so a request from WebKit goes without it.
+function isWebKit(req: IncomingMessage) {
+  const agent = req.headers['user-agent'] ?? ''
+  const webkit = agent.includes('AppleWebKit') && !agent.includes('Chrome')
+  return webkit && req.headers['sec-fetch-mode'] !== undefined
+}
 
 export interface ServeOptions {
   /** Called with the path of each response once it is sent. */
@@ -67,7 +76,10 @@ export async function serveSite(root: string, options: ServeOptions = {}): Promi
     const file = found ?? path.join(root, '404.html')
     res.statusCode = found ? res.statusCode : NOT_FOUND
     res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream')
-    for (const [name, value] of headersFor(rules, pathname)) res.setHeader(name, value)
+    const keepPolicy = !isWebKit(req)
+    for (const [name, value] of headersFor(rules, pathname)) {
+      if (keepPolicy || name !== OPENER_POLICY) res.setHeader(name, value)
+    }
     res.end(readFileSync(file))
   })
   await new Promise<void>((resolve) => server.listen(0, resolve))
