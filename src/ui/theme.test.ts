@@ -18,6 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { pageStorage } from '../runtime/storage'
 import {
   applyTheme,
   bindThemeToggle,
@@ -29,6 +30,8 @@ import {
 } from './theme'
 
 const root = document.documentElement
+// The browser runner frames each test. The theme is stored in sessionStorage there.
+const saved = pageStorage(globalThis)
 
 /** Runs the head script in this realm, where vi.stubGlobal sets its matchMedia. */
 function runHeadScript() {
@@ -36,10 +39,16 @@ function runHeadScript() {
   evaluate(THEME_SCRIPT)
 }
 
+// A replaced `self` stops matching `top`, as in a frame, where the theme is stored in sessionStorage.
+const frame = () => {
+  vi.stubGlobal('self', {})
+}
+
 describe('the head script', () => {
   beforeEach(() => {
     delete root.dataset['theme']
     localStorage.clear()
+    sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -56,7 +65,7 @@ describe('the head script', () => {
     ['sepia', false, 'dark'],
   ])('reads a stored %s, the OS dark is %s, as %s', (stored, dark, theme) => {
     vi.stubGlobal('matchMedia', () => ({ matches: dark }))
-    localStorage.setItem(THEME_KEY, stored)
+    saved.setItem(THEME_KEY, stored)
     runHeadScript()
     expect(root.dataset['theme']).toBe(theme)
   })
@@ -72,8 +81,17 @@ describe('the head script', () => {
     expect(root.dataset['theme']).toBe('dark')
   })
 
-  it('keeps a theme the page already names', () => {
+  it('reads sessionStorage inside a frame', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }))
     localStorage.setItem(THEME_KEY, 'dark')
+    sessionStorage.setItem(THEME_KEY, 'light')
+    frame()
+    runHeadScript()
+    expect(root.dataset['theme']).toBe('light')
+  })
+
+  it('keeps a theme the page already names', () => {
+    saved.setItem(THEME_KEY, 'dark')
     root.dataset['theme'] = 'light'
     runHeadScript()
     expect(root.dataset['theme']).toBe('light')
@@ -90,6 +108,7 @@ describe('the toggle', () => {
   beforeEach(() => {
     root.dataset['theme'] = 'dark'
     localStorage.clear()
+    sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -128,10 +147,18 @@ describe('the toggle', () => {
     })
     expect(toggleTheme(document, { reducedMotion: () => false })).toBe('light')
     expect(transition).toHaveBeenCalledOnce()
-    expect(localStorage.getItem(THEME_KEY)).toBe('light')
+    expect(saved.getItem(THEME_KEY)).toBe('light')
     expect(toggleTheme(document, { reducedMotion: () => true })).toBe('dark')
     expect(transition).toHaveBeenCalledOnce()
     expect(root.dataset['theme']).toBe('dark')
+  })
+
+  it('stores the choice in sessionStorage inside a frame, leaving the saved theme alone', () => {
+    localStorage.setItem(THEME_KEY, 'dark')
+    frame()
+    expect(toggleTheme(document, { reducedMotion: () => true })).toBe('light')
+    expect(sessionStorage.getItem(THEME_KEY)).toBe('light')
+    expect(localStorage.getItem(THEME_KEY)).toBe('dark')
   })
 
   it('flips at once under reduced motion, read from the media query by default', () => {

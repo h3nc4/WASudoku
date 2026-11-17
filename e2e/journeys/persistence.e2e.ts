@@ -18,6 +18,7 @@
 
 import type { Page } from '@playwright/test'
 
+import { THEME_KEY } from '../../src/ui/theme'
 import {
   cell,
   difficulty,
@@ -43,6 +44,8 @@ const PAST_SAVE_DELAY_MS = 2000
 const welcome = (page: Page) => page.getByRole('heading', { name: 'Welcome to WASudoku' })
 const storedGame = (page: Page) =>
   page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.GAME)
+const storedTheme = (page: Page, area: 'localStorage' | 'sessionStorage') =>
+  page.evaluate(([name, key]) => window[name].getItem(key), [area, THEME_KEY] as const)
 
 test('reload mid-game restores board, notes and timer', async ({ page, open }) => {
   await open({ game: savedGame(), metrics: { timer: 65, mistakes: 1 } })
@@ -130,6 +133,14 @@ test('corrupt game keeps the metrics saved beside it', async ({ page, open }) =>
 // The portfolio shows the app in an iframe on the same site. That frame shares its localStorage.
 const FRAME_HOST = '/e2e-frame-host'
 
+const openFramed = async (page: Page) => {
+  await page.route(`**${FRAME_HOST}`, (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<iframe src="/" width="420" height="900">' }),
+  )
+  await page.goto(FRAME_HOST)
+  return page.frameLocator('iframe')
+}
+
 test.describe('framed', () => {
   // A service worker would answer the host page before the route could.
   test.use({ serviceWorkers: 'block' })
@@ -141,14 +152,7 @@ test.describe('framed', () => {
     await expect.poll(() => storedGame(page)).not.toBe(savedGame())
     const original = await storedGame(page)
 
-    await page.route(`**${FRAME_HOST}`, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: '<iframe src="/" width="420" height="900">',
-      }),
-    )
-    await page.goto(FRAME_HOST)
-    const frame = page.frameLocator('iframe')
+    const frame = await openFramed(page)
     await expect(frame.getByRole('heading', { name: 'Welcome to WASudoku' })).toBeVisible()
     await frame.getByRole('button', { name: 'Easy', exact: true }).click()
     const empty = frame.locator('[id^="cell-"]:not(:has(.d))').first()
@@ -161,5 +165,24 @@ test.describe('framed', () => {
     await page.goto('/')
     await expect(digitOf(page, R1C3)).toHaveText('4')
     expect(await storedGame(page)).toBe(original)
+  })
+
+  test('theme in a framed copy leaves the saved theme as it was', async ({ page, open }) => {
+    await open({ game: savedGame() })
+    const toggle = page.getByRole('button', { name: 'Toggle theme' })
+    await toggle.click()
+    await toggle.click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect.poll(() => storedTheme(page, 'localStorage')).toBe('dark')
+
+    const frame = await openFramed(page)
+    await expect(frame.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await frame.getByRole('button', { name: 'Toggle theme' }).click()
+    await expect(frame.locator('html')).toHaveAttribute('data-theme', 'light')
+    await expect.poll(() => storedTheme(page, 'sessionStorage')).toBe('light')
+    expect(await storedTheme(page, 'localStorage')).toBe('dark')
+
+    await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
 })
