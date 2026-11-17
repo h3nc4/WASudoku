@@ -79,6 +79,14 @@ describe('startRuntime', () => {
     expect(solver.warm).toHaveBeenCalledTimes(1)
   })
 
+  it('drops the warm-up once the page starts to unload', () => {
+    const { solver, timers } = start()
+    window.dispatchEvent(new Event('beforeunload'))
+    expect(timers.pendingIdles).toBe(0)
+    timers.runIdle()
+    expect(solver.warm).not.toHaveBeenCalled()
+  })
+
   it('registers the service worker when asked', async () => {
     const fakes = fakeDeps()
     const register = vi.fn(() => Promise.reject(new Error('blocked')))
