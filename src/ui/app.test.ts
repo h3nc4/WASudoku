@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NOTICES } from '../core/text/messages'
 import { harness, mountPage, playing } from '../test/app-page'
 import { fakeSolver } from '../test/runtime-fakes'
-import { mountApp, startApp, updatePorts } from './app'
+import { mountApp, SERVICE_WORKER_URL, startApp, updatePorts } from './app'
 import { createToaster } from './toast'
 
 const byId = (id: string) => document.getElementById(id)!
@@ -127,7 +127,19 @@ describe('mountApp', () => {
 })
 
 describe('startApp', () => {
+  // The test server answers 404 at the worker's URL, so an engine's own container stays unused.
+  // The registration never settles, so no update watch binds to the test page.
+  const register = vi.fn(() => new Promise<never>(() => undefined))
+
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { register, addEventListener: vi.fn(), controller: null },
+    })
+  })
+
   afterEach(() => {
+    Reflect.deleteProperty(navigator, 'serviceWorker')
     vi.unstubAllGlobals()
     history.replaceState(null, '', '/')
   })
@@ -141,6 +153,7 @@ describe('startApp', () => {
     const solver = fakeSolver()
     const stop = startApp(window, solver)
     expect(solver.calls.map(({ task }) => task.kind)).toEqual(['generate'])
+    expect(register).toHaveBeenCalledWith(SERVICE_WORKER_URL, { updateViaCache: 'none' })
     expect(location.search).toBe('')
     expect(byId('selection-screen').hidden).toBe(false)
     byId('theme-button').click()
