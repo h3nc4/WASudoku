@@ -38,13 +38,9 @@ ${dev_tools}"
 done
 
 # A tool counts as installed only at the pinned version, read from the cargo home holding it.
-installed() {
-  bin="$(command -v "$1")" || return 1
-  grep -qF "\"$1 $2 (" "$(dirname "$(dirname "${bin}")")/.crates.toml" 2>/dev/null
-}
-
 echo "${tools}" | while read -r name ver; do
-  if ! installed "${name}" "${ver}"; then
+  bin="$(command -v "${name}" || true)"
+  if [ -z "${bin}" ] || ! grep -qF "\"${name} ${ver} (" "${bin%/bin/*}/.crates.toml" 2>/dev/null; then
     echo "installing ${name} ${ver}"
     cargo install "${name}" --version "${ver}" --locked
   fi
