@@ -288,10 +288,8 @@ interface Unit {
 
 const SEED_LIMIT = Number.MAX_SAFE_INTEGER + 1
 
-/**
- * Generate tasks pooled by difficulty. Generation is rejection sampling, so a puzzle from any seed
- * is as good as another and a late copy has the same odds as an early one.
- */
+// Generation is rejection sampling, so a puzzle from any seed is as good as another.
+// That lets any caller of a difficulty take any result, and a late copy has an early one's odds.
 class Generator {
   private waiters: Waiter[] = []
   private readonly spares = new Map<Difficulty, ArrayBuffer[]>()
@@ -429,10 +427,8 @@ function onAbort(
   }
 }
 
-/**
- * A client with a foreground lane for the player's requests and a background lane for refills.
- * A foreground generate takes the first result of its difficulty from either lane.
- */
+// A foreground lane for the player's requests and a background lane for refills.
+// A foreground generate takes the first result of its difficulty from either lane.
 export function createSolverClient(spawn: Spawn = spawnWorker): SolverClient {
   let lastId = 0
   const nextId = (): number => {
