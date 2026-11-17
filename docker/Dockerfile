@@ -18,7 +18,7 @@
 # A Dockerfile to build a runtime container for WASudoku.
 
 # CI image tag
-ARG CI_IMAGE_TAG="latest@sha256:10c9de64f0443aaf527fbbaee7081a862e3d016f2fd914c5a2c06d75f73d107f"
+ARG CI_IMAGE_TAG="latest@sha256:6d99bde23a2eccee2c97ffff149ce33fea4ce7db7ca47b6727469c8df78d69fc"
 
 ################################################################################
 # Build stage
