@@ -89,8 +89,8 @@ fn test_unsolvable_puzzle_returns_false() {
 fn test_solve_randomized_unsolvable_immediate() {
     // Construct a board where a specific cell is empty but has no valid moves.
     let mut board = Board { cells: [0; 81] };
-    for i in 1..9 {
-        board.cells[i] = i as u8;
+    for (cell, value) in board.cells[1..9].iter_mut().zip(1..) {
+        *cell = value;
     }
     board.cells[9] = 9;
 
@@ -105,8 +105,8 @@ fn test_solve_randomized_backtracking() {
     let mut board = Board { cells: [0; 81] };
 
     // Fill Row 0 indices 3..8 with 3..8
-    for i in 3..9 {
-        board.cells[i] = i as u8;
+    for (cell, value) in board.cells[3..9].iter_mut().zip(3..) {
+        *cell = value;
     }
 
     // Block 9 from (0,0), (0,1), (0,2) using column blockers
