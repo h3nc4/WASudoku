@@ -403,9 +403,7 @@ fn test_hidden_triple_found() {
 
     // Fill the rest of the board with empty/full candidates to avoid interference
     // ALL_CANDIDATES is 0b111111111 = 511
-    for i in 9..81 {
-        board.candidates[i] = 511;
-    }
+    board.candidates[9..81].fill(511);
 
     let step =
         logical_solver::subsets::find_hidden_triple(&board).expect("Should find HiddenTriple");
