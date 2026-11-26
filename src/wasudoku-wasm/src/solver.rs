@@ -244,7 +244,8 @@ impl Grid {
                 let cell = unit
                     .iter()
                     .copied()
-                    .find(|&c| self.candidates[c] & digit_bit != 0)?;
+                    .find(|&c| self.candidates[c] & digit_bit != 0)
+                    .expect("a hidden digit has a cell in its unit");
                 if !self.place(cell, digit_of(digit_bit), singles) {
                     return None;
                 }

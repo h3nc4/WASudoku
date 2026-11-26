@@ -543,3 +543,14 @@ fn test_grade_stops_at_a_jellyfish_above_the_ceiling() {
     assert!(!solved);
     assert_eq!(stats, analyze_difficulty(&steps[..first_master]));
 }
+
+#[test]
+fn test_grade_fails_when_one_cell_is_the_only_home_of_two_digits() {
+    // The top left cell is the only place left for both 1 and 2 in the top row
+    let puzzle: Board =
+        "............1..2......2..1..12.........................21........................"
+            .parse()
+            .unwrap();
+    let (_, solved) = logical_solver::grade(&puzzle, TechniqueLevel::Master);
+    assert!(!solved);
+}
