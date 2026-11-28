@@ -54,7 +54,7 @@ RUN find /rootfs/static -type f ! -name '*.woff2' ! -name '*.png' \
 # Nginx builder stage
 FROM busybox:musl@sha256:80e38f9a1b39188b8bdb28879178edb322a4402b081a9aedda1924609decd6f6 AS nginx-builder
 
-COPY --from=h3nc4/nginx-slim@sha256:06fbde3fae0a2d62eff76173a1aeb3c2041ed3154c650e2e835f96b9972fca83 / /rootfs/
+COPY --from=h3nc4/nginx-slim@sha256:5535dae2e5a7f92e2c79b0bfad9bc91881085f9b34f0a94596483e25a6ea279e / /rootfs/
 
 # Minify nginx config, with the report-only policy the build wrote for the edge
 COPY "nginx.conf" "/tmp/nginx.conf"
